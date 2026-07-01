@@ -19,7 +19,14 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 | **6 Apply** | ◑ partial | ✅ **ATS detection**, **AI pre-submit reviewer**, **crash-resumable checkpoints**, **application-package assembly** (tailored resume + cover + template answers), **submitted-resume snapshot**. ❌ live Playwright form-fill (per-ATS), review-queue UI |
 | **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |
 
-**Post-review remediation (2026-07-01, from a deep architecture review):**
+**Production-readiness pass (2026-07-01, Top-20 from the deep review) — Phases A–D:**
+- **A (silent failures):** outbox **dead-lettering** (poison event no longer freezes the pipeline; `events.retry_count`/`dead_at`, mig 0012) · real **`logging`** replacing prints + de-swallowed `except`s · **`chat_json` retry+repair** on invalid model output + permanent-error short-circuit · **atomic first hop** (`insert_job_if_new(emit_discovered=True)` — no orphaned jobs).
+- **B (lifecycle & dead code):** drafting/apply now **drive `TAILORING_READY`→`DRAFTED`→`REVIEW_PENDING`** (dead events now fire) · **pruned** trigger-less `OPPORTUNITY`/`READY_TO_APPLY` + deleted retired `jobs.status` machinery (`set_job_status`, `list_jobs_for_scoring`, `idx_jobs_status`) · **wired `RateLimiter`** into crawls + **daily cap** on discovery · **soft-block** (captcha) detection.
+- **C (backend trust):** **dual-backend contract suite** (proves the pg SQL == sqlite) · schema-CHECK **parity guard** · `insert_job_if_new` **`ON CONFLICT`** (stops swallowing all IntegrityErrors) · **FK indexes** (mig  0013) · deterministic **tiebreakers** · **read-only** `raw_select` + negatives.
+- **D (API/worker durability):** consistent **error→HTTP** mapping · **deep `/health`** (probes DB) · **graceful shutdown** + **stale-run reaper** · `/score` creates a **run row** · **config-driven cost table** + unknown-model warning · **e2e HTTP** journey test.
+- **Deferred (E/F):** `response_model` DTOs · browser context pooling/per-profile lock · prompt-template centralization + `prompt_name/version` columns · N+1 batching · frontend Board split + react-router · Pydantic `Settings` · `config/selectors/naukri.json` · SSRF allowlisting (multi-tenant).
+
+**Earlier remediation (R1–R4, same day):**
 - **R1** — the transactional outbox is now atomic (`repo.apply_transition`: audit + state + event in one tx); `top_matches` returns the true winning variant per job (both backends); `JOB_ENRICHED` scores only that job (`score_job`), not the whole queue.
 - **R2** — `jobs.state` is the single lifecycle authority; `log_application` + `advance_stage` drive `transition_job`; `jobs.status` retired for lifecycle.
 - **R3** — layer boundaries restored (`apply/`, `notify/` no longer import `services/`); real AI-Gateway naming (`from job_hunt.llm import chat/chat_json`, not `.ollama`).

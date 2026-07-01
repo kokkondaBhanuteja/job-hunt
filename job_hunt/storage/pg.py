@@ -118,20 +118,56 @@ def upsert_resume_variant(
 
 def write_score(
     *, job_id: int, variant_id: int, fit_score: int, reasoning: str,
-    confidence: int | None = None,
+    confidence: int | None = None, scored_against: str | None = None,
+    input_hash: str | None = None, provider_model: str | None = None,
 ) -> None:
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO scores (job_id, variant_id, fit_score, confidence, reasoning, scored_at)
-            VALUES (%s, %s, %s, %s, %s, now())
+            INSERT INTO scores (job_id, variant_id, fit_score, confidence, reasoning,
+                                scored_against, input_hash, provider_model, scored_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now())
             ON CONFLICT (job_id, variant_id) DO UPDATE SET
-              fit_score  = EXCLUDED.fit_score,
-              confidence = EXCLUDED.confidence,
-              reasoning  = EXCLUDED.reasoning,
-              scored_at  = EXCLUDED.scored_at
+              fit_score      = EXCLUDED.fit_score,
+              confidence     = EXCLUDED.confidence,
+              reasoning      = EXCLUDED.reasoning,
+              scored_against = EXCLUDED.scored_against,
+              input_hash     = EXCLUDED.input_hash,
+              provider_model = EXCLUDED.provider_model,
+              scored_at      = EXCLUDED.scored_at
             """,
-            (job_id, variant_id, fit_score, confidence, reasoning),
+            (job_id, variant_id, fit_score, confidence, reasoning,
+             scored_against, input_hash, provider_model),
+        )
+
+
+def list_scorable_jobs(limit: int = 200) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT id, title, company, location, source, description, description_full, state
+            FROM jobs
+            WHERE state IN ('discovered', 'enriched', 'scored', 'opportunity')
+            ORDER BY discovered_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def scores_meta_for_job(job_id: int) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT variant_id, input_hash, provider_model FROM scores WHERE job_id = %s",
+            (job_id,),
+        ).fetchall()
+
+
+def set_job_enriched(job_id: int, description_full: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE jobs SET description_full = %s, enriched_at = now() WHERE id = %s",
+            (description_full, int(job_id)),
         )
 
 
@@ -242,8 +278,9 @@ def get_job(job_id: int) -> dict[str, Any] | None:
         return conn.execute(
             """
             SELECT id, dedup_hash, source, source_job_id, title, company, location,
-                   description, apply_url, posted_date, discovered_at::text AS discovered_at,
-                   raw_payload::text AS raw_payload, status
+                   description, description_full, enriched_at::text AS enriched_at,
+                   apply_url, posted_date, discovered_at::text AS discovered_at,
+                   raw_payload::text AS raw_payload, status, state
             FROM jobs WHERE id = %s
             """,
             (job_id,),

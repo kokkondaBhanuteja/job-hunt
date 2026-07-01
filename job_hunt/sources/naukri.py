@@ -267,3 +267,44 @@ def crawl_sync(
     return asyncio.run(
         crawl(keyword, location, pages=pages, dry_run=dry_run, headless=headless)
     )
+
+
+# ---------- JD enrichment ----------
+
+# Naukri's JD container class churns; try a few, then fall back to body text.
+JD_SELECTORS = [
+    "div.styles_JDC__dang-inner-html__h0K4t",
+    "section.job-desc",
+    "div.dang-inner-html",
+    "div.job-description",
+    "div.jd-container",
+]
+
+
+async def fetch_job_description(apply_url: str, *, headless: bool = True) -> str | None:
+    """Open a Naukri job page and extract the full JD text (or None)."""
+    async with managed_context("naukri", headless=headless) as ctx:
+        page = await ctx.new_page()
+        try:
+            await page.goto(apply_url, wait_until="domcontentloaded", timeout=45_000)
+        except Exception:
+            return None
+        await human_pause(1.0, 2.0)
+
+        for selector in JD_SELECTORS:
+            try:
+                el = page.locator(selector).first
+                if await el.count():
+                    text = (await el.inner_text()).strip()
+                    if len(text) > 200:  # a real JD, not a stub element
+                        return text
+            except Exception:
+                continue
+        try:  # fallback: whole page text, capped
+            return (await page.locator("body").inner_text()).strip()[:8000] or None
+        except Exception:
+            return None
+
+
+def fetch_job_description_sync(apply_url: str, *, headless: bool = True) -> str | None:
+    return asyncio.run(fetch_job_description(apply_url, headless=headless))

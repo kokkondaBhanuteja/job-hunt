@@ -1,27 +1,43 @@
 """
-Score each new job against each resume variant, pick the best fit.
+Score each scorable job against each resume variant, pick the best fit.
 
-The model returns a tight JSON: { fit_score: 0-100, reasoning: "..." }
-We persist one score per (job, variant) so the dashboard / MCP server can
-show which resume to send and why.
+Scoring is **idempotent**: a (job, variant) pair is only (re)scored when the JD text
+it would score against — or the scoring model — has changed since last time. So a
+re-run after enrichment re-scores against the full JD exactly once, and a plain re-run
+does nothing (and bills nothing). Prompts/schema come from the Prompt Library.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
 from job_hunt.enums import JobState
+from job_hunt.llm import registry
 from job_hunt.llm.ollama import chat_json
 from job_hunt.llm.prompts import SCORING
 from job_hunt.states import transition_job
 from job_hunt.storage.repo import (
-    list_jobs_for_scoring,
     list_resume_variants,
+    list_scorable_jobs,
+    scores_meta_for_job,
     write_score,
 )
 
 
-def _build_prompt(resume_json: dict[str, Any], job_row: Any) -> str:
+def _jd_for(job: Any) -> tuple[str, str]:
+    """The best JD text available for a job + which kind it is ('full' | 'snippet')."""
+    full = job["description_full"]
+    if full:
+        return full, "full"
+    return (job["description"] or ""), "snippet"
+
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _build_prompt(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> str:
     """Compact prompt: only the parts of the resume + job relevant to scoring."""
     resume_compact = {
         "headline": resume_json.get("headline"),
@@ -50,7 +66,7 @@ def _build_prompt(resume_json: dict[str, Any], job_row: Any) -> str:
         f"Location: {job_row['location'] or 'unspecified'}\n"
         f"Source:   {job_row['source']}\n\n"
         f"--- Job Description ---\n"
-        f"{(job_row['description'] or '')[:4000]}"
+        f"{jd_text[:6000]}"
     )
 
     return (
@@ -63,10 +79,10 @@ def _build_prompt(resume_json: dict[str, Any], job_row: Any) -> str:
     )
 
 
-def score_one(resume_json: dict[str, Any], job_row: Any) -> dict[str, Any]:
-    """Score one (variant, job) pair. Returns {'fit_score': int, 'reasoning': str}."""
+def score_one(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> dict[str, Any]:
+    """Score one (variant, job) pair. Returns {'fit_score', 'confidence', 'reasoning'}."""
     return chat_json(
-        _build_prompt(resume_json, job_row),
+        _build_prompt(resume_json, job_row, jd_text),
         schema=SCORING.schema,
         task="scoring",
         system=SCORING.system,
@@ -75,9 +91,9 @@ def score_one(resume_json: dict[str, Any], job_row: Any) -> dict[str, Any]:
 
 
 def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
-    """Iterate every new job × every resume variant; persist scores.
+    """(Re)score every scorable job × variant whose JD/model changed since last time.
 
-    Returns a small summary dict: {jobs_scored: N, score_rows_written: N}.
+    Returns {jobs_scored: N, score_rows_written: N}. Idempotent: unchanged pairs are skipped.
     """
     variants = list_resume_variants()
     if not variants:
@@ -85,39 +101,57 @@ def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
             "No resume variants in DB. Run `parse-resume` on your vault first."
         )
 
-    pending = list_jobs_for_scoring()
+    provider, model = registry.resolve("scoring")
+    provider_model = f"{provider.name}:{model}"
+
     jobs_scored = 0
     rows_written = 0
 
-    for job in pending:
+    for job in list_scorable_jobs():
+        jd_text, scored_against = _jd_for(job)
+        input_hash = _hash(jd_text)
+        existing = {
+            int(r["variant_id"]): (r["input_hash"], r["provider_model"])
+            for r in scores_meta_for_job(int(job["id"]))
+        }
+
+        wrote_any = False
         for variant in variants:
+            vid = int(variant["id"])
+            if existing.get(vid) == (input_hash, provider_model):
+                continue  # already scored against this exact JD + model → skip (idempotent)
             try:
                 resume_json = json.loads(variant["parsed_json"])
-                result = score_one(resume_json, job)
+                result = score_one(resume_json, job, jd_text)
                 confidence = result.get("confidence")
                 write_score(
                     job_id=int(job["id"]),
-                    variant_id=int(variant["id"]),
+                    variant_id=vid,
                     fit_score=int(result["fit_score"]),
                     reasoning=str(result["reasoning"]),
                     confidence=int(confidence) if confidence is not None else None,
+                    scored_against=scored_against,
+                    input_hash=input_hash,
+                    provider_model=provider_model,
                 )
                 rows_written += 1
+                wrote_any = True
                 if verbose:
                     print(
                         f"  [{variant['slug']:>16}] {result['fit_score']:3d} "
-                        f"| {job['company'][:25]:<25} | {job['title'][:50]}"
+                        f"({scored_against}) | {job['company'][:25]:<25} | {job['title'][:50]}"
                     )
             except Exception as exc:  # noqa: BLE001 — log + continue
                 if verbose:
                     print(f"  ! score failed for job={job['id']} variant={variant['slug']}: {exc}")
                 continue
-        jobs_scored += 1
-        # Advance the state machine (emits JOB_SCORED). Guarded: a job already past
-        # SCORED shouldn't abort the batch.
-        try:
-            transition_job(int(job["id"]), JobState.SCORED, reason="auto-scored")
-        except Exception:  # noqa: BLE001
-            pass
+
+        if wrote_any:
+            jobs_scored += 1
+            # Advance the state machine (emits JOB_SCORED). Guarded: already-SCORED is fine.
+            try:
+                transition_job(int(job["id"]), JobState.SCORED, reason="auto-scored")
+            except Exception:  # noqa: BLE001
+                pass
 
     return {"jobs_scored": jobs_scored, "score_rows_written": rows_written}

@@ -312,6 +312,16 @@ list/add/enable). New `GET /api/board`. `npm run build` passes (tsc + vite). Run
 not connected.)_
 
 ### Phase 4 — Deepen the loop
+
+_Status (enrichment slice DONE): migration `0004` + sqlite — `jobs.description_full`/`enriched_at`,
+`scores.scored_against`/`input_hash`/`provider_model`. Scoring is now **idempotent + JD-aware**: a (job,variant)
+pair re-scores only when the JD text or model changed (re-score-once after enrichment; plain re-run bills
+nothing). `enrich/` service (fetcher-injectable) + Naukri `fetch_job_description` + `hunt enrich`. **Event
+handlers wired** (`worker/handlers.py`): `JOB_DISCOVERED → enrich → JOB_ENRICHED → re-score` — the pipeline
+now auto-advances through `dispatch_pending`. Fixed a `pg.get_job` schema-drift bug (missing state/full-JD cols).
+63 tests green (idempotency, enrich, and end-to-end pipeline auto-advance verified on both backends).
+Still to do in P4: resume tailoring, cover letters/outreach, company research, prioritization rank._
+
 - **JD enrichment** → re-score (idempotent). **Company research** enrichment + **company memory**.
 - **Prioritization rank** = score × freshness × low-applicant-count. **Opportunity queue** decisions
   (apply / defer / wait-for-referral).

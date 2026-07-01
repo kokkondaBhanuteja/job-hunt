@@ -67,5 +67,12 @@ def run_all_active_profiles(*, headless: bool = True) -> list[dict[str, Any]]:
 
 
 def dispatch_events_once(handlers: dict[str, Any] | None = None) -> int:
-    """Drain the event outbox once (the worker calls this on a short cadence)."""
-    return bus.dispatch_pending(handlers or {})
+    """Drain the event outbox once (the worker calls this on a short cadence).
+
+    Defaults to the real pipeline handlers (discovered→enrich, enriched→score).
+    """
+    if handlers is None:
+        from job_hunt.worker.handlers import default_handlers
+
+        handlers = default_handlers()
+    return bus.dispatch_pending(handlers)

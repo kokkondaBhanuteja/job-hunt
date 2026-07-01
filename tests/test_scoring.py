@@ -46,3 +46,39 @@ def test_score_all_pending_requires_variants(tmp_db, monkeypatch):
     monkeypatch.setattr(match, "chat_json", lambda *a, **k: {"fit_score": 1, "reasoning": "x"})
     with pytest.raises(RuntimeError):
         match.score_all_pending()
+
+
+def _stub(monkeypatch):
+    monkeypatch.setattr(
+        match, "chat_json", lambda *a, **k: {"fit_score": 77, "reasoning": "stub"}
+    )
+
+
+def test_scoring_is_idempotent(tmp_db, monkeypatch):
+    _seed_job(tmp_db)
+    tmp_db.upsert_resume_variant(slug="v", source_path="/x", parsed={"h": 1}, tags=[])
+    _stub(monkeypatch)
+
+    first = match.score_all_pending()
+    assert first == {"jobs_scored": 1, "score_rows_written": 1}
+
+    # Nothing changed → re-run scores nothing (no re-billing).
+    second = match.score_all_pending()
+    assert second == {"jobs_scored": 0, "score_rows_written": 0}
+
+
+def test_enrichment_triggers_one_rescore_against_full_jd(tmp_db, monkeypatch):
+    jid = _seed_job(tmp_db)
+    tmp_db.upsert_resume_variant(slug="v", source_path="/x", parsed={"h": 1}, tags=[])
+    _stub(monkeypatch)
+
+    match.score_all_pending()  # scores against the snippet
+    with tmp_db.connect() as conn:
+        assert conn.execute("SELECT scored_against FROM scores WHERE job_id=?", (jid,)).fetchone()[0] == "snippet"
+
+    # Enrich → full JD differs → exactly one re-score, now against 'full'.
+    tmp_db.set_job_enriched(jid, "A much longer full job description with real requirements.")
+    summary = match.score_all_pending()
+    assert summary == {"jobs_scored": 1, "score_rows_written": 1}
+    with tmp_db.connect() as conn:
+        assert conn.execute("SELECT scored_against FROM scores WHERE job_id=?", (jid,)).fetchone()[0] == "full"

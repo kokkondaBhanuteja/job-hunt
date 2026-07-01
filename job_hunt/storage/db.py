@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     title           TEXT NOT NULL,
     company         TEXT NOT NULL,
     location        TEXT,
-    description     TEXT,                          -- full JD text
+    description     TEXT,                          -- listing snippet
+    description_full TEXT,                          -- full JD text (from the enrich step)
+    enriched_at     TEXT,                           -- ISO8601 UTC when the full JD was fetched
     apply_url       TEXT NOT NULL,
     posted_date     TEXT,
     discovered_at   TEXT NOT NULL,                 -- ISO8601 UTC
@@ -76,6 +78,9 @@ CREATE TABLE IF NOT EXISTS scores (
     fit_score       INTEGER NOT NULL,             -- 0-100
     confidence      INTEGER,                       -- 0-100; how sure the model is (low when JD incomplete)
     reasoning       TEXT NOT NULL,                -- short paragraph
+    scored_against  TEXT,                          -- 'snippet' | 'full' — which JD text was scored
+    input_hash      TEXT,                          -- hash of the JD text used (idempotency)
+    provider_model  TEXT,                          -- provider/model that produced the score
     scored_at       TEXT NOT NULL,                -- ISO8601 UTC
     UNIQUE(job_id, variant_id)
 );
@@ -231,6 +236,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     the app enforces enum values on migrated DBs.)
     """
     _ensure_column(conn, "scores", "confidence", "INTEGER")
+    _ensure_column(conn, "scores", "scored_against", "TEXT")
+    _ensure_column(conn, "scores", "input_hash", "TEXT")
+    _ensure_column(conn, "scores", "provider_model", "TEXT")
+    _ensure_column(conn, "jobs", "description_full", "TEXT")
+    _ensure_column(conn, "jobs", "enriched_at", "TEXT")
     _ensure_column(conn, "jobs", "state", f"TEXT NOT NULL DEFAULT '{JobState.DISCOVERED}'")
     _ensure_column(conn, "runs", "status", f"TEXT NOT NULL DEFAULT '{RunStatus.QUEUED}'")
     _ensure_column(conn, "runs", "heartbeat_at", "TEXT")
@@ -376,19 +386,60 @@ def write_score(
     fit_score: int,
     reasoning: str,
     confidence: int | None = None,
+    scored_against: str | None = None,
+    input_hash: str | None = None,
+    provider_model: str | None = None,
 ) -> None:
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO scores (job_id, variant_id, fit_score, confidence, reasoning, scored_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO scores (job_id, variant_id, fit_score, confidence, reasoning,
+                                scored_against, input_hash, provider_model, scored_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(job_id, variant_id) DO UPDATE SET
-              fit_score  = excluded.fit_score,
-              confidence = excluded.confidence,
-              reasoning  = excluded.reasoning,
-              scored_at  = excluded.scored_at
+              fit_score      = excluded.fit_score,
+              confidence     = excluded.confidence,
+              reasoning      = excluded.reasoning,
+              scored_against = excluded.scored_against,
+              input_hash     = excluded.input_hash,
+              provider_model = excluded.provider_model,
+              scored_at      = excluded.scored_at
             """,
-            (job_id, variant_id, fit_score, confidence, reasoning, now_iso()),
+            (job_id, variant_id, fit_score, confidence, reasoning,
+             scored_against, input_hash, provider_model, now_iso()),
+        )
+
+
+def list_scorable_jobs(limit: int = 200) -> list[sqlite3.Row]:
+    """Jobs eligible for (re)scoring — not yet in a terminal/applied state."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT id, title, company, location, source, description, description_full, state
+            FROM jobs
+            WHERE state IN ('discovered', 'enriched', 'scored', 'opportunity')
+            ORDER BY discovered_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def scores_meta_for_job(job_id: int) -> list[sqlite3.Row]:
+    """(variant_id, input_hash, provider_model) per existing score — for idempotency."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT variant_id, input_hash, provider_model FROM scores WHERE job_id = ?",
+            (job_id,),
+        ).fetchall()
+
+
+def set_job_enriched(job_id: int, description_full: str) -> None:
+    """Store the full JD text + enriched timestamp."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE jobs SET description_full = ?, enriched_at = ? WHERE id = ?",
+            (description_full, now_iso(), int(job_id)),
         )
 
 

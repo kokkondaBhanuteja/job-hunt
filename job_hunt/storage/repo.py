@@ -34,11 +34,14 @@ set_job_status = _impl.set_job_status
 
 list_resume_variants = _impl.list_resume_variants
 list_jobs_for_scoring = _impl.list_jobs_for_scoring
+list_scorable_jobs = _impl.list_scorable_jobs
 list_board_jobs = _impl.list_board_jobs
 top_matches = _impl.top_matches
 get_job = _impl.get_job
 list_scores_for_job = _impl.list_scores_for_job
+scores_meta_for_job = _impl.scores_meta_for_job
 find_variant_id_by_slug = _impl.find_variant_id_by_slug
+set_job_enriched = _impl.set_job_enriched
 
 # state machine
 get_job_state = _impl.get_job_state

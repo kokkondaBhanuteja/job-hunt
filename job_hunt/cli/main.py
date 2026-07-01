@@ -93,6 +93,13 @@ def cmd_discover_naukri(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_enrich(args: argparse.Namespace) -> int:
+    """Fetch the full JD for discovered jobs (opens each job page)."""
+    result = services.enrich_pending_jobs(limit=args.limit, headless=args.headless)
+    print(f"  enriched {result['enriched']}/{result['candidates']} candidates")
+    return 0
+
+
 def cmd_score(args: argparse.Namespace) -> int:
     try:
         summary = services.score_pending(verbose=args.verbose)
@@ -214,6 +221,11 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--headless", action="store_true", help="Hide the browser (only after a successful warm run)")
     d.add_argument("--verbose", action="store_true")
     d.set_defaults(func=cmd_discover_naukri)
+
+    en = sub.add_parser("enrich", help="Fetch full JDs for discovered jobs")
+    en.add_argument("--limit", type=int, default=50)
+    en.add_argument("--headless", action="store_true", help="Hide the browser")
+    en.set_defaults(func=cmd_enrich)
 
     s = sub.add_parser("score", help="LLM-score every pending job × every variant")
     s.add_argument("--verbose", action="store_true")

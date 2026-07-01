@@ -19,9 +19,10 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 | **6 Apply** | ◑ partial | ✅ **ATS detection** + **AI pre-submit reviewer** (quality gate). ❌ Playwright form-fill, review-queue UI, checkpoints |
 | **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |
 
-**Known loose ends:** no real Ollama scoring run yet (only stub-tested); scrape-health not wired into `runs`;
-README still describes v0; `config/selectors/naukri.json` referenced but absent; physical `backend/` move never done
-(package stays at repo root beside `frontend/`).
+**Known loose ends:** no real Ollama scoring run yet (only stub-tested — needs Ollama running on the host);
+`config/selectors/naukri.json` referenced but absent (dead fallback); physical `backend/` move never done
+(package stays at repo root beside `frontend/`). *(Fixed: README now reflects the full platform; scrape-health
+wired into `runs` — a blocked Naukri scrape fails the run + emits `SCRAPE_BLOCKED`.)*
 
 ## Context
 

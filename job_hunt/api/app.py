@@ -13,7 +13,7 @@ import os
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -227,6 +227,19 @@ def create_contact(body: ContactIn) -> dict[str, Any]:
         email_guess=body.email_guess, linkedin_url=body.linkedin_url, notes=body.notes,
     )
     return {"id": cid}
+
+
+@api.post("/jobs/{job_id}/prepare")
+def prepare(job_id: int, screening_questions: list[str] = Body(default=[])) -> dict[str, Any]:
+    result = services.prepare_application(job_id, screening_questions)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@api.post("/jobs/{job_id}/submitted")
+def submitted(job_id: int) -> dict[str, Any]:
+    return services.record_submitted_resume(job_id)
 
 
 @api.post("/apply/review")

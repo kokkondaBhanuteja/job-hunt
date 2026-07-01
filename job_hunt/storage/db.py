@@ -206,6 +206,25 @@ CREATE TABLE IF NOT EXISTS tailored_resumes (
     UNIQUE(job_id, variant_id)
 );
 
+-- Resumable progress of a multi-page application (crash recovery).
+CREATE TABLE IF NOT EXISTS apply_checkpoints (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id     INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    step       INTEGER NOT NULL,               -- last completed step index
+    data       TEXT,                            -- JSON: accumulated fill state
+    updated_at TEXT NOT NULL,
+    UNIQUE(job_id)
+);
+
+-- Immutable snapshot of exactly what résumé was submitted (answers "which got interviews?").
+CREATE TABLE IF NOT EXISTS submitted_resumes (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id       INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    variant_id   INTEGER REFERENCES resume_variants(id),
+    content      TEXT NOT NULL,
+    submitted_at TEXT NOT NULL
+);
+
 -- Generated drafts: cover letters + recruiter outreach.
 CREATE TABLE IF NOT EXISTS drafts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -555,6 +574,41 @@ def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM drafts WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
         ).fetchall()
+
+
+def save_checkpoint(*, job_id: int, step: int, data: dict[str, Any]) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO apply_checkpoints (job_id, step, data, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(job_id) DO UPDATE SET
+              step = excluded.step, data = excluded.data, updated_at = excluded.updated_at
+            """,
+            (int(job_id), int(step), _to_json(data), now_iso()),
+        )
+
+
+def get_checkpoint(job_id: int) -> sqlite3.Row | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM apply_checkpoints WHERE job_id = ?", (int(job_id),)
+        ).fetchone()
+
+
+def clear_checkpoint(job_id: int) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM apply_checkpoints WHERE job_id = ?", (int(job_id),))
+
+
+def save_submitted_resume(*, job_id: int, variant_id: int | None, content: str) -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO submitted_resumes (job_id, variant_id, content, submitted_at) "
+            "VALUES (?, ?, ?, ?)",
+            (int(job_id), variant_id, content, now_iso()),
+        )
+        return int(cur.lastrowid)
 
 
 def save_company(

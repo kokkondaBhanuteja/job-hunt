@@ -11,7 +11,11 @@ from job_hunt.services.analytics import dashboard, variant_performance
 from job_hunt.services.answers import add_answer_template, list_answer_templates, suggest_answer
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.learning import learn_from_rejection
-from job_hunt.services.apply import review_application
+from job_hunt.services.apply import (
+    prepare_application,
+    record_submitted_resume,
+    review_application,
+)
 from job_hunt.services.companies import company_history, get_company, upsert_company
 from job_hunt.services.crm import add_contact, list_contacts
 from job_hunt.services.discovery import discover, discover_naukri
@@ -54,6 +58,8 @@ __all__ = [
     "list_answer_templates",
     "suggest_answer",
     "review_application",
+    "prepare_application",
+    "record_submitted_resume",
     "tailor_for_job",
     "draft_cover_for_job",
     "draft_outreach_for_job",

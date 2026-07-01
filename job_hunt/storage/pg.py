@@ -316,6 +316,42 @@ def list_answer_templates() -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def save_checkpoint(*, job_id: int, step: int, data: dict[str, Any]) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO apply_checkpoints (job_id, step, data, updated_at)
+            VALUES (%s, %s, %s, now())
+            ON CONFLICT (job_id) DO UPDATE SET
+              step = EXCLUDED.step, data = EXCLUDED.data, updated_at = now()
+            """,
+            (int(job_id), int(step), Jsonb(data)),
+        )
+
+
+def get_checkpoint(job_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, step, data::text AS data, updated_at::text AS updated_at "
+            "FROM apply_checkpoints WHERE job_id = %s",
+            (int(job_id),),
+        ).fetchone()
+
+
+def clear_checkpoint(job_id: int) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM apply_checkpoints WHERE job_id = %s", (int(job_id),))
+
+
+def save_submitted_resume(*, job_id: int, variant_id: int | None, content: str) -> int:
+    with connect() as conn:
+        return conn.execute(
+            "INSERT INTO submitted_resumes (job_id, variant_id, content) "
+            "VALUES (%s, %s, %s) RETURNING id",
+            (int(job_id), variant_id, content),
+        ).fetchone()["id"]
+
+
 def save_learning(
     *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
 ) -> int:

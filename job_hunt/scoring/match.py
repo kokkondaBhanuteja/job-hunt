@@ -106,10 +106,17 @@ def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
         )
     provider_model = _provider_model()
 
+    jobs = list(list_scorable_jobs())
+    # One batched query for all existing-score metadata instead of one per job (idempotency N+1).
+    meta_by_job = repo.scores_meta_for_jobs([int(j["id"]) for j in jobs])
+
     jobs_scored = 0
     rows_written = 0
-    for job in list_scorable_jobs():
-        wrote = _score_job_row(job, variants, provider_model, verbose=verbose)
+    for job in jobs:
+        wrote = _score_job_row(
+            job, variants, provider_model,
+            existing_meta=meta_by_job.get(int(job["id"]), []), verbose=verbose,
+        )
         rows_written += wrote
         if wrote:
             jobs_scored += 1
@@ -133,13 +140,20 @@ def _provider_model() -> str:
     return f"{provider.name}:{model}"
 
 
-def _score_job_row(job: Any, variants: Any, provider_model: str, *, verbose: bool = False) -> int:
-    """Score one job row against every variant (idempotent). Returns rows written."""
+def _score_job_row(
+    job: Any, variants: Any, provider_model: str, *,
+    existing_meta: Any = None, verbose: bool = False,
+) -> int:
+    """Score one job row against every variant (idempotent). Returns rows written.
+
+    `existing_meta` lets a batch caller pass this job's score metadata (pre-fetched in one
+    query); a single-job caller leaves it None and it's fetched here.
+    """
     jd_text, scored_against = _jd_for(job)
     input_hash = _hash(jd_text)
+    meta_rows = existing_meta if existing_meta is not None else scores_meta_for_job(int(job["id"]))
     existing = {
-        int(r["variant_id"]): (r["input_hash"], r["provider_model"])
-        for r in scores_meta_for_job(int(job["id"]))
+        int(r["variant_id"]): (r["input_hash"], r["provider_model"]) for r in meta_rows
     }
 
     wrote = 0

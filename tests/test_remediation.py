@@ -141,6 +141,19 @@ def test_insert_emits_discovered_atomically(tmp_db):
     assert any(e["type"] == "job.discovered" for e in tmp_db.fetch_unprocessed_events())
 
 
+def test_scores_meta_for_jobs_groups_by_job(tmp_db):
+    j1 = _job(tmp_db, h="m1")
+    j2 = _job(tmp_db, h="m2")
+    vid = tmp_db.upsert_resume_variant(slug="v", source_path="/x", parsed={"h": 1}, tags=[])
+    tmp_db.write_score(job_id=j1, variant_id=vid, fit_score=70, reasoning="a")
+    tmp_db.write_score(job_id=j2, variant_id=vid, fit_score=80, reasoning="b")
+
+    meta = tmp_db.scores_meta_for_jobs([j1, j2, 9999])
+    assert set(meta.keys()) == {j1, j2}          # 9999 has no scores → absent
+    assert len(meta[j1]) == 1 and int(meta[j1][0]["variant_id"]) == vid
+    assert tmp_db.scores_meta_for_jobs([]) == {}
+
+
 def test_insert_without_flag_emits_nothing(tmp_db):
     tmp_db.insert_job_if_new(
         dedup_hash="a4b", source="naukri", source_job_id=None, title="BE", company="Acme",

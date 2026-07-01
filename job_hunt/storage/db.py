@@ -528,6 +528,23 @@ def scores_meta_for_job(job_id: int) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def scores_meta_for_jobs(job_ids: list[int]) -> dict[int, list[sqlite3.Row]]:
+    """Batched `scores_meta_for_job` for many jobs in ONE query (avoids the scoring N+1)."""
+    if not job_ids:
+        return {}
+    placeholders = ",".join("?" * len(job_ids))
+    with connect() as conn:
+        rows = conn.execute(
+            f"SELECT job_id, variant_id, input_hash, provider_model FROM scores "
+            f"WHERE job_id IN ({placeholders})",
+            [int(j) for j in job_ids],
+        ).fetchall()
+    out: dict[int, list[sqlite3.Row]] = {}
+    for row in rows:
+        out.setdefault(int(row["job_id"]), []).append(row)
+    return out
+
+
 def set_job_enriched(job_id: int, description_full: str) -> None:
     """Store the full JD text + enriched timestamp."""
     with connect() as conn:

@@ -39,6 +39,7 @@ top_matches = _impl.top_matches
 get_job = _impl.get_job
 list_scores_for_job = _impl.list_scores_for_job
 scores_meta_for_job = _impl.scores_meta_for_job
+scores_meta_for_jobs = _impl.scores_meta_for_jobs
 find_variant_id_by_slug = _impl.find_variant_id_by_slug
 set_job_enriched = _impl.set_job_enriched
 

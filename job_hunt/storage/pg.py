@@ -182,6 +182,22 @@ def scores_meta_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def scores_meta_for_jobs(job_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    """Batched `scores_meta_for_job` for many jobs in ONE query (avoids the scoring N+1)."""
+    if not job_ids:
+        return {}
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT job_id, variant_id, input_hash, provider_model FROM scores "
+            "WHERE job_id = ANY(%s)",
+            ([int(j) for j in job_ids],),
+        ).fetchall()
+    out: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        out.setdefault(int(row["job_id"]), []).append(row)
+    return out
+
+
 def set_job_enriched(job_id: int, description_full: str) -> None:
     with connect() as conn:
         conn.execute(

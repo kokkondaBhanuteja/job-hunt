@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy this file to naukri.json (same dir) to hot-patch Naukri's CSS selectors WITHOUT editing Python. Keys you set here override sources/naukri.py::DEFAULT_SELECTORS; omitted keys fall back to the code defaults. Delete naukri.json to revert to defaults.",
+  "card": "div.cust-job-tuple",
+  "title": "a.title",
+  "company": "a.comp-name, span.comp-name",
+  "location": "span.locWdth, span.loc-wrap",
+  "snippet": "span.job-desc",
+  "experience": "span.expwdth, span.exp-wrap",
+  "posted": "span.job-post-day, span.post-day"
+}

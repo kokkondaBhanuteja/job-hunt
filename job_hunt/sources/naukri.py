@@ -9,8 +9,9 @@ profile that you can log into manually if/when needed. We only grab what's on th
 listing card (title, company, location, snippet, apply URL). Full JD enrichment
 can come in v1.
 
-Selectors are loaded from config/selectors/naukri.json so you can hot-patch them
-when Naukri reshuffles their CSS classes — no Python edit needed.
+Selectors default to DEFAULT_SELECTORS below. To hot-patch them when Naukri reshuffles
+its CSS classes — no Python edit needed — copy config/selectors/naukri.json.example to
+config/selectors/naukri.json and edit; present keys override the defaults.
 """
 from __future__ import annotations
 

@@ -1,0 +1,25 @@
+# Postgres + pgvector — the platform datastore. Only this is dockerized;
+# the backend/worker/frontend and Ollama run natively (Metal passthrough on
+# macOS into a Linux container is painful and slow).
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: jobhunt-db
+    environment:
+      POSTGRES_USER: jobhunt
+      POSTGRES_PASSWORD: jobhunt
+      POSTGRES_DB: jobhunt
+    # Host 55432 → container 5432 (avoids clashing with a local Postgres on 5432
+    # and another project's container on 5433).
+    ports:
+      - "55432:5432"
+    volumes:
+      - jobhunt_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhunt -d jobhunt"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  jobhunt_pgdata:

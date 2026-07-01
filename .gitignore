@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local config + private data
+.env.local
+.env
+
+# Generated runtime data — keep dir, ignore contents
+data/jobhunt.db
+data/jobhunt.db-journal
+data/jobhunt.db-shm
+data/jobhunt.db-wal
+data/sessions/
+data/logs/
+
+# Keep the vault DIR but ignore the actual resume files (they are private)
+data/resumes/*.pdf
+data/resumes/*.tex
+data/resumes/*.docx
+!data/resumes/.gitkeep
+
+# OS
+.DS_Store

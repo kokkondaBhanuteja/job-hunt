@@ -1,0 +1,69 @@
+"""Storage backend façade — the single import point for persistence.
+
+Selects the backend from the `DB_BACKEND` env var (default `sqlite`):
+  - `sqlite`   → job_hunt.storage.db   (fast, zero-infra; the test path)
+  - `postgres` → job_hunt.storage.pg   (psycopg3; the production datastore)
+
+Both modules expose the same function surface, so every caller (services, scoring,
+resume parsing, LLM logging, CLI) imports from here and is backend-agnostic.
+"""
+from __future__ import annotations
+
+import os
+
+_BACKEND = os.getenv("DB_BACKEND", "sqlite").lower()
+
+if _BACKEND in ("postgres", "pg", "postgresql"):
+    from job_hunt.storage import pg as _impl
+    backend = "postgres"
+else:
+    from job_hunt.storage import db as _impl
+    backend = "sqlite"
+
+# Re-export the shared repository surface.
+init_db = _impl.init_db
+describe = _impl.describe
+raw_select = _impl.raw_select
+
+insert_job_if_new = _impl.insert_job_if_new
+upsert_resume_variant = _impl.upsert_resume_variant
+write_score = _impl.write_score
+write_llm_call = _impl.write_llm_call
+record_application = _impl.record_application
+set_job_status = _impl.set_job_status
+
+list_resume_variants = _impl.list_resume_variants
+list_jobs_for_scoring = _impl.list_jobs_for_scoring
+list_board_jobs = _impl.list_board_jobs
+top_matches = _impl.top_matches
+get_job = _impl.get_job
+list_scores_for_job = _impl.list_scores_for_job
+find_variant_id_by_slug = _impl.find_variant_id_by_slug
+
+# state machine
+get_job_state = _impl.get_job_state
+set_job_state = _impl.set_job_state
+write_job_transition = _impl.write_job_transition
+
+# event outbox
+write_event = _impl.write_event
+fetch_unprocessed_events = _impl.fetch_unprocessed_events
+mark_event_processed = _impl.mark_event_processed
+
+# runs
+create_run = _impl.create_run
+start_run = _impl.start_run
+heartbeat_run = _impl.heartbeat_run
+finish_run = _impl.finish_run
+request_run_cancel = _impl.request_run_cancel
+run_cancel_requested = _impl.run_cancel_requested
+append_run_log = _impl.append_run_log
+get_run = _impl.get_run
+list_recent_runs = _impl.list_recent_runs
+
+# search profiles
+create_search_profile = _impl.create_search_profile
+list_search_profiles = _impl.list_search_profiles
+list_active_search_profiles = _impl.list_active_search_profiles
+get_search_profile = _impl.get_search_profile
+set_search_profile_enabled = _impl.set_search_profile_enabled

@@ -10,9 +10,18 @@ OLLAMA_SCORING_MODEL / OLLAMA_DRAFTING_MODEL envs (default qwen2.5:7b).
 """
 from __future__ import annotations
 
+import json
 import os
 
 from job_hunt.enums import LLMProvider as ProviderKind
+from job_hunt.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
+def _is_free(model: str) -> bool:
+    """Local/stub models cost nothing — an Ollama tag ('qwen2.5:7b') or the test stub."""
+    return ":" in model or model.lower() == "stub"
 from job_hunt.enums import LLMTask
 from job_hunt.llm.base import LLMError, LLMProvider
 from job_hunt.llm.providers.openai_compat import OpenAICompatProvider
@@ -25,12 +34,31 @@ DRAFTING_MODEL = os.getenv("OLLAMA_DRAFTING_MODEL", "qwen2.5:7b")
 
 _LEGACY_MODEL_DEFAULT = {LLMTask.SCORING: SCORING_MODEL, LLMTask.DRAFTING: DRAFTING_MODEL}
 
-# Rough USD per 1K tokens (prompt, completion). 0 for local/stub. Extend as needed.
+# Rough USD per 1K tokens (prompt, completion). 0 for local/stub. Extend via the
+# LLM_COST_TABLE env (JSON: {"model": [prompt_per_1k, completion_per_1k]}) so pricing
+# is config, not code — the daily report no longer silently under-reports a model it
+# doesn't recognize; it warns instead.
 _COST_PER_1K: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.00015, 0.0006),
     "gpt-4o": (0.0025, 0.01),
     "gemini-1.5-flash": (0.000075, 0.0003),
 }
+
+
+def _load_cost_table() -> dict[str, tuple[float, float]]:
+    table = dict(_COST_PER_1K)
+    raw = os.getenv("LLM_COST_TABLE")
+    if raw:
+        try:
+            for model, rate in json.loads(raw).items():
+                table[model] = (float(rate[0]), float(rate[1]))
+        except Exception:  # noqa: BLE001
+            logger.warning("LLM_COST_TABLE is not valid JSON of {model: [p, c]}; ignoring")
+    return table
+
+
+_COST_TABLE = _load_cost_table()
+_WARNED_UNKNOWN: set[str] = set()
 
 
 def _provider_for(kind: str) -> LLMProvider:
@@ -84,8 +112,14 @@ def resolve_fallback(task: str) -> tuple[LLMProvider, str] | None:
 
 
 def cost(model: str, prompt_tokens: int | None, completion_tokens: int | None) -> float:
-    """Estimated USD cost for a call. 0 when the model isn't in the price table."""
-    rate = _COST_PER_1K.get(model)
+    """Estimated USD cost for a call. 0 when the model isn't in the price table.
+
+    Warns once per unknown model so a paid model missing from the table doesn't silently
+    report $0 in the cost dashboard (add it via LLM_COST_TABLE)."""
+    rate = _COST_TABLE.get(model)
+    if rate is None and model not in _WARNED_UNKNOWN and not _is_free(model):
+        _WARNED_UNKNOWN.add(model)
+        logger.warning("no price for model '%s' — cost logged as $0 (set LLM_COST_TABLE)", model)
     if not rate or prompt_tokens is None or completion_tokens is None:
         return 0.0
     p_rate, c_rate = rate

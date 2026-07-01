@@ -38,6 +38,22 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="invalid or missing API token")
 
 
+# ---------- consistent service-error → HTTP mapping ----------
+# One place decides the status for a service `{"error": ...}` result, so the same class of
+# failure returns the same code everywhere (previously "no job" was 404 on one route, 400 on
+# another). Missing-resource messages → 404; everything else (validation/precondition) → 400.
+# (A typed service-exception hierarchy is the eventual upgrade; this fixes the inconsistency now.)
+_NOT_FOUND_HINTS = ("no job with id", "no run", "not found")
+
+
+def _unwrap(result: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(result, dict) and "error" in result:
+        msg = str(result["error"])
+        status = 404 if any(h in msg.lower() for h in _NOT_FOUND_HINTS) else 400
+        raise HTTPException(status_code=status, detail=msg)
+    return result
+
+
 # ---------- request models (Pydantic only at the boundary) ----------
 
 
@@ -96,13 +112,27 @@ app.add_middleware(
 )
 
 
+def _db_ok() -> bool:
+    try:
+        repo.raw_select("SELECT 1")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    """Unauthenticated reachability + config summary (no secrets)."""
+    """Unauthenticated readiness + config summary (no secrets).
+
+    Actually probes the datastore (SELECT 1) so it reports "degraded" when Postgres is down,
+    instead of a blind "ok". (LLM liveness is intentionally not pinged on this polled endpoint;
+    use `hunt selfcheck` for a deep provider probe.)
+    """
+    db_ok = _db_ok()
     tasks = {t: {"provider": p.name, "model": m} for t in ("scoring", "drafting")
              for p, m in [resolve_llm(t)]}
-    return {"status": "ok", "datastore": repo.backend,
-            "sources": plugins.available_sources(), "llm": tasks}
+    return {"status": "ok" if db_ok else "degraded", "datastore": repo.backend,
+            "db_ok": db_ok, "sources": plugins.available_sources(), "llm": tasks}
 
 
 api = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
@@ -120,10 +150,7 @@ def board(limit: int = 200) -> list[dict[str, Any]]:
 
 @api.get("/jobs/{job_id}")
 def get_job(job_id: int) -> dict[str, Any]:
-    result = services.get_job(job_id)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    return _unwrap(services.get_job(job_id))
 
 
 @api.get("/resume-variants")
@@ -183,18 +210,12 @@ def cancel_run(run_id: int) -> dict[str, Any]:
 
 @api.post("/jobs/{job_id}/tailor")
 def tailor(job_id: int) -> dict[str, Any]:
-    result = services.tailor_for_job(job_id)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.tailor_for_job(job_id))
 
 
 @api.post("/jobs/{job_id}/cover")
 def cover(job_id: int) -> dict[str, Any]:
-    result = services.draft_cover_for_job(job_id)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.draft_cover_for_job(job_id))
 
 
 @api.get("/jobs/{job_id}/drafts")
@@ -204,10 +225,7 @@ def drafts(job_id: int) -> list[dict[str, Any]]:
 
 @api.post("/jobs/{job_id}/outreach")
 def outreach(job_id: int, contact_name: str = "") -> dict[str, Any]:
-    result = services.draft_outreach_for_job(job_id, contact_name=contact_name)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.draft_outreach_for_job(job_id, contact_name=contact_name))
 
 
 @api.get("/companies/{name}/history")
@@ -231,10 +249,7 @@ def create_contact(body: ContactIn) -> dict[str, Any]:
 
 @api.post("/jobs/{job_id}/prepare")
 def prepare(job_id: int, screening_questions: list[str] | None = Body(default=None)) -> dict[str, Any]:
-    result = services.prepare_application(job_id, screening_questions)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    return _unwrap(services.prepare_application(job_id, screening_questions))
 
 
 @api.post("/jobs/{job_id}/submitted")
@@ -245,12 +260,9 @@ def submitted(job_id: int) -> dict[str, Any]:
 @api.post("/apply/review")
 def apply_review(body: ReviewIn) -> dict[str, Any]:
     """AI pre-submit review of an application (never submits — for the review queue)."""
-    result = services.review_application(
+    return _unwrap(services.review_application(
         body.job_id, cover_letter=body.cover_letter, answers=body.answers
-    )
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    ))
 
 
 @api.get("/answer-templates")
@@ -277,50 +289,35 @@ def analytics() -> dict[str, Any]:
 
 @api.post("/embed")
 def embed(limit: int = 200) -> dict[str, Any]:
-    result = services.embed_jobs(limit=limit)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.embed_jobs(limit=limit))
 
 
 @api.get("/semantic")
 def semantic(q: str, limit: int = 10) -> dict[str, Any]:
-    result = services.semantic_match(q, limit=limit)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.semantic_match(q, limit=limit))
 
 
 @api.post("/jobs/{job_id}/learn-rejection")
 def learn_rejection(job_id: int) -> dict[str, Any]:
-    result = services.learn_from_rejection(job_id)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    return _unwrap(services.learn_from_rejection(job_id))
 
 
 @api.patch("/applications/{job_id}/stage")
 def application_stage(job_id: int, body: StageIn) -> dict[str, Any]:
-    result = services.advance_stage(job_id, body.stage)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    return _unwrap(services.advance_stage(job_id, body.stage))
 
 
 @api.post("/applications")
 def log_application(body: ApplicationIn) -> dict[str, Any]:
-    result = services.log_application(
+    return _unwrap(services.log_application(
         body.job_id, body.variant_slug, body.cover_letter, status=body.status
-    )
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+    ))
 
 
 def _safe_score() -> None:
     try:
-        services.score_pending()
-    except Exception:  # noqa: BLE001 — background task; failures are logged via llm_calls/runs
+        services.score_pending(track=True)  # creates a run row so the Runs UI can show it
+    except Exception:  # noqa: BLE001 — background task; the failure is recorded on the run row
         pass
 
 

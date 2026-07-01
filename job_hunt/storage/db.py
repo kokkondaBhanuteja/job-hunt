@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -1051,6 +1051,19 @@ def count_runs_today() -> int:
             "SELECT count(*) AS c FROM runs WHERE substr(started_at, 1, 10) = ?",
             (now_iso()[:10],),
         ).fetchone()["c"]
+
+
+def reap_stale_runs(max_age_s: int = 3600) -> int:
+    """Mark 'running' runs whose heartbeat is older than max_age_s as failed (crash recovery).
+    Returns the number reaped."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_s)).isoformat(timespec="seconds")
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE runs SET status = ?, finished_at = ? "
+            "WHERE status = ? AND (heartbeat_at IS NULL OR heartbeat_at < ?)",
+            (str(RunStatus.FAILED), now_iso(), str(RunStatus.RUNNING), cutoff),
+        )
+        return cur.rowcount
 
 
 # ---------- search profiles ----------

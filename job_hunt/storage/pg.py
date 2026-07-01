@@ -18,7 +18,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, sql_values
+from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, RunStatus, sql_values
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://jobhunt:jobhunt@localhost:55432/jobhunt"
@@ -750,6 +750,17 @@ def count_runs_today() -> int:
         return conn.execute(
             "SELECT count(*) AS c FROM runs WHERE started_at::date = CURRENT_DATE"
         ).fetchone()["c"]
+
+
+def reap_stale_runs(max_age_s: int = 3600) -> int:
+    """Mark 'running' runs whose heartbeat is older than max_age_s as failed (crash recovery)."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE runs SET status = %s, finished_at = now() "
+            "WHERE status = %s AND (heartbeat_at IS NULL OR heartbeat_at < now() - make_interval(secs => %s))",
+            (str(RunStatus.FAILED), str(RunStatus.RUNNING), max_age_s),
+        )
+        return cur.rowcount
 
 
 # ---------- search profiles ----------

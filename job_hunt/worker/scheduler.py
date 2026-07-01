@@ -8,6 +8,7 @@ Started via `hunt worker`. Kept thin: all real logic is in `runner` / `pacing`.
 """
 from __future__ import annotations
 
+import signal
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -15,6 +16,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from job_hunt.browser.manager import TIMEZONE
 from job_hunt.logging_config import get_logger
+from job_hunt.storage import repo
 from job_hunt.worker import config, pacing, runner
 
 logger = get_logger(__name__)
@@ -47,10 +49,26 @@ def build_scheduler() -> BlockingScheduler:
 
 
 def run() -> None:
+    # Crash recovery: a previous worker killed mid-crawl leaves runs stuck 'running'.
+    reaped = repo.reap_stale_runs()
+    if reaped:
+        logger.warning("reaped %d stale run(s) left 'running' by a previous worker", reaped)
+
     logger.info(
         "worker: discovery every %dmin (active %s–%s %s, cap %d/day), "
         "event dispatch every %ds. Ctrl-C to stop.",
         config.DISCOVERY_INTERVAL_MIN, config.ACTIVE_START, config.ACTIVE_END, TIMEZONE,
         config.DAILY_CAP, config.DISPATCH_INTERVAL_SEC,
     )
-    build_scheduler().start()
+    sched = build_scheduler()
+
+    def _shutdown(signum: int, _frame: object) -> None:
+        logger.info("received signal %d — shutting down worker gracefully", signum)
+        sched.shutdown(wait=True)
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    try:
+        sched.start()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("worker interrupted — shutting down")
+        sched.shutdown(wait=True)

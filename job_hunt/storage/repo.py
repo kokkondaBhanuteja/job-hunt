@@ -91,6 +91,7 @@ append_run_log = _impl.append_run_log
 get_run = _impl.get_run
 list_recent_runs = _impl.list_recent_runs
 count_runs_today = _impl.count_runs_today
+reap_stale_runs = _impl.reap_stale_runs
 
 # search profiles
 create_search_profile = _impl.create_search_profile

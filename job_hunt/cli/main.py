@@ -219,6 +219,16 @@ def cmd_serve_api(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    """Print the daily report; optionally send it to the configured channel."""
+    from job_hunt.notify import build_daily_report, send_daily_report
+
+    print(build_daily_report())
+    if args.send:
+        print(f"\n[sent: {send_daily_report()}]")
+    return 0
+
+
 def cmd_serve_mcp(_: argparse.Namespace) -> int:
     """Start the MCP server over stdio. Use this in your MCP host's config."""
     from job_hunt.mcp_server.server import main as mcp_main
@@ -301,6 +311,10 @@ def build_parser() -> argparse.ArgumentParser:
     rc = sub.add_parser("run-cycle", help="Discovery+scoring for all active profiles")
     rc.add_argument("--headless", action="store_true", help="Hide the browser")
     rc.set_defaults(func=cmd_run_cycle)
+
+    rp = sub.add_parser("report", help="Print (and optionally send) the daily report")
+    rp.add_argument("--send", action="store_true", help="Send to the configured channel")
+    rp.set_defaults(func=cmd_report)
 
     sub.add_parser("worker", help="Start the background worker (APScheduler)").set_defaults(func=cmd_worker)
 

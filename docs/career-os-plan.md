@@ -365,6 +365,14 @@ review queue, submitted-snapshot recording, marquee notify-and-hold._
   handle page-changed / submit-failed with replay + idempotency. Update the tracker.
 
 ### Phase 7 — Track, learn, notify + semantic
+
+_Status (analytics slice DONE): `ApplicationStage` enum + `applications.stage` (migration `0006` + sqlite).
+`repo.set_application_stage` + `services.advance_stage`. `services.analytics.dashboard()` — funnel, jobs-by-
+state/source, LLM cost/tokens by task, source effectiveness (param-free `raw_select`, both backends).
+`GET /api/analytics`, `PATCH /api/applications/{id}/stage`. React **Analytics tab** (funnel, cost metrics,
+mini-tables). Frontend job detail also now surfaces **tailor / cover / AI-review** (JobActions). 86 tests green.
+Still open in P7: learning loop, Telegram/Discord notifications, pgvector semantic match._
+
 - **Interview-stage pipeline** (Applied→OA→Interview→HR→Offer→Rejected) + timestamps.
 - **Metrics & analytics** (Reviewer #9, #18): jobs/day, match rate, response/interview/offer rates, avg recruiter
   response time, **source effectiveness & offer rate**, **resume-variant performance**, **company conversion rate**,

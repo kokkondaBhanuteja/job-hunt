@@ -194,8 +194,10 @@ def cmd_run_cycle(args: argparse.Namespace) -> int:
 
 def cmd_worker(_: argparse.Namespace) -> int:
     """Start the long-running background worker (APScheduler)."""
+    from job_hunt.settings import validate_settings
     from job_hunt.worker.scheduler import run as worker_run
 
+    validate_settings()  # fail fast on a bad DB_BACKEND / cap / provider / active-hours
     worker_run()
     return 0
 
@@ -207,6 +209,9 @@ def cmd_serve_api(args: argparse.Namespace) -> int:
 
     import uvicorn
 
+    from job_hunt.settings import validate_settings
+
+    validate_settings()  # fail fast on misconfig before binding the port
     if not os.getenv("API_TOKEN"):
         token = secrets.token_hex(16)
         os.environ["API_TOKEN"] = token  # share with the in-process app

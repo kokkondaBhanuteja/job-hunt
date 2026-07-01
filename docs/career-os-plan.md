@@ -19,6 +19,13 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 | **6 Apply** | ◑ partial | ✅ **ATS detection**, **AI pre-submit reviewer**, **crash-resumable checkpoints**, **application-package assembly** (tailored resume + cover + template answers), **submitted-resume snapshot**. ❌ live Playwright form-fill (per-ATS), review-queue UI |
 | **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |
 
+**Post-review remediation (2026-07-01, from a deep architecture review):**
+- **R1** — the transactional outbox is now atomic (`repo.apply_transition`: audit + state + event in one tx); `top_matches` returns the true winning variant per job (both backends); `JOB_ENRICHED` scores only that job (`score_job`), not the whole queue.
+- **R2** — `jobs.state` is the single lifecycle authority; `log_application` + `advance_stage` drive `transition_job`; `jobs.status` retired for lifecycle.
+- **R3** — layer boundaries restored (`apply/`, `notify/` no longer import `services/`); real AI-Gateway naming (`from job_hunt.llm import chat/chat_json`, not `.ollama`).
+- **R4** — `Source.enrich` capability (enrichment is source-driven, not hardcoded); `raw_select` guarded read-only + admin-labelled; mutable-default cleanup; health-vs-auth pill; single-dispatcher assumption documented.
+- **Deferred (R5):** prompt-template centralization, durable job API, event lease/DLQ + retry_count, Browser-Manager pool, rate-limit/daily-cap enforcement, React Router, Board split, deeper Postgres tests.
+
 **Known loose ends:** no real Ollama scoring run yet (only stub-tested — needs Ollama running on the host);
 `config/selectors/naukri.json` referenced but absent (dead fallback); physical `backend/` move never done
 (package stays at repo root beside `frontend/`). *(Fixed: README now reflects the full platform; scrape-health

@@ -117,6 +117,18 @@ label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; fo
 .table th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .table td.log { color: var(--muted); font-size: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* prepare-application actions */
+.actions-block { margin-top: 8px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.draft-box { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.draft-box summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.review { margin-top: 8px; }
+.issues { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.issue { font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); border-left: 3px solid var(--line); }
+.issue.blocker { border-left-color: var(--bad); }
+.issue.warning { border-left-color: var(--warn); }
+.issue.nit { border-left-color: var(--muted); }
+
 /* settings */
 .card-block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; max-width: 720px; }
 .health { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }

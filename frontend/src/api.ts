@@ -79,6 +79,36 @@ export interface Profile {
   pages: number;
   enabled: number | boolean;
 }
+export interface TailorResult {
+  job_id: number;
+  variant: string | null;
+  content: string;
+}
+export interface CoverResult {
+  job_id: number;
+  draft_id: number;
+  kind: string;
+  body: string;
+}
+export interface Draft {
+  id: number;
+  kind: string;
+  body: string;
+  status: string;
+  created_at: string;
+}
+export interface ReviewIssue {
+  severity: string;
+  field?: string;
+  message: string;
+}
+export interface ReviewResult {
+  job_id: number;
+  ats: string;
+  variant: string | null;
+  ready: boolean;
+  issues: ReviewIssue[];
+}
 
 export const api = {
   health: () => fetch(getApiBase() + "/health").then((r) => r.json() as Promise<Health>),
@@ -94,4 +124,12 @@ export const api = {
     req(`/api/search-profiles/${id}`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
   logApplication: (b: { job_id: number; variant_slug: string; cover_letter: string; status?: string }) =>
     req("/api/applications", { method: "POST", body: JSON.stringify(b) }),
+  tailor: (id: number) => req<TailorResult>(`/api/jobs/${id}/tailor`, { method: "POST" }),
+  cover: (id: number) => req<CoverResult>(`/api/jobs/${id}/cover`, { method: "POST" }),
+  drafts: (id: number) => req<Draft[]>(`/api/jobs/${id}/drafts`),
+  review: (id: number, cover_letter = "") =>
+    req<ReviewResult>("/api/apply/review", {
+      method: "POST",
+      body: JSON.stringify({ job_id: id, cover_letter, answers: {} }),
+    }),
 };

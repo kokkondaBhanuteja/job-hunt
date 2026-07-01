@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type BoardJob } from "../api";
+import { JobActions } from "./JobActions";
 
 const COLUMNS: { key: string; label: string; states: string[] }[] = [
   { key: "discovered", label: "Discovered", states: ["discovered", "enriched"] },
@@ -120,6 +121,8 @@ function JobPanel({ jobId, onClose }: { jobId: number; onClose: () => void }) {
 
           <h3>Job description</h3>
           <pre className="jd">{detail.data.job.description || "(no description captured yet)"}</pre>
+
+          <JobActions jobId={jobId} />
 
           <h3>Log application</h3>
           <div className="form">

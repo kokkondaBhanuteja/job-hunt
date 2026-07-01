@@ -18,7 +18,7 @@ from typing import Any
 
 import pdfplumber
 
-from job_hunt.llm.ollama import chat_json
+from job_hunt.llm import chat_json
 from job_hunt.llm.prompts import RESUME_PARSE
 from job_hunt.storage.repo import upsert_resume_variant
 

@@ -7,7 +7,12 @@ calls live here; entrypoints stay thin adapters. Services return plain dicts/lis
 """
 from __future__ import annotations
 
-from job_hunt.services.analytics import dashboard, variant_performance
+from job_hunt.services.analytics import (
+    daily_report_text,
+    dashboard,
+    send_daily_report,
+    variant_performance,
+)
 from job_hunt.services.answers import add_answer_template, list_answer_templates, suggest_answer
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.learning import learn_from_rejection
@@ -51,6 +56,8 @@ __all__ = [
     "advance_stage",
     "dashboard",
     "variant_performance",
+    "daily_report_text",
+    "send_daily_report",
     "learn_from_rejection",
     "embed_jobs",
     "semantic_match",

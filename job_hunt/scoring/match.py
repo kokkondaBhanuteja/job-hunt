@@ -14,7 +14,7 @@ from typing import Any
 
 from job_hunt.enums import JobState
 from job_hunt.llm import registry
-from job_hunt.llm.ollama import chat_json
+from job_hunt.llm import chat_json
 from job_hunt.llm.prompts import SCORING
 from job_hunt.states import can_transition, transition_job
 from job_hunt.storage import repo

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from job_hunt.llm.ollama import chat_json
+from job_hunt.llm import chat_json
 from job_hunt.llm.prompts import REJECTION_GAP
 
 

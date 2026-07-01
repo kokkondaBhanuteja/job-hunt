@@ -55,3 +55,16 @@ def dashboard() -> dict[str, Any]:
         "variant_performance": variant_performance(),
         "llm_cost": cost[0] if cost else {"calls": 0, "cost": 0, "tokens": 0},
     }
+
+
+def daily_report_text() -> str:
+    """Compose the daily report from the dashboard (services own cross-module wiring)."""
+    from job_hunt.notify.report import build_daily_report
+
+    return build_daily_report(dashboard())
+
+
+def send_daily_report(notifier: Any = None) -> bool:
+    from job_hunt.notify.report import send_report
+
+    return send_report(daily_report_text(), notifier)

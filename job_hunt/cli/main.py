@@ -17,11 +17,8 @@ import sys
 from pathlib import Path
 
 from job_hunt import services
-from job_hunt.llm.ollama import (
-    chat,
-    installed_models,
-    is_alive,
-)
+from job_hunt.llm import chat  # AI Gateway entrypoint
+from job_hunt.llm.ollama import installed_models, is_alive  # Ollama-provider liveness (selfcheck)
 from job_hunt.llm.registry import resolve as resolve_llm
 from job_hunt.sources.login import login_sync
 from job_hunt.storage import repo
@@ -240,11 +237,9 @@ def cmd_semantic(args: argparse.Namespace) -> int:
 
 def cmd_report(args: argparse.Namespace) -> int:
     """Print the daily report; optionally send it to the configured channel."""
-    from job_hunt.notify import build_daily_report, send_daily_report
-
-    print(build_daily_report())
+    print(services.daily_report_text())
     if args.send:
-        print(f"\n[sent: {send_daily_report()}]")
+        print(f"\n[sent: {services.send_daily_report()}]")
     return 0
 
 

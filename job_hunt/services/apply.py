@@ -49,6 +49,17 @@ def _cover_body(job_id: int) -> str:
     return ""
 
 
+def _resolve_answer(question: str) -> dict[str, Any]:
+    from job_hunt.services.answers import suggest_answer  # same-layer, resolved here (not in apply/)
+
+    suggestion = suggest_answer(question)
+    return {
+        "question": question,
+        "answer": suggestion["answer"] if suggestion else "",
+        "matched": suggestion["matched"] if suggestion else None,
+    }
+
+
 def prepare_application(
     job_id: int, screening_questions: list[str] | None = None
 ) -> dict[str, Any]:
@@ -64,10 +75,11 @@ def prepare_application(
     tailored = repo.get_tailored_resume(job_id)
     cover = _cover_body(job_id)
 
+    resolved = [_resolve_answer(q) for q in (screening_questions or [])]
     package = build_application_package(
         resume_content=tailored["content"] if tailored else "",
         cover_body=cover,
-        screening_questions=screening_questions or [],
+        answers=resolved,
     )
     answers = {a["question"]: a["answer"] for a in package["answers"]}
     verdict = _run_review(jd_text=jd_text, resume_json=resume_json, cover_letter=cover, answers=answers)

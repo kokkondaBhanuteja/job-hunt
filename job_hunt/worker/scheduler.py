@@ -38,7 +38,7 @@ def build_scheduler() -> BlockingScheduler:
         seconds=config.DISPATCH_INTERVAL_SEC, id="dispatch", max_instances=1,
     )
     # Evening daily report (no-op unless NOTIFY_CHANNEL is configured).
-    from job_hunt.notify.report import send_daily_report
+    from job_hunt.services.analytics import send_daily_report
 
     sched.add_job(send_daily_report, "cron", hour=20, minute=0, id="daily_report")
     return sched

@@ -1,7 +1,8 @@
 """Tests for notifications + the daily report (injected transport, no network)."""
 from __future__ import annotations
 
-from job_hunt.notify import base, report
+from job_hunt import services
+from job_hunt.notify import base
 from job_hunt.notify.base import NullNotifier
 from job_hunt.notify.discord import DiscordNotifier
 from job_hunt.notify.telegram import TelegramNotifier
@@ -65,7 +66,7 @@ def test_get_notifier_telegram(monkeypatch):
 
 def test_build_daily_report_summarizes(tmp_db):
     _job(tmp_db)
-    text = report.build_daily_report()
+    text = services.daily_report_text()  # service composes dashboard → report (layering)
     assert "Job-Hunt daily report" in text
     assert "Jobs tracked: 1" in text
     assert "LLM spend:" in text
@@ -82,5 +83,5 @@ def test_send_daily_report_uses_notifier(tmp_db):
             sent.append(text)
             return True
 
-    assert report.send_daily_report(_Fake()) is True
+    assert services.send_daily_report(_Fake()) is True
     assert "Job-Hunt daily report" in sent[0]

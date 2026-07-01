@@ -199,7 +199,7 @@ def best_scored_variant(job_id: int) -> dict[str, Any] | None:
             """
             SELECT rv.id, rv.slug, rv.parsed_json::text AS parsed_json
             FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
-            WHERE s.job_id = %s ORDER BY s.fit_score DESC LIMIT 1
+            WHERE s.job_id = %s ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
             """,
             (job_id,),
         ).fetchone()
@@ -515,7 +515,7 @@ def top_matches(min_score: int = 70, limit: int = 10) -> list[dict[str, Any]]:
                 JOIN scores s ON s.job_id = j.id
                 JOIN resume_variants rv ON rv.id = s.variant_id
                 WHERE j.state NOT IN ({sql_values(CLOSED_STATES)}) AND s.fit_score >= %s
-                ORDER BY j.id, s.fit_score DESC
+                ORDER BY j.id, s.fit_score DESC, s.variant_id ASC
             ) t
             ORDER BY best_score DESC, discovered_at DESC
             LIMIT %s
@@ -570,6 +570,7 @@ def raw_select(sql: str) -> list[dict[str, Any]]:
     if not sql.lstrip().upper().startswith(("SELECT", "WITH")):
         raise ValueError("raw_select is read-only — SELECT/WITH statements only")
     with connect() as conn:
+        conn.read_only = True  # even a piggybacked ';DELETE' can't mutate in a read-only tx
         return conn.execute(sql).fetchall()
 
 

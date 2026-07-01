@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS scores (
 );
 CREATE INDEX IF NOT EXISTS idx_scores_job ON scores(job_id);
 CREATE INDEX IF NOT EXISTS idx_scores_fit ON scores(fit_score DESC);
+CREATE INDEX IF NOT EXISTS idx_scores_variant ON scores(variant_id);
 
 CREATE TABLE IF NOT EXISTS applications (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS applications (
                         CHECK (stage IN ({sql_in_list(ApplicationStage)})),
     UNIQUE(job_id)
 );
+CREATE INDEX IF NOT EXISTS idx_applications_variant ON applications(variant_id);
 
 CREATE TABLE IF NOT EXISTS contacts (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -227,6 +229,8 @@ CREATE TABLE IF NOT EXISTS submitted_resumes (
     content      TEXT NOT NULL,
     submitted_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_submitted_job ON submitted_resumes(job_id);
+CREATE INDEX IF NOT EXISTS idx_submitted_variant ON submitted_resumes(variant_id);
 
 -- Generated drafts: cover letters + recruiter outreach.
 CREATE TABLE IF NOT EXISTS drafts (
@@ -417,24 +421,27 @@ def insert_job_if_new(
     """
     ts = now_iso()
     with connect() as conn:
-        try:
-            cur = conn.execute(
-                """
-                INSERT INTO jobs (
-                    dedup_hash, source, source_job_id, title, company, location,
-                    description, apply_url, posted_date, discovered_at, raw_payload
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    dedup_hash, source, source_job_id, title, company, location,
-                    description, apply_url, posted_date, ts,
-                    _to_json(raw_payload) if raw_payload is not None else None,
-                ),
-            )
-        except sqlite3.IntegrityError:
+        # ON CONFLICT(dedup_hash) DO NOTHING absorbs ONLY the dedup collision (returns None);
+        # any other integrity violation (NOT NULL/CHECK/FK) still raises — matching Postgres,
+        # instead of the old blanket except that hid malformed rows as "duplicate".
+        cur = conn.execute(
+            """
+            INSERT INTO jobs (
+                dedup_hash, source, source_job_id, title, company, location,
+                description, apply_url, posted_date, discovered_at, raw_payload
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(dedup_hash) DO NOTHING
+            """,
+            (
+                dedup_hash, source, source_job_id, title, company, location,
+                description, apply_url, posted_date, ts,
+                _to_json(raw_payload) if raw_payload is not None else None,
+            ),
+        )
+        if cur.rowcount == 0:  # dedup collision — nothing inserted
             return None
-        job_id = int(cur.lastrowid) if cur.lastrowid else None
-        if job_id is not None and emit_discovered:
+        job_id = int(cur.lastrowid)
+        if emit_discovered:
             conn.execute(
                 "INSERT INTO job_transitions (job_id, from_state, to_state, reason, created_at) "
                 "VALUES (?, ?, ?, ?, ?)",
@@ -540,7 +547,7 @@ def best_scored_variant(job_id: int) -> sqlite3.Row | None:
             """
             SELECT rv.id, rv.slug, rv.parsed_json
             FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
-            WHERE s.job_id = ? ORDER BY s.fit_score DESC LIMIT 1
+            WHERE s.job_id = ? ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
             """,
             (job_id,),
         ).fetchone()
@@ -797,11 +804,13 @@ def top_matches(min_score: int = 70, limit: int = 10) -> list[sqlite3.Row]:
                 rv.slug         AS best_variant
             FROM jobs j
             JOIN scores s ON s.job_id = j.id
-                        AND s.fit_score = (SELECT MAX(fit_score) FROM scores WHERE job_id = j.id)
+                        AND s.variant_id = (
+                            SELECT variant_id FROM scores WHERE job_id = j.id
+                            ORDER BY fit_score DESC, variant_id ASC LIMIT 1
+                        )
             JOIN resume_variants rv ON rv.id = s.variant_id
             WHERE j.state NOT IN ({sql_values(CLOSED_STATES)})
               AND s.fit_score >= ?
-            GROUP BY j.id
             ORDER BY best_score DESC, j.discovered_at DESC
             LIMIT ?
             """,

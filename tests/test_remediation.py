@@ -100,3 +100,22 @@ def test_advance_stage_moves_job_state_and_funnel(tmp_db):
     assert repo.get_job_state(jid) == JobState.INTERVIEW      # jobs.state moved (board)
     with tmp_db.connect() as conn:                            # applications.stage moved (funnel)
         assert conn.execute("SELECT stage FROM applications WHERE job_id=?", (jid,)).fetchone()[0] == "interview"
+
+
+# ---------- R4 hardening (findings #16, #13) ----------
+
+
+def test_enrich_is_a_source_capability(tmp_db):
+    from job_hunt import plugins
+    from job_hunt.services.enrichment import source_enrich_fetchers
+
+    assert hasattr(plugins.get_source("naukri"), "enrich")      # snippet source → enriches
+    assert not hasattr(plugins.get_source("remoteok"), "enrich")  # API ships full JD → no enrich
+    assert set(source_enrich_fetchers().keys()) == {"naukri"}
+
+
+def test_raw_select_rejects_mutations():
+    with pytest.raises(ValueError):
+        repo.raw_select("DELETE FROM jobs")
+    with pytest.raises(ValueError):
+        repo.raw_select("UPDATE jobs SET state='x'")

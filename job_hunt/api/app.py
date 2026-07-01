@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from job_hunt import plugins, services
 from job_hunt.enums import Score
@@ -62,7 +62,7 @@ class ApplicationIn(BaseModel):
 class ReviewIn(BaseModel):
     job_id: int
     cover_letter: str = ""
-    answers: dict[str, str] = {}
+    answers: dict[str, str] = Field(default_factory=dict)
 
 
 class StageIn(BaseModel):
@@ -72,7 +72,7 @@ class StageIn(BaseModel):
 class AnswerTemplateIn(BaseModel):
     question_pattern: str
     answer_text: str
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
 
 
 class ContactIn(BaseModel):
@@ -230,7 +230,7 @@ def create_contact(body: ContactIn) -> dict[str, Any]:
 
 
 @api.post("/jobs/{job_id}/prepare")
-def prepare(job_id: int, screening_questions: list[str] = Body(default=[])) -> dict[str, Any]:
+def prepare(job_id: int, screening_questions: list[str] | None = Body(default=None)) -> dict[str, Any]:
     result = services.prepare_application(job_id, screening_questions)
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])

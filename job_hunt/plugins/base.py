@@ -25,6 +25,12 @@ class Source(Protocol):
         """Crawl the board and persist new jobs. Returns {found, new, jobs}."""
         ...
 
+    # OPTIONAL capability (structural, not required): a source that discovers only a
+    # snippet may implement
+    #     def enrich(self, apply_url: str, *, headless: bool = True) -> str | None
+    # returning the full JD. Sources whose API already ships the full JD omit it.
+    # Callers detect it with getattr(source, "enrich", None) — see services/enrichment.py.
+
 
 _REGISTRY: dict[str, Source] = {}
 

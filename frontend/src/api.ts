@@ -127,6 +127,8 @@ export interface Analytics {
 
 export const api = {
   health: () => fetch(getApiBase() + "/health").then((r) => r.json() as Promise<Health>),
+  // Authed probe: /health is open, so it can't tell us the token is valid. This can.
+  ping: () => req<unknown>("/api/runs?limit=1"),
   board: () => req<BoardJob[]>("/api/board"),
   job: (id: number) => req<JobDetail>(`/api/jobs/${id}`),
   runs: () => req<Run[]>("/api/runs?limit=20"),

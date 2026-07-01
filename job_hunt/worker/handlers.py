@@ -59,9 +59,7 @@ def build_handlers(
 
 
 def default_handlers() -> dict[str, Callable[[dict[str, Any]], None]]:
-    """Real handlers: Naukri JD fetcher + the scorer."""
-    from job_hunt.sources.naukri import fetch_job_description_sync
+    """Real handlers: each source's own enrich fetchers + the per-job scorer."""
+    from job_hunt.services.enrichment import source_enrich_fetchers
 
-    return build_handlers(
-        enrich_fetchers={"naukri": lambda url: fetch_job_description_sync(url, headless=True)}
-    )
+    return build_handlers(enrich_fetchers=source_enrich_fetchers(headless=True))

@@ -11,6 +11,14 @@ type Tab = "board" | "runs" | "analytics" | "settings";
 export function App() {
   const [tab, setTab] = useState<Tab>(getToken() ? "board" : "settings");
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
+  // /health is unauthenticated — probe an authed endpoint so a bad token reads as
+  // "unauthorized", not "connected".
+  const auth = useQuery({
+    queryKey: ["auth"],
+    queryFn: api.ping,
+    retry: false,
+    enabled: !!getToken(),
+  });
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "board", label: "Board" },
@@ -37,12 +45,14 @@ export function App() {
           ))}
         </nav>
         <div className="status">
-          {health.isSuccess ? (
+          {!health.isSuccess ? (
+            <span className="pill bad">API offline</span>
+          ) : getToken() && auth.isError ? (
+            <span className="pill bad">unauthorized</span>
+          ) : (
             <span className="pill ok">
               {health.data.datastore} · {Object.values(health.data.llm)[0]?.provider}
             </span>
-          ) : (
-            <span className="pill bad">API offline</span>
           )}
         </div>
       </header>

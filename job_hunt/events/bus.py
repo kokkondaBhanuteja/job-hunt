@@ -48,6 +48,11 @@ def dispatch_pending(handlers: dict[str, Handler], *, limit: int = 100) -> int:
 
     Returns the number of events processed. A missing handler is fine — the event
     is still marked processed (it was recorded for analytics, not action).
+
+    ASSUMES A SINGLE DISPATCHER. fetch → handle → mark is not a lease, so two concurrent
+    dispatchers could both process the same event. The worker runs one dispatch loop
+    (`max_instances=1`); do not run a second. True multi-dispatcher safety (SELECT ...
+    FOR UPDATE SKIP LOCKED lease + retry_count + dead-letter) is deferred until needed.
     """
     processed = 0
     for ev in repo.fetch_unprocessed_events(limit=limit):

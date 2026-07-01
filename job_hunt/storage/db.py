@@ -284,7 +284,13 @@ def describe() -> str:
 
 
 def raw_select(sql: str) -> list[dict[str, Any]]:
-    """Run an ad-hoc read query (used by `hunt db`)."""
+    """ADMIN escape hatch — an ad-hoc READ-ONLY query that bypasses the repo layer.
+
+    Guarded to SELECT/WITH so it can never mutate. Used by analytics (fixed queries)
+    and the `hunt db` inspection command; not for application code paths.
+    """
+    if not sql.lstrip().upper().startswith(("SELECT", "WITH")):
+        raise ValueError("raw_select is read-only — SELECT/WITH statements only")
     with connect() as conn:
         return [dict(r) for r in conn.execute(sql).fetchall()]
 

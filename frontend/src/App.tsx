@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, getToken } from "./api";
+import { Analytics } from "./pages/Analytics";
 import { Board } from "./pages/Board";
 import { Runs } from "./pages/Runs";
 import { Settings } from "./pages/Settings";
 
-type Tab = "board" | "runs" | "settings";
+type Tab = "board" | "runs" | "analytics" | "settings";
 
 export function App() {
   const [tab, setTab] = useState<Tab>(getToken() ? "board" : "settings");
@@ -14,6 +15,7 @@ export function App() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "board", label: "Board" },
     { key: "runs", label: "Runs" },
+    { key: "analytics", label: "Analytics" },
     { key: "settings", label: "Settings" },
   ];
 
@@ -51,6 +53,7 @@ export function App() {
         )}
         {tab === "board" && <Board />}
         {tab === "runs" && <Runs />}
+        {tab === "analytics" && <Analytics />}
         {tab === "settings" && <Settings />}
       </main>
     </div>

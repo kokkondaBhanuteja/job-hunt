@@ -3,11 +3,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from job_hunt.enums import ApplicationOutcome, JobStatus
+from job_hunt.enums import ApplicationOutcome, ApplicationStage, JobStatus
 from job_hunt.storage import repo as db
 
-# Allowed outcomes derived from the enum — single source of truth.
+# Allowed values derived from the enums — single source of truth.
 VALID_OUTCOMES = frozenset(ApplicationOutcome)
+VALID_STAGES = frozenset(ApplicationStage)
+
+
+def advance_stage(job_id: int, stage: str) -> dict[str, Any]:
+    """Move an application to a new interview-pipeline stage."""
+    db.init_db()
+    if stage not in VALID_STAGES:
+        return {"error": f"invalid stage '{stage}'"}
+    db.set_application_stage(job_id, ApplicationStage(stage))
+    return {"ok": True, "job_id": job_id, "stage": str(stage)}
 
 
 def log_application(

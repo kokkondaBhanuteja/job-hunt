@@ -7,7 +7,8 @@ calls live here; entrypoints stay thin adapters. Services return plain dicts/lis
 """
 from __future__ import annotations
 
-from job_hunt.services.applications import log_application
+from job_hunt.services.analytics import dashboard
+from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.apply import review_application
 from job_hunt.services.discovery import discover, discover_naukri
 from job_hunt.services.drafting import draft_cover_for_job, list_drafts, tailor_for_job
@@ -33,6 +34,8 @@ __all__ = [
     "get_job",
     "list_resume_vault",
     "log_application",
+    "advance_stage",
+    "dashboard",
     "review_application",
     "tailor_for_job",
     "draft_cover_for_job",

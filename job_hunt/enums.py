@@ -40,6 +40,17 @@ class ReplyType(StrEnum):
     NEXT_STEP = "next-step"
 
 
+class ApplicationStage(StrEnum):
+    """Interview-pipeline stage stored on `applications.stage` — powers the funnel."""
+
+    APPLIED = "applied"
+    OA = "oa"
+    INTERVIEW = "interview"
+    HR = "hr"
+    OFFER = "offer"
+    REJECTED = "rejected"
+
+
 class LLMTask(StrEnum):
     """A unit of work routed to a configured provider/model (see llm/registry.py)."""
 

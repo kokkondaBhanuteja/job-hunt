@@ -30,6 +30,7 @@ upsert_resume_variant = _impl.upsert_resume_variant
 write_score = _impl.write_score
 write_llm_call = _impl.write_llm_call
 record_application = _impl.record_application
+set_application_stage = _impl.set_application_stage
 set_job_status = _impl.set_job_status
 
 list_resume_variants = _impl.list_resume_variants

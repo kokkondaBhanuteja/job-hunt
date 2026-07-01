@@ -248,6 +248,13 @@ def write_llm_call(
         pass
 
 
+def set_application_stage(job_id: int, stage: Any) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE applications SET stage = %s WHERE job_id = %s", (str(stage), int(job_id))
+        )
+
+
 def record_application(*, job_id: int, variant_id: int, cover_letter: str) -> None:
     with connect() as conn:
         conn.execute(

@@ -27,6 +27,7 @@ from typing import Any, Iterator
 
 from job_hunt.enums import (
     REVIEWABLE_STATUSES,
+    ApplicationStage,
     DraftKind,
     JobState,
     JobStatus,
@@ -96,6 +97,8 @@ CREATE TABLE IF NOT EXISTS applications (
     applied_at      TEXT NOT NULL,
     reply_type      TEXT CHECK (reply_type IS NULL OR reply_type IN ({sql_in_list(ReplyType)})),
     reply_notes     TEXT,
+    stage           TEXT NOT NULL DEFAULT '{ApplicationStage.APPLIED}'
+                        CHECK (stage IN ({sql_in_list(ApplicationStage)})),
     UNIQUE(job_id)
 );
 
@@ -263,6 +266,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "scores", "provider_model", "TEXT")
     _ensure_column(conn, "jobs", "description_full", "TEXT")
     _ensure_column(conn, "jobs", "enriched_at", "TEXT")
+    _ensure_column(
+        conn, "applications", "stage",
+        f"TEXT NOT NULL DEFAULT '{ApplicationStage.APPLIED}'",
+    )
     _ensure_column(conn, "jobs", "state", f"TEXT NOT NULL DEFAULT '{JobState.DISCOVERED}'")
     _ensure_column(conn, "runs", "status", f"TEXT NOT NULL DEFAULT '{RunStatus.QUEUED}'")
     _ensure_column(conn, "runs", "heartbeat_at", "TEXT")
@@ -609,6 +616,14 @@ def find_variant_id_by_slug(slug: str) -> int | None:
             "SELECT id FROM resume_variants WHERE slug = ?", (slug,)
         ).fetchone()
         return int(row["id"]) if row else None
+
+
+def set_application_stage(job_id: int, stage: Any) -> None:
+    """Advance an application's interview-pipeline stage."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE applications SET stage = ? WHERE job_id = ?", (str(stage), int(job_id))
+        )
 
 
 def record_application(*, job_id: int, variant_id: int, cover_letter: str) -> None:

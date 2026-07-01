@@ -65,6 +65,10 @@ class ReviewIn(BaseModel):
     answers: dict[str, str] = {}
 
 
+class StageIn(BaseModel):
+    stage: str
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -190,6 +194,19 @@ def apply_review(body: ReviewIn) -> dict[str, Any]:
     )
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@api.get("/analytics")
+def analytics() -> dict[str, Any]:
+    return services.dashboard()
+
+
+@api.patch("/applications/{job_id}/stage")
+def application_stage(job_id: int, body: StageIn) -> dict[str, Any]:
+    result = services.advance_stage(job_id, body.stage)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
     return result
 
 

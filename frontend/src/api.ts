@@ -109,6 +109,14 @@ export interface ReviewResult {
   ready: boolean;
   issues: ReviewIssue[];
 }
+export interface Analytics {
+  jobs_by_state: { state: string; n: number }[];
+  jobs_by_source: { source: string; n: number }[];
+  funnel: { stage: string; n: number }[];
+  source_effectiveness: { source: string; applied: number }[];
+  llm_by_task: { task: string; calls: number; cost: number }[];
+  llm_cost: { calls: number; cost: number; tokens: number };
+}
 
 export const api = {
   health: () => fetch(getApiBase() + "/health").then((r) => r.json() as Promise<Health>),
@@ -132,4 +140,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ job_id: id, cover_letter, answers: {} }),
     }),
+  analytics: () => req<Analytics>("/api/analytics"),
 };

@@ -129,6 +129,23 @@ label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; fo
 .issue.warning { border-left-color: var(--warn); }
 .issue.nit { border-left-color: var(--muted); }
 
+/* analytics */
+.two-col { display: flex; gap: 16px; flex-wrap: wrap; }
+.two-col .card-block { flex: 1; min-width: 260px; }
+.funnel { display: flex; gap: 8px; flex-wrap: wrap; }
+.funnel-step { flex: 1; min-width: 80px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; text-align: center; }
+.funnel-n { font-size: 22px; font-weight: 700; color: var(--accent); }
+.funnel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+.metric-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.metric { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; min-width: 100px; }
+.metric-value { font-size: 20px; font-weight: 700; }
+.metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.mini-table { display: flex; flex-direction: column; gap: 4px; }
+.mini-title { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+.mini-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.mini-key { color: var(--text); }
+.mini-val { color: var(--muted); }
+
 /* settings */
 .card-block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; max-width: 720px; }
 .health { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }

@@ -545,6 +545,37 @@ def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def save_contact(
+    *, company: str, name: str, role: str | None = None, persona: str | None = None,
+    email_guess: str | None = None, linkedin_url: str | None = None, notes: str | None = None,
+) -> int:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO contacts (company, name, role, persona, email_guess, linkedin_url, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(company, name) DO UPDATE SET
+              role = excluded.role, persona = excluded.persona,
+              email_guess = excluded.email_guess, linkedin_url = excluded.linkedin_url,
+              notes = excluded.notes
+            """,
+            (company, name, role, persona, email_guess, linkedin_url, notes, now_iso()),
+        )
+        row = conn.execute(
+            "SELECT id FROM contacts WHERE company = ? AND name = ?", (company, name)
+        ).fetchone()
+        return int(row["id"])
+
+
+def list_contacts(company: str | None = None) -> list[sqlite3.Row]:
+    with connect() as conn:
+        if company:
+            return conn.execute(
+                "SELECT * FROM contacts WHERE company = ? ORDER BY name", (company,)
+            ).fetchall()
+        return conn.execute("SELECT * FROM contacts ORDER BY company, name").fetchall()
+
+
 def save_answer_template(
     *, question_pattern: str, answer_text: str, tags: list[str] | None = None
 ) -> int:

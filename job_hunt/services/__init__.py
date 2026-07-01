@@ -12,8 +12,14 @@ from job_hunt.services.answers import add_answer_template, list_answer_templates
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.apply import review_application
+from job_hunt.services.crm import add_contact, list_contacts
 from job_hunt.services.discovery import discover, discover_naukri
-from job_hunt.services.drafting import draft_cover_for_job, list_drafts, tailor_for_job
+from job_hunt.services.drafting import (
+    draft_cover_for_job,
+    draft_outreach_for_job,
+    list_drafts,
+    tailor_for_job,
+)
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import parse_resume_vault
@@ -49,7 +55,10 @@ __all__ = [
     "review_application",
     "tailor_for_job",
     "draft_cover_for_job",
+    "draft_outreach_for_job",
     "list_drafts",
+    "add_contact",
+    "list_contacts",
     "parse_resume_vault",
     "add_profile",
     "list_profiles",

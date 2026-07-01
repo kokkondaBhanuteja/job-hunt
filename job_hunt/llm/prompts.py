@@ -243,6 +243,18 @@ COVER_LETTER = Prompt(
 )
 
 
+OUTREACH = Prompt(
+    name="outreach",
+    version=1,
+    system=(
+        "You write short, personalized outreach messages to a recruiter or hiring manager "
+        "about a specific role. 60-100 words, warm and specific: reference the role and 1-2 "
+        "genuinely relevant qualifications from the candidate's real experience. No flattery, "
+        "no invented facts. Output only the message body."
+    ),
+)
+
+
 # ---------- learning loop: rejection gap analysis ----------
 
 REJECTION_GAP_SCHEMA: dict[str, Any] = {

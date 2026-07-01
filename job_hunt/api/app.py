@@ -75,6 +75,16 @@ class AnswerTemplateIn(BaseModel):
     tags: list[str] = []
 
 
+class ContactIn(BaseModel):
+    company: str
+    name: str
+    role: str | None = None
+    persona: str | None = None
+    email_guess: str | None = None
+    linkedin_url: str | None = None
+    notes: str | None = None
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -190,6 +200,28 @@ def cover(job_id: int) -> dict[str, Any]:
 @api.get("/jobs/{job_id}/drafts")
 def drafts(job_id: int) -> list[dict[str, Any]]:
     return services.list_drafts(job_id)
+
+
+@api.post("/jobs/{job_id}/outreach")
+def outreach(job_id: int, contact_name: str = "") -> dict[str, Any]:
+    result = services.draft_outreach_for_job(job_id, contact_name=contact_name)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@api.get("/contacts")
+def contacts(company: str | None = None) -> list[dict[str, Any]]:
+    return services.list_contacts(company)
+
+
+@api.post("/contacts", status_code=201)
+def create_contact(body: ContactIn) -> dict[str, Any]:
+    cid = services.add_contact(
+        company=body.company, name=body.name, role=body.role, persona=body.persona,
+        email_guess=body.email_guess, linkedin_url=body.linkedin_url, notes=body.notes,
+    )
+    return {"id": cid}
 
 
 @api.post("/apply/review")

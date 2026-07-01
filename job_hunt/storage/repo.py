@@ -54,6 +54,8 @@ save_learning = _impl.save_learning
 list_learnings_for_job = _impl.list_learnings_for_job
 save_answer_template = _impl.save_answer_template
 list_answer_templates = _impl.list_answer_templates
+save_contact = _impl.save_contact
+list_contacts = _impl.list_contacts
 
 # embeddings (Postgres only)
 set_job_embedding = _impl.set_job_embedding

@@ -225,6 +225,36 @@ def list_drafts_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def save_contact(
+    *, company: str, name: str, role: str | None = None, persona: str | None = None,
+    email_guess: str | None = None, linkedin_url: str | None = None, notes: str | None = None,
+) -> int:
+    with connect() as conn:
+        return conn.execute(
+            """
+            INSERT INTO contacts (company, name, role, persona, email_guess, linkedin_url, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (company, name) DO UPDATE SET
+              role = EXCLUDED.role, persona = EXCLUDED.persona,
+              email_guess = EXCLUDED.email_guess, linkedin_url = EXCLUDED.linkedin_url,
+              notes = EXCLUDED.notes
+            RETURNING id
+            """,
+            (company, name, role, persona, email_guess, linkedin_url, notes),
+        ).fetchone()["id"]
+
+
+def list_contacts(company: str | None = None) -> list[dict[str, Any]]:
+    cols = ("id, company, name, role, persona, email_guess, linkedin_url, notes, "
+            "created_at::text AS created_at")
+    with connect() as conn:
+        if company:
+            return conn.execute(
+                f"SELECT {cols} FROM contacts WHERE company = %s ORDER BY name", (company,)
+            ).fetchall()
+        return conn.execute(f"SELECT {cols} FROM contacts ORDER BY company, name").fetchall()
+
+
 def save_answer_template(
     *, question_pattern: str, answer_text: str, tags: list[str] | None = None
 ) -> int:

@@ -21,4 +21,5 @@ def analyze_rejection(*, jd_text: str, resume_json: dict[str, Any]) -> dict[str,
     return chat_json(
         prompt, schema=REJECTION_GAP.schema, task="drafting",
         system=REJECTION_GAP.system, temperature=0.2,
+        prompt_name=REJECTION_GAP.name, prompt_version=REJECTION_GAP.version,
     )

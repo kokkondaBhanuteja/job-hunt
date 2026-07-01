@@ -91,6 +91,8 @@ def score_one(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> dict[s
         task="scoring",
         system=SCORING.system,
         temperature=0.1,
+        prompt_name=SCORING.name,
+        prompt_version=SCORING.version,
     )
 
 

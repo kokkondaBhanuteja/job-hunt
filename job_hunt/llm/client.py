@@ -47,8 +47,9 @@ def _build_messages(
 def _call(
     provider: LLMProvider, model: str, *, task: str, prompt: str, system: str | None,
     json_schema: dict[str, Any] | None, temperature: float, timeout_s: float | None,
+    prompt_name: str | None = None, prompt_version: int | None = None,
 ) -> str:
-    """One provider call. Logs to llm_calls (ok or error). Raises on failure."""
+    """One provider call. Logs to llm_calls (ok or error, with prompt identity). Raises on failure."""
     messages, native_schema = _build_messages(provider, prompt, system, json_schema)
     t0 = perf_counter()
     try:
@@ -60,7 +61,7 @@ def _call(
         write_llm_call(
             task=task, provider=provider.name, model=model, prompt=prompt,
             response=None, latency_ms=int((perf_counter() - t0) * 1000),
-            ok=False, error=str(exc),
+            ok=False, error=str(exc), prompt_name=prompt_name, prompt_version=prompt_version,
         )
         raise
 
@@ -70,6 +71,7 @@ def _call(
         completion_tokens=result.completion_tokens,
         cost=registry.cost(model, result.prompt_tokens, result.completion_tokens),
         latency_ms=int((perf_counter() - t0) * 1000), ok=True,
+        prompt_name=prompt_name, prompt_version=prompt_version,
     )
     return result.text
 
@@ -82,6 +84,8 @@ def chat(
     json_schema: dict[str, Any] | None = None,
     temperature: float = 0.2,
     timeout_s: float | None = None,
+    prompt_name: str | None = None,
+    prompt_version: int | None = None,
 ) -> str:
     """Run one chat turn for `task`, with bounded retries + an optional fallback provider.
 
@@ -90,7 +94,8 @@ def chat(
     is logged to llm_calls.
     """
     kwargs = dict(task=task, prompt=prompt, system=system, json_schema=json_schema,
-                  temperature=temperature, timeout_s=timeout_s)
+                  temperature=temperature, timeout_s=timeout_s,
+                  prompt_name=prompt_name, prompt_version=prompt_version)
 
     provider, model = registry.resolve(task)
     last_exc: Exception | None = None
@@ -122,6 +127,8 @@ def chat_json(
     task: str = "scoring",
     system: str | None = None,
     temperature: float = 0.2,
+    prompt_name: str | None = None,
+    prompt_version: int | None = None,
 ) -> dict[str, Any]:
     """Same as `chat()` but returns parsed JSON validated against `schema`.
 
@@ -133,7 +140,8 @@ def chat_json(
     last_exc: LLMError | None = None
     turn = prompt
     for attempt in range(attempts):
-        raw = chat(turn, task=task, system=system, json_schema=schema, temperature=temperature)
+        raw = chat(turn, task=task, system=system, json_schema=schema, temperature=temperature,
+                   prompt_name=prompt_name, prompt_version=prompt_version)
         try:
             return _parse_json(raw, schema)
         except LLMError as exc:

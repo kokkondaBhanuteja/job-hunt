@@ -45,4 +45,6 @@ def review_application(
         task="drafting",
         system=APPLICATION_REVIEW.system,
         temperature=0.2,
+        prompt_name=APPLICATION_REVIEW.name,
+        prompt_version=APPLICATION_REVIEW.version,
     )

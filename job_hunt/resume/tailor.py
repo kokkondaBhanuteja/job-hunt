@@ -22,4 +22,5 @@ def tailor_resume(*, jd_text: str, resume_json: dict[str, Any]) -> str:
         f"{json.dumps(resume_json, ensure_ascii=False)[:5000]}\n\n"
         "Output the tailored resume in Markdown."
     )
-    return chat(prompt, task="tailoring", system=RESUME_TAILOR.system, temperature=0.3)
+    return chat(prompt, task="tailoring", system=RESUME_TAILOR.system, temperature=0.3,
+                prompt_name=RESUME_TAILOR.name, prompt_version=RESUME_TAILOR.version)

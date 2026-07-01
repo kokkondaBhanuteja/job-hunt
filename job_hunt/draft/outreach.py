@@ -22,4 +22,5 @@ def generate_outreach(
         f"{json.dumps(resume_json, ensure_ascii=False)[:2500]}\n\n"
         "Output only the message body."
     )
-    return chat(prompt, task="drafting", system=OUTREACH.system, temperature=0.5)
+    return chat(prompt, task="drafting", system=OUTREACH.system, temperature=0.5,
+                prompt_name=OUTREACH.name, prompt_version=OUTREACH.version)

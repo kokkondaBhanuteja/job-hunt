@@ -138,6 +138,8 @@ def parse_resume_file(path: Path) -> dict[str, Any]:
         task="scoring",           # structured-output task
         system=RESUME_PARSE.system,
         temperature=0.1,          # parsing is fact-extraction; keep it tight
+        prompt_name=RESUME_PARSE.name,
+        prompt_version=RESUME_PARSE.version,
     )
 
 

@@ -454,6 +454,7 @@ def write_llm_call(
     prompt_tokens: int | None = None, completion_tokens: int | None = None,
     cost: float | None = None, latency_ms: int | None = None,
     ok: bool = True, error: str | None = None,
+    prompt_name: str | None = None, prompt_version: int | None = None,
 ) -> None:
     """Best-effort observability log. Never raises."""
     try:
@@ -462,11 +463,13 @@ def write_llm_call(
                 """
                 INSERT INTO llm_calls (
                     task, provider, model, prompt, response, prompt_tokens,
-                    completion_tokens, cost, latency_ms, ok, error
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    completion_tokens, cost, latency_ms, ok, error,
+                    prompt_name, prompt_version
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (str(task), str(provider), model, prompt, response, prompt_tokens,
-                 completion_tokens, cost, latency_ms, ok, error),
+                 completion_tokens, cost, latency_ms, ok, error,
+                 prompt_name, prompt_version),
             )
     except Exception:  # noqa: BLE001
         pass

@@ -275,6 +275,8 @@ CREATE TABLE IF NOT EXISTS llm_calls (
     latency_ms        INTEGER,
     ok                INTEGER NOT NULL DEFAULT 1,    -- 0 if the call errored
     error             TEXT,
+    prompt_name       TEXT,                          -- which versioned Prompt produced this
+    prompt_version    INTEGER,
     created_at        TEXT NOT NULL                  -- ISO8601 UTC
 );
 CREATE INDEX IF NOT EXISTS idx_llm_calls_task ON llm_calls(task);
@@ -341,6 +343,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "runs", "log", "TEXT NOT NULL DEFAULT ''")
     _ensure_column(conn, "events", "retry_count", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(conn, "events", "dead_at", "TEXT")
+    _ensure_column(conn, "llm_calls", "prompt_name", "TEXT")
+    _ensure_column(conn, "llm_calls", "prompt_version", "INTEGER")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, ddl: str) -> None:
@@ -785,6 +789,8 @@ def write_llm_call(
     latency_ms: int | None = None,
     ok: bool = True,
     error: str | None = None,
+    prompt_name: str | None = None,
+    prompt_version: int | None = None,
 ) -> None:
     """Best-effort observability log of one LLM call. Never raises."""
     try:
@@ -793,12 +799,14 @@ def write_llm_call(
                 """
                 INSERT INTO llm_calls (
                     task, provider, model, prompt, response, prompt_tokens,
-                    completion_tokens, cost, latency_ms, ok, error, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    completion_tokens, cost, latency_ms, ok, error,
+                    prompt_name, prompt_version, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task, provider, model, prompt, response, prompt_tokens,
-                    completion_tokens, cost, latency_ms, 1 if ok else 0, error, now_iso(),
+                    completion_tokens, cost, latency_ms, 1 if ok else 0, error,
+                    prompt_name, prompt_version, now_iso(),
                 ),
             )
     except Exception:  # noqa: BLE001 — logging must never break a chat call

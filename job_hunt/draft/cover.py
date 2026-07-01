@@ -20,4 +20,5 @@ def generate_cover_letter(
         f"{json.dumps(resume_json, ensure_ascii=False)[:3000]}\n\n"
         "Output only the letter body."
     )
-    return chat(prompt, task="drafting", system=COVER_LETTER.system, temperature=0.5)
+    return chat(prompt, task="drafting", system=COVER_LETTER.system, temperature=0.5,
+                prompt_name=COVER_LETTER.name, prompt_version=COVER_LETTER.version)

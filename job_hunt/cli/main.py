@@ -93,6 +93,22 @@ def cmd_discover_naukri(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Discover jobs from any registered source (naukri, remoteok, ...)."""
+    from job_hunt import plugins
+
+    if args.source not in plugins.available_sources():
+        print(f"!! unknown source '{args.source}'. Available: {plugins.available_sources()}")
+        return 1
+    print(f"Discovering via {args.source}: keyword={args.keyword!r}, location={args.location!r}")
+    result = services.discover(
+        args.source, args.keyword, args.location, pages=args.pages,
+        dry_run=args.dry_run, headless=args.headless,
+    )
+    print(f"  found={result['found']}  new={result['new']}  dry_run={args.dry_run}")
+    return 0
+
+
 def cmd_enrich(args: argparse.Namespace) -> int:
     """Fetch the full JD for discovered jobs (opens each job page)."""
     result = services.enrich_pending_jobs(limit=args.limit, headless=args.headless)
@@ -221,6 +237,15 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--headless", action="store_true", help="Hide the browser (only after a successful warm run)")
     d.add_argument("--verbose", action="store_true")
     d.set_defaults(func=cmd_discover_naukri)
+
+    gd = sub.add_parser("discover", help="Discover jobs from any source (naukri, remoteok, ...)")
+    gd.add_argument("--source", default="naukri")
+    gd.add_argument("--keyword", required=True)
+    gd.add_argument("--location", default="remote")
+    gd.add_argument("--pages", type=int, default=1)
+    gd.add_argument("--dry-run", action="store_true")
+    gd.add_argument("--headless", action="store_true")
+    gd.set_defaults(func=cmd_discover)
 
     en = sub.add_parser("enrich", help="Fetch full JDs for discovered jobs")
     en.add_argument("--limit", type=int, default=50)

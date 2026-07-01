@@ -331,6 +331,13 @@ Still to do in P4: resume tailoring, cover letters/outreach, company research, p
 - Implement the plugin contract for LinkedIn / Wellfound / RemoteOK / Greenhouse / Lever. Cross-source dedup via the
   P1 key; per-source search profiles + rate limits + scrape-health.
 
+_Status (RemoteOK slice DONE): canonical dedup moved to shared `sources/dedup.py`. `plugins/remoteok.py` —
+public-JSON-API source (injectable `_fetch`), keyword-filtered, ships full JDs so jobs land already-ENRICHED
+(skip the browser enrich step) and enter the scoring pipeline; cross-source dedup collapses the same role found on
+Naukri. Generic `services.discover(source, …)` + `hunt discover --source`. 67 tests green; verified live end-to-end
+(19 real RemoteOK jobs → Postgres, all enriched). LinkedIn/Wellfound (browser+auth) and Greenhouse/Lever
+(per-company boards) remain — the point is proven: a new source = one file + register()._
+
 ### Phase 6 — Apply (review-before-submit, humanized, recoverable)
 - **ATS detection** + per-platform adapters; form-fill from the **answer-template library** (truthful variation).
 - **Humanized pacing** via Browser Manager; hard-enforce **per-day cap + active-hours**.

@@ -15,9 +15,7 @@ when Naukri reshuffles their CSS classes — no Python edit needed.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +23,9 @@ from typing import Any
 from playwright.async_api import Page
 
 from job_hunt.browser import human_pause, managed_context
+# Canonical dedup helpers are shared across sources; re-exported here so existing
+# imports (`from job_hunt.sources.naukri import dedup_hash`) keep working.
+from job_hunt.sources.dedup import _normalize_title, _slug, dedup_hash  # noqa: F401
 from job_hunt.states import mark_discovered
 from job_hunt.storage.repo import insert_job_if_new
 
@@ -60,31 +61,6 @@ def _load_selectors() -> dict[str, str]:
 
 
 # ---------- Helpers ----------
-
-_SLUG = re.compile(r"[^a-z0-9]+")
-
-
-def _slug(text: str) -> str:
-    return _SLUG.sub("-", text.lower()).strip("-")
-
-
-def _normalize_title(title: str) -> str:
-    """Strip seniority/level fluff so the same role from different sources dedupes."""
-    s = title.lower()
-    s = re.sub(r"\b(sr|sr\.|senior|jr|jr\.|junior|lead|principal|staff)\b", "", s)
-    s = re.sub(r"[^a-z0-9]+", " ", s)
-    return " ".join(s.split())
-
-
-def dedup_hash(company: str, title: str, location: str = "") -> str:
-    """Canonical dedup key: `company | normalized-title | location`.
-
-    Cross-source safe (a role is "the same" regardless of which board surfaced it),
-    but a Bangalore posting and a Hyderabad posting of the same title are distinct.
-    Location defaults to "" so two-arg callers keep their old behavior.
-    """
-    key = f"{_slug(company)}|{_normalize_title(title)}|{_slug(location or '')}"
-    return hashlib.sha1(key.encode("utf-8")).hexdigest()
 
 
 def build_search_url(keyword: str, location: str, page: int = 1) -> str:

@@ -8,7 +8,7 @@ calls live here; entrypoints stay thin adapters. Services return plain dicts/lis
 from __future__ import annotations
 
 from job_hunt.services.applications import log_application
-from job_hunt.services.discovery import discover_naukri
+from job_hunt.services.discovery import discover, discover_naukri
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import parse_resume_vault
@@ -22,6 +22,7 @@ from job_hunt.services.runs import get_run, list_runs, request_cancel, run_disco
 from job_hunt.services.scoring import score_pending
 
 __all__ = [
+    "discover",
     "discover_naukri",
     "enrich_pending_jobs",
     "score_pending",

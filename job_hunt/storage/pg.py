@@ -225,6 +225,26 @@ def list_drafts_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def save_learning(
+    *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
+) -> int:
+    with connect() as conn:
+        return conn.execute(
+            "INSERT INTO learnings (job_id, variant_id, kind, payload) "
+            "VALUES (%s, %s, %s, %s) RETURNING id",
+            (int(job_id), variant_id, str(kind), Jsonb(payload)),
+        ).fetchone()["id"]
+
+
+def list_learnings_for_job(job_id: int) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, variant_id, kind, payload::text AS payload, "
+            "created_at::text AS created_at FROM learnings WHERE job_id = %s ORDER BY id DESC",
+            (int(job_id),),
+        ).fetchall()
+
+
 def write_llm_call(
     *, task: str, provider: str, model: str, prompt: str | None, response: str | None,
     prompt_tokens: int | None = None, completion_tokens: int | None = None,

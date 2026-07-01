@@ -50,6 +50,8 @@ save_tailored_resume = _impl.save_tailored_resume
 get_tailored_resume = _impl.get_tailored_resume
 save_draft = _impl.save_draft
 list_drafts_for_job = _impl.list_drafts_for_job
+save_learning = _impl.save_learning
+list_learnings_for_job = _impl.list_learnings_for_job
 
 # state machine
 get_job_state = _impl.get_job_state

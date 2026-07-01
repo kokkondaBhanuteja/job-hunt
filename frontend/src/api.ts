@@ -115,6 +115,13 @@ export interface Analytics {
   funnel: { stage: string; n: number }[];
   source_effectiveness: { source: string; applied: number }[];
   llm_by_task: { task: string; calls: number; cost: number }[];
+  variant_performance: {
+    variant: string;
+    applications: number;
+    interviews: number;
+    offers: number;
+    rejections: number;
+  }[];
   llm_cost: { calls: number; cost: number; tokens: number };
 }
 

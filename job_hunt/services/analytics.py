@@ -10,8 +10,23 @@ from typing import Any
 from job_hunt.storage import repo
 
 
+def variant_performance() -> list[dict[str, Any]]:
+    """Per resume variant: applications, interviews (interview/hr/offer), offers, rejections.
+
+    This is 'which resume wins' — the signal the learning loop uses to prefer variants.
+    """
+    return repo.raw_select(
+        "SELECT rv.slug AS variant, COUNT(*) AS applications, "
+        "SUM(CASE WHEN a.stage IN ('interview','hr','offer') THEN 1 ELSE 0 END) AS interviews, "
+        "SUM(CASE WHEN a.stage = 'offer' THEN 1 ELSE 0 END) AS offers, "
+        "SUM(CASE WHEN a.stage = 'rejected' THEN 1 ELSE 0 END) AS rejections "
+        "FROM applications a JOIN resume_variants rv ON rv.id = a.variant_id "
+        "GROUP BY rv.slug ORDER BY interviews DESC, applications DESC"
+    )
+
+
 def dashboard() -> dict[str, Any]:
-    """Funnel, pipeline, LLM cost, and source-effectiveness metrics."""
+    """Funnel, pipeline, LLM cost, source-effectiveness, and variant-performance metrics."""
     repo.init_db()
     cost = repo.raw_select(
         "SELECT count(*) AS calls, COALESCE(SUM(cost),0) AS cost, "
@@ -37,5 +52,6 @@ def dashboard() -> dict[str, Any]:
             "SELECT task, count(*) AS calls, COALESCE(SUM(cost),0) AS cost "
             "FROM llm_calls GROUP BY task ORDER BY calls DESC"
         ),
+        "variant_performance": variant_performance(),
         "llm_cost": cost[0] if cost else {"calls": 0, "cost": 0, "tokens": 0},
     }

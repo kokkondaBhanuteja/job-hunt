@@ -83,6 +83,13 @@ class DraftKind(StrEnum):
     OUTREACH = "outreach"
 
 
+class LearningKind(StrEnum):
+    """What an outcome taught us, stored on `learnings`."""
+
+    REJECTION = "rejection"   # JD requirements the resume under-emphasized
+    INTERVIEW = "interview"   # a variant that won an interview
+
+
 class ATSPlatform(StrEnum):
     """Applicant-tracking system behind a job's apply page — picks the apply flow."""
 

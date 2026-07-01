@@ -48,10 +48,21 @@ export function Analytics() {
         </section>
       </div>
 
-      <section className="card-block">
-        <h2>Source effectiveness (applied)</h2>
-        <MiniTable rows={d.source_effectiveness.map((s) => [s.source, String(s.applied)])} />
-      </section>
+      <div className="two-col">
+        <section className="card-block">
+          <h2>Source effectiveness (applied)</h2>
+          <MiniTable rows={d.source_effectiveness.map((s) => [s.source, String(s.applied)])} />
+        </section>
+        <section className="card-block">
+          <h2>Resume variant performance</h2>
+          <MiniTable
+            rows={d.variant_performance.map((v) => [
+              v.variant,
+              `${v.applications} app · ${v.interviews} intv · ${v.offers} off`,
+            ])}
+          />
+        </section>
+      </div>
     </div>
   );
 }

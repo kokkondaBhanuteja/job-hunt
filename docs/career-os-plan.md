@@ -382,6 +382,12 @@ Still open in P7: learning loop, Telegram/Discord notifications, pgvector semant
 - Telegram/Discord daily report + priority alerts.
 - Add `embedding` column + index + model + backfill → pgvector semantic job↔resume matching.
 
+_Status (notifications slice DONE): `notify/` — `Notifier` protocol + Telegram + Discord (webhook, injectable
+transport) + `NullNotifier`; `get_notifier()` from `NOTIFY_CHANNEL` env. `report.build_daily_report()` composes a
+summary from the analytics dashboard (jobs by state, funnel, LLM spend); `send_daily_report()`. `hunt report [--send]`
++ a 20:00 worker cron job (no-op unless a channel is configured). 95 tests green; live report verified on real data.
+Still open in P7: learning loop, pgvector semantic match._
+
 ## Verification
 
 - **P0:** `pytest` green; `hunt selfcheck` validates each task's provider both local and with an API key swapped in;

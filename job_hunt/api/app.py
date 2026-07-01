@@ -202,6 +202,14 @@ def analytics() -> dict[str, Any]:
     return services.dashboard()
 
 
+@api.post("/jobs/{job_id}/learn-rejection")
+def learn_rejection(job_id: int) -> dict[str, Any]:
+    result = services.learn_from_rejection(job_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
 @api.patch("/applications/{job_id}/stage")
 def application_stage(job_id: int, body: StageIn) -> dict[str, Any]:
     result = services.advance_stage(job_id, body.stage)

@@ -241,3 +241,37 @@ COVER_LETTER = Prompt(
         "clichés ('passionate about innovation') and invent nothing. Output only the letter body."
     ),
 )
+
+
+# ---------- learning loop: rejection gap analysis ----------
+
+REJECTION_GAP_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["missing_keywords", "summary"],
+    "properties": {
+        "missing_keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Skills/requirements the JD emphasizes that the resume did NOT surface. "
+                "List what's missing or underemphasized — do not invent skills the candidate lacks."
+            ),
+        },
+        "summary": {
+            "type": "string",
+            "description": "One sentence: the biggest gap to close for similar roles.",
+        },
+    },
+}
+
+REJECTION_GAP = Prompt(
+    name="rejection_gap",
+    version=1,
+    system=(
+        "You analyze why a resume may have been rejected for a job. Compare the job "
+        "description to the resume and identify the specific skills or requirements the JD "
+        "emphasizes that the resume does not surface well. Focus on what to emphasize next "
+        "time for similar roles. Output JSON only."
+    ),
+    schema=REJECTION_GAP_SCHEMA,
+)

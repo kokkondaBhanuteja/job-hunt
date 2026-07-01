@@ -164,6 +164,17 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 
+-- What outcomes taught us (feeds future tailoring / variant preference).
+CREATE TABLE IF NOT EXISTS learnings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    variant_id  INTEGER REFERENCES resume_variants(id),
+    kind        TEXT NOT NULL,                  -- 'rejection' | 'interview'
+    payload     TEXT,                            -- JSON: missing_keywords + summary
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_learnings_job ON learnings(job_id);
+
 -- Tailored resume per (job, variant) — LLM-emphasized, invents nothing.
 CREATE TABLE IF NOT EXISTS tailored_resumes (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -522,6 +533,25 @@ def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(
             "SELECT * FROM drafts WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
+        ).fetchall()
+
+
+def save_learning(
+    *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
+) -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO learnings (job_id, variant_id, kind, payload, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (int(job_id), variant_id, str(kind), _to_json(payload), now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def list_learnings_for_job(job_id: int) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM learnings WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
         ).fetchall()
 
 

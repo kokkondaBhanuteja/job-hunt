@@ -164,6 +164,18 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 
+-- Company research cache + memory (history is derived from jobs/applications).
+CREATE TABLE IF NOT EXISTS companies (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT UNIQUE NOT NULL,
+    size          TEXT,
+    funding_stage TEXT,
+    tech          TEXT,                            -- JSON array
+    glassdoor     TEXT,
+    notes         TEXT,
+    fetched_at    TEXT
+);
+
 -- Reusable, truthful screening-question answers (drawn from during apply form-fill).
 CREATE TABLE IF NOT EXISTS answer_templates (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -542,6 +554,45 @@ def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(
             "SELECT * FROM drafts WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
+        ).fetchall()
+
+
+def save_company(
+    *, name: str, size: str | None = None, funding_stage: str | None = None,
+    tech: list[str] | None = None, glassdoor: str | None = None, notes: str | None = None,
+) -> int:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO companies (name, size, funding_stage, tech, glassdoor, notes, fetched_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+              size = excluded.size, funding_stage = excluded.funding_stage,
+              tech = excluded.tech, glassdoor = excluded.glassdoor,
+              notes = excluded.notes, fetched_at = excluded.fetched_at
+            """,
+            (name, size, funding_stage, _to_json(tech) if tech is not None else None,
+             glassdoor, notes, now_iso()),
+        )
+        row = conn.execute("SELECT id FROM companies WHERE name = ?", (name,)).fetchone()
+        return int(row["id"])
+
+
+def get_company(name: str) -> sqlite3.Row | None:
+    with connect() as conn:
+        return conn.execute("SELECT * FROM companies WHERE name = ?", (name,)).fetchone()
+
+
+def company_history(company: str) -> list[sqlite3.Row]:
+    """Every role at a company + its application stage — 'have I engaged here before?'."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT j.id, j.title, j.state, j.discovered_at, a.stage, a.applied_at
+            FROM jobs j LEFT JOIN applications a ON a.job_id = j.id
+            WHERE j.company = ? ORDER BY j.discovered_at DESC
+            """,
+            (company,),
         ).fetchall()
 
 

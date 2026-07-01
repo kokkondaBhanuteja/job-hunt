@@ -225,6 +225,48 @@ def list_drafts_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def save_company(
+    *, name: str, size: str | None = None, funding_stage: str | None = None,
+    tech: list[str] | None = None, glassdoor: str | None = None, notes: str | None = None,
+) -> int:
+    with connect() as conn:
+        return conn.execute(
+            """
+            INSERT INTO companies (name, size, funding_stage, tech, glassdoor, notes, fetched_at)
+            VALUES (%s, %s, %s, %s, %s, %s, now())
+            ON CONFLICT (name) DO UPDATE SET
+              size = EXCLUDED.size, funding_stage = EXCLUDED.funding_stage,
+              tech = EXCLUDED.tech, glassdoor = EXCLUDED.glassdoor,
+              notes = EXCLUDED.notes, fetched_at = now()
+            RETURNING id
+            """,
+            (name, size, funding_stage, Jsonb(tech) if tech is not None else None,
+             glassdoor, notes),
+        ).fetchone()["id"]
+
+
+def get_company(name: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, name, size, funding_stage, tech::text AS tech, glassdoor, notes, "
+            "fetched_at::text AS fetched_at FROM companies WHERE name = %s",
+            (name,),
+        ).fetchone()
+
+
+def company_history(company: str) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT j.id, j.title, j.state, j.discovered_at::text AS discovered_at,
+                   a.stage, a.applied_at::text AS applied_at
+            FROM jobs j LEFT JOIN applications a ON a.job_id = j.id
+            WHERE j.company = %s ORDER BY j.discovered_at DESC
+            """,
+            (company,),
+        ).fetchall()
+
+
 def save_contact(
     *, company: str, name: str, role: str | None = None, persona: str | None = None,
     email_guess: str | None = None, linkedin_url: str | None = None, notes: str | None = None,

@@ -56,6 +56,9 @@ save_answer_template = _impl.save_answer_template
 list_answer_templates = _impl.list_answer_templates
 save_contact = _impl.save_contact
 list_contacts = _impl.list_contacts
+save_company = _impl.save_company
+get_company = _impl.get_company
+company_history = _impl.company_history
 
 # embeddings (Postgres only)
 set_job_embedding = _impl.set_job_embedding

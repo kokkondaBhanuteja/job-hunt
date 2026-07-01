@@ -210,6 +210,11 @@ def outreach(job_id: int, contact_name: str = "") -> dict[str, Any]:
     return result
 
 
+@api.get("/companies/{name}/history")
+def company_history(name: str) -> dict[str, Any]:
+    return services.company_history(name)
+
+
 @api.get("/contacts")
 def contacts(company: str | None = None) -> list[dict[str, Any]]:
     return services.list_contacts(company)

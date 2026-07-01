@@ -6,7 +6,7 @@ import sqlite3
 import pytest
 
 from job_hunt import services
-from job_hunt.enums import ApplicationOutcome, JobStatus
+from job_hunt.enums import ApplicationOutcome, JobState
 
 
 def _seed(db):
@@ -18,13 +18,13 @@ def _seed(db):
     return job_id
 
 
-def test_log_application_applied_sets_status_and_records(tmp_db):
+def test_log_application_applied_sets_state_and_records(tmp_db):
     job_id = _seed(tmp_db)
     out = services.log_application(job_id, "backend-node", "cover", status=ApplicationOutcome.APPLIED)
     assert out["ok"] is True
 
     job = tmp_db.get_job(job_id)
-    assert job["status"] == JobStatus.APPLIED
+    assert job["state"] == JobState.APPLIED  # jobs.state is the lifecycle authority now
     with tmp_db.connect() as conn:
         app = conn.execute("SELECT * FROM applications WHERE job_id=?", (job_id,)).fetchone()
     assert app is not None and app["cover_letter"] == "cover"

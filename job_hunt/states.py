@@ -56,10 +56,16 @@ def can_transition(src: JobState, dst: JobState) -> bool:
     return dst in ALLOWED_TRANSITIONS.get(src, set())
 
 
-def transition_job(job_id: int, to_state: JobState, *, reason: str = "") -> JobState:
-    """Validate, then persist audit + state + the entered state's event **atomically**."""
+def transition_job(
+    job_id: int, to_state: JobState, *, reason: str = "", force: bool = False
+) -> JobState:
+    """Validate, then persist audit + state + the entered state's event **atomically**.
+
+    `force=True` skips the automated-pipeline validation — for user-driven outcomes
+    (logging an application, advancing interview stage) that legitimately jump states.
+    """
     current = JobState(repo.get_job_state(job_id))
-    if not can_transition(current, to_state):
+    if not force and not can_transition(current, to_state):
         raise InvalidTransition(f"job {job_id}: {current} → {to_state} not allowed")
 
     event = STATE_EVENT.get(to_state)

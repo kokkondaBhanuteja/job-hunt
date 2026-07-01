@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from job_hunt import states
+from job_hunt import services, states
 from job_hunt.enums import JobState
 from job_hunt.scoring import match
 from job_hunt.storage import db, repo
@@ -74,3 +74,29 @@ def test_score_job_scores_only_that_job(tmp_db, monkeypatch):
         assert conn.execute("SELECT count(*) FROM scores WHERE job_id=?", (j1,)).fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM scores WHERE job_id=?", (j2,)).fetchone()[0] == 0
     assert repo.get_job_state(j1) == JobState.SCORED
+
+
+# ---------- R2 unified lifecycle: jobs.state follows application outcomes (finding #4) ----------
+
+
+def test_log_application_moves_job_state(tmp_db):
+    jid = _job(tmp_db)
+    tmp_db.upsert_resume_variant(slug="v", source_path="/x", parsed={"h": 1}, tags=[])
+
+    services.log_application(jid, "v", "cover", status="applied")
+    assert repo.get_job_state(jid) == JobState.APPLIED
+
+    j2 = _job(tmp_db, h="r2-skip")
+    services.log_application(j2, "v", "", status="skipped")
+    assert repo.get_job_state(j2) == JobState.ARCHIVED
+
+
+def test_advance_stage_moves_job_state_and_funnel(tmp_db):
+    jid = _job(tmp_db)
+    tmp_db.upsert_resume_variant(slug="v", source_path="/x", parsed={"h": 1}, tags=[])
+    services.log_application(jid, "v", "cover")
+
+    services.advance_stage(jid, "interview")
+    assert repo.get_job_state(jid) == JobState.INTERVIEW      # jobs.state moved (board)
+    with tmp_db.connect() as conn:                            # applications.stage moved (funnel)
+        assert conn.execute("SELECT stage FROM applications WHERE job_id=?", (jid,)).fetchone()[0] == "interview"

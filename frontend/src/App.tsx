@@ -1,15 +1,20 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, getToken } from "./api";
+import { screenOf, useHashRoute } from "./router";
 import { Analytics } from "./pages/Analytics";
 import { Board } from "./pages/Board";
 import { Runs } from "./pages/Runs";
 import { Settings } from "./pages/Settings";
 
-type Tab = "board" | "runs" | "analytics" | "settings";
+const TABS = [
+  { key: "board", label: "Board" },
+  { key: "runs", label: "Runs" },
+  { key: "analytics", label: "Analytics" },
+  { key: "settings", label: "Settings" },
+];
 
 export function App() {
-  const [tab, setTab] = useState<Tab>(getToken() ? "board" : "settings");
+  const screen = screenOf(useHashRoute());
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
   // /health is unauthenticated — probe an authed endpoint so a bad token reads as
   // "unauthorized", not "connected".
@@ -20,13 +25,6 @@ export function App() {
     enabled: !!getToken(),
   });
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "board", label: "Board" },
-    { key: "runs", label: "Runs" },
-    { key: "analytics", label: "Analytics" },
-    { key: "settings", label: "Settings" },
-  ];
-
   return (
     <div className="app">
       <header className="topbar">
@@ -34,14 +32,10 @@ export function App() {
           job-hunt <span className="brand-sub">Career OS</span>
         </div>
         <nav className="tabs">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              className={tab === t.key ? "tab active" : "tab"}
-              onClick={() => setTab(t.key)}
-            >
+          {TABS.map((t) => (
+            <a key={t.key} href={`#/${t.key}`} className={screen === t.key ? "tab active" : "tab"}>
               {t.label}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="status">
@@ -58,13 +52,13 @@ export function App() {
       </header>
 
       <main className="content">
-        {!getToken() && tab !== "settings" && (
+        {!getToken() && screen !== "settings" && (
           <div className="banner">Set your API token in Settings to connect.</div>
         )}
-        {tab === "board" && <Board />}
-        {tab === "runs" && <Runs />}
-        {tab === "analytics" && <Analytics />}
-        {tab === "settings" && <Settings />}
+        {screen === "board" && <Board />}
+        {screen === "runs" && <Runs />}
+        {screen === "analytics" && <Analytics />}
+        {screen === "settings" && <Settings />}
       </main>
     </div>
   );

@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from job_hunt import plugins, services
+from job_hunt.api import dto
 from job_hunt.enums import Score
 from job_hunt.llm.registry import resolve as resolve_llm
 from job_hunt.storage import repo
@@ -120,7 +121,7 @@ def _db_ok() -> bool:
         return False
 
 
-@app.get("/health")
+@app.get("/health", response_model=dto.Health)
 def health() -> dict[str, Any]:
     """Unauthenticated readiness + config summary (no secrets).
 
@@ -138,12 +139,12 @@ def health() -> dict[str, Any]:
 api = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
 
-@api.get("/jobs")
+@api.get("/jobs", response_model=list[dto.TopMatch])
 def list_jobs(min_score: int = Score.DEFAULT_MIN_MATCH, limit: int = 20) -> list[dict[str, Any]]:
     return services.list_top_matches(min_score=min_score, limit=limit)
 
 
-@api.get("/board")
+@api.get("/board", response_model=list[dto.BoardJob])
 def board(limit: int = 200) -> list[dict[str, Any]]:
     return services.list_board(limit)
 
@@ -158,7 +159,7 @@ def resume_variants() -> list[dict[str, Any]]:
     return services.list_resume_vault()
 
 
-@api.get("/search-profiles")
+@api.get("/search-profiles", response_model=list[dto.Profile])
 def list_profiles() -> list[dict[str, Any]]:
     return services.list_profiles()
 
@@ -189,12 +190,12 @@ def trigger_discovery(background: BackgroundTasks) -> dict[str, Any]:
     return {"started": True}
 
 
-@api.get("/runs")
+@api.get("/runs", response_model=list[dto.Run])
 def list_runs(limit: int = 20) -> list[dict[str, Any]]:
     return services.list_runs(limit)
 
 
-@api.get("/runs/{run_id}")
+@api.get("/runs/{run_id}", response_model=dto.Run)
 def get_run(run_id: int) -> dict[str, Any]:
     run = services.get_run(run_id)
     if run is None:
@@ -282,7 +283,7 @@ def suggest_answer(q: str) -> dict[str, Any]:
     return result or {"answer": None}
 
 
-@api.get("/analytics")
+@api.get("/analytics", response_model=dto.Analytics)
 def analytics() -> dict[str, Any]:
     return services.dashboard()
 

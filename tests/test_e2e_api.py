@@ -69,7 +69,27 @@ def test_score_trigger_creates_a_run_row(client, tmp_db, monkeypatch):
 
     assert client.post("/api/score", headers=AUTH).status_code == 202
     runs = client.get("/api/runs", headers=AUTH).json()  # TestClient runs the bg task inline
-    assert any("score" in (r.get("sources") or "") for r in runs)
+    assert len(runs) == 1 and runs[0]["status"] in ("done", "failed")  # a tracked run was created
+
+
+def test_response_model_shapes(client, tmp_db):
+    """The DTO-annotated read endpoints must validate against real data (200, not a 500)."""
+    jid = _scored_job(tmp_db)
+
+    board = client.get("/api/board", headers=AUTH)
+    assert board.status_code == 200
+    row = next(j for j in board.json() if j["id"] == jid)
+    assert set(row) == {"id", "title", "company", "location", "state", "apply_url", "best_score"}
+
+    jobs = client.get("/api/jobs?min_score=0", headers=AUTH)
+    assert jobs.status_code == 200 and jobs.json()[0]["best_variant"] == "v"
+
+    analytics = client.get("/api/analytics", headers=AUTH)
+    assert analytics.status_code == 200
+    assert {"jobs_by_state", "funnel", "llm_cost", "variant_performance"} <= set(analytics.json())
+
+    runs = client.get("/api/runs", headers=AUTH)
+    assert runs.status_code == 200
 
 
 def test_health_reports_degraded_when_db_down(client, monkeypatch):

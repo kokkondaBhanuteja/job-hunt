@@ -14,7 +14,7 @@ from typing import Any, Callable
 
 from job_hunt.enrich.service import Fetcher, enrich_job
 from job_hunt.enums import EventType
-from job_hunt.scoring.match import score_all_pending
+from job_hunt.scoring.match import score_job
 from job_hunt.storage import repo
 
 
@@ -30,7 +30,7 @@ def _job_id(event: dict[str, Any]) -> int | None:
 def build_handlers(
     *,
     enrich_fetchers: dict[str, Fetcher],
-    score_fn: Callable[[], Any] = score_all_pending,
+    score_job_fn: Callable[[int], Any] = score_job,
 ) -> dict[str, Callable[[dict[str, Any]], None]]:
     def on_discovered(event: dict[str, Any]) -> None:
         job_id = _job_id(event)
@@ -43,9 +43,12 @@ def build_handlers(
         if fetch is not None:
             enrich_job(job_id, fetch)
 
-    def on_enriched(_event: dict[str, Any]) -> None:
+    def on_enriched(event: dict[str, Any]) -> None:
+        job_id = _job_id(event)
+        if job_id is None:
+            return
         try:
-            score_fn()
+            score_job_fn(job_id)  # score just this job, not the whole queue
         except RuntimeError:
             pass  # no resume variants yet — nothing to score
 

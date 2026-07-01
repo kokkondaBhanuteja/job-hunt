@@ -22,7 +22,7 @@ def test_pipeline_discovered_enriched_scored(tmp_db):
     scored = {"calls": 0}
     handlers = build_handlers(
         enrich_fetchers={"naukri": lambda url: "The full job description text."},
-        score_fn=lambda: scored.__setitem__("calls", scored["calls"] + 1),
+        score_job_fn=lambda job_id: scored.__setitem__("calls", scored["calls"] + 1),
     )
 
     # Round 1: JOB_DISCOVERED → enrich → job becomes ENRICHED (emits JOB_ENRICHED).

@@ -18,7 +18,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from job_hunt.enums import REVIEWABLE_STATUSES, JobStatus, sql_values
+from job_hunt.enums import CLOSED_STATES, JobStatus, sql_values
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://jobhunt:jobhunt@localhost:55432/jobhunt"
@@ -504,19 +504,22 @@ def list_jobs_for_scoring(limit: int = 200) -> list[dict[str, Any]]:
 
 
 def top_matches(min_score: int = 70, limit: int = 10) -> list[dict[str, Any]]:
+    """Best-scoring jobs — ONE row per job with its actual winning (max-score) variant."""
     with connect() as conn:
         return conn.execute(
             f"""
-            SELECT
-                j.id AS job_id, j.title, j.company, j.location, j.apply_url, j.source,
-                MAX(s.fit_score) AS best_score, rv.slug AS best_variant
-            FROM jobs j
-            JOIN scores s ON s.job_id = j.id
-            JOIN resume_variants rv ON rv.id = s.variant_id
-            WHERE j.status IN ({sql_values(REVIEWABLE_STATUSES)})
-              AND s.fit_score >= %s
-            GROUP BY j.id, rv.slug
-            ORDER BY best_score DESC, j.discovered_at DESC
+            SELECT job_id, title, company, location, apply_url, source, best_score, best_variant
+            FROM (
+                SELECT DISTINCT ON (j.id)
+                    j.id AS job_id, j.title, j.company, j.location, j.apply_url, j.source,
+                    s.fit_score AS best_score, rv.slug AS best_variant, j.discovered_at
+                FROM jobs j
+                JOIN scores s ON s.job_id = j.id
+                JOIN resume_variants rv ON rv.id = s.variant_id
+                WHERE j.state NOT IN ({sql_values(CLOSED_STATES)}) AND s.fit_score >= %s
+                ORDER BY j.id, s.fit_score DESC
+            ) t
+            ORDER BY best_score DESC, discovered_at DESC
             LIMIT %s
             """,
             (min_score, limit),
@@ -591,6 +594,26 @@ def write_job_transition(
             "VALUES (%s, %s, %s, %s)",
             (int(job_id), from_state, to_state, reason),
         )
+
+
+def apply_transition(
+    *, job_id: int, from_state: str | None, to_state: str, reason: str | None = None,
+    event_type: str | None = None, event_class: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    """Audit + state change + (optional) event append — in ONE transaction (the outbox invariant)."""
+    with connect() as conn:  # single connect() == single transaction (commit on clean exit)
+        conn.execute(
+            "INSERT INTO job_transitions (job_id, from_state, to_state, reason) "
+            "VALUES (%s, %s, %s, %s)",
+            (int(job_id), from_state, to_state, reason),
+        )
+        conn.execute("UPDATE jobs SET state = %s WHERE id = %s", (to_state, int(job_id)))
+        if event_type is not None:
+            conn.execute(
+                "INSERT INTO events (type, class, payload) VALUES (%s, %s, %s)",
+                (event_type, event_class, Jsonb(payload) if payload is not None else None),
+            )
 
 
 # ---------- event outbox ----------

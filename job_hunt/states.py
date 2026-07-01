@@ -57,21 +57,26 @@ def can_transition(src: JobState, dst: JobState) -> bool:
 
 
 def transition_job(job_id: int, to_state: JobState, *, reason: str = "") -> JobState:
-    """Validate, persist (audit + state), and emit the entered state's event."""
+    """Validate, then persist audit + state + the entered state's event **atomically**."""
     current = JobState(repo.get_job_state(job_id))
     if not can_transition(current, to_state):
         raise InvalidTransition(f"job {job_id}: {current} → {to_state} not allowed")
 
-    repo.write_job_transition(job_id=job_id, from_state=str(current), to_state=str(to_state), reason=reason)
-    repo.set_job_state(job_id, to_state)
-
     event = STATE_EVENT.get(to_state)
-    if event is not None:
-        bus.emit(event, payload={"job_id": job_id})
+    repo.apply_transition(
+        job_id=job_id, from_state=str(current), to_state=str(to_state), reason=reason,
+        event_type=str(event) if event else None,
+        event_class=str(bus.class_of(event)) if event else None,
+        payload={"job_id": job_id} if event else None,
+    )
     return to_state
 
 
 def mark_discovered(job_id: int, *, reason: str = "scrape") -> None:
-    """Record the initial DISCOVERED state for a freshly-inserted job (audit + event)."""
-    repo.write_job_transition(job_id=job_id, from_state=None, to_state=str(S.DISCOVERED), reason=reason)
-    bus.emit(EventType.JOB_DISCOVERED, payload={"job_id": job_id})
+    """Record the initial DISCOVERED state for a freshly-inserted job — audit + event, one tx."""
+    repo.apply_transition(
+        job_id=job_id, from_state=None, to_state=str(S.DISCOVERED), reason=reason,
+        event_type=str(EventType.JOB_DISCOVERED),
+        event_class=str(bus.class_of(EventType.JOB_DISCOVERED)),
+        payload={"job_id": job_id},
+    )

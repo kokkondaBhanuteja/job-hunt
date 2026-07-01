@@ -16,7 +16,8 @@ from job_hunt.enums import JobState
 from job_hunt.llm import registry
 from job_hunt.llm.ollama import chat_json
 from job_hunt.llm.prompts import SCORING
-from job_hunt.states import transition_job
+from job_hunt.states import can_transition, transition_job
+from job_hunt.storage import repo
 from job_hunt.storage.repo import (
     list_resume_variants,
     list_scorable_jobs,
@@ -100,58 +101,70 @@ def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
         raise RuntimeError(
             "No resume variants in DB. Run `parse-resume` on your vault first."
         )
-
-    provider, model = registry.resolve("scoring")
-    provider_model = f"{provider.name}:{model}"
+    provider_model = _provider_model()
 
     jobs_scored = 0
     rows_written = 0
-
     for job in list_scorable_jobs():
-        jd_text, scored_against = _jd_for(job)
-        input_hash = _hash(jd_text)
-        existing = {
-            int(r["variant_id"]): (r["input_hash"], r["provider_model"])
-            for r in scores_meta_for_job(int(job["id"]))
-        }
-
-        wrote_any = False
-        for variant in variants:
-            vid = int(variant["id"])
-            if existing.get(vid) == (input_hash, provider_model):
-                continue  # already scored against this exact JD + model → skip (idempotent)
-            try:
-                resume_json = json.loads(variant["parsed_json"])
-                result = score_one(resume_json, job, jd_text)
-                confidence = result.get("confidence")
-                write_score(
-                    job_id=int(job["id"]),
-                    variant_id=vid,
-                    fit_score=int(result["fit_score"]),
-                    reasoning=str(result["reasoning"]),
-                    confidence=int(confidence) if confidence is not None else None,
-                    scored_against=scored_against,
-                    input_hash=input_hash,
-                    provider_model=provider_model,
-                )
-                rows_written += 1
-                wrote_any = True
-                if verbose:
-                    print(
-                        f"  [{variant['slug']:>16}] {result['fit_score']:3d} "
-                        f"({scored_against}) | {job['company'][:25]:<25} | {job['title'][:50]}"
-                    )
-            except Exception as exc:  # noqa: BLE001 — log + continue
-                if verbose:
-                    print(f"  ! score failed for job={job['id']} variant={variant['slug']}: {exc}")
-                continue
-
-        if wrote_any:
+        wrote = _score_job_row(job, variants, provider_model, verbose=verbose)
+        rows_written += wrote
+        if wrote:
             jobs_scored += 1
-            # Advance the state machine (emits JOB_SCORED). Guarded: already-SCORED is fine.
-            try:
-                transition_job(int(job["id"]), JobState.SCORED, reason="auto-scored")
-            except Exception:  # noqa: BLE001
-                pass
-
     return {"jobs_scored": jobs_scored, "score_rows_written": rows_written}
+
+
+def score_job(job_id: int) -> dict[str, int]:
+    """(Re)score a SINGLE job × variants — what the JOB_ENRICHED event handler calls."""
+    variants = list_resume_variants()
+    if not variants:
+        raise RuntimeError("No resume variants in DB. Run `parse-resume` first.")
+    job = repo.get_job(job_id)
+    if job is None:
+        return {"jobs_scored": 0, "score_rows_written": 0}
+    wrote = _score_job_row(job, variants, _provider_model())
+    return {"jobs_scored": 1 if wrote else 0, "score_rows_written": wrote}
+
+
+def _provider_model() -> str:
+    provider, model = registry.resolve("scoring")
+    return f"{provider.name}:{model}"
+
+
+def _score_job_row(job: Any, variants: Any, provider_model: str, *, verbose: bool = False) -> int:
+    """Score one job row against every variant (idempotent). Returns rows written."""
+    jd_text, scored_against = _jd_for(job)
+    input_hash = _hash(jd_text)
+    existing = {
+        int(r["variant_id"]): (r["input_hash"], r["provider_model"])
+        for r in scores_meta_for_job(int(job["id"]))
+    }
+
+    wrote = 0
+    for variant in variants:
+        vid = int(variant["id"])
+        if existing.get(vid) == (input_hash, provider_model):
+            continue  # already scored against this exact JD + model → skip (idempotent)
+        try:
+            resume_json = json.loads(variant["parsed_json"])
+            result = score_one(resume_json, job, jd_text)
+            confidence = result.get("confidence")
+            write_score(
+                job_id=int(job["id"]), variant_id=vid, fit_score=int(result["fit_score"]),
+                reasoning=str(result["reasoning"]),
+                confidence=int(confidence) if confidence is not None else None,
+                scored_against=scored_against, input_hash=input_hash, provider_model=provider_model,
+            )
+            wrote += 1
+            if verbose:
+                print(f"  [{variant['slug']:>16}] {result['fit_score']:3d} ({scored_against}) "
+                      f"| {job['company'][:25]:<25} | {job['title'][:50]}")
+        except Exception as exc:  # noqa: BLE001 — log + continue
+            if verbose:
+                print(f"  ! score failed for job={job['id']} variant={variant['slug']}: {exc}")
+            continue
+
+    if wrote:  # advance the state machine only from a legal source state (no silent swallow)
+        current = JobState(repo.get_job_state(int(job["id"])))
+        if can_transition(current, JobState.SCORED):
+            transition_job(int(job["id"]), JobState.SCORED, reason="auto-scored")
+    return wrote

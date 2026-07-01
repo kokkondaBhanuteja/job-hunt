@@ -74,6 +74,7 @@ semantic_jobs = _impl.semantic_jobs
 get_job_state = _impl.get_job_state
 set_job_state = _impl.set_job_state
 write_job_transition = _impl.write_job_transition
+apply_transition = _impl.apply_transition
 
 # event outbox
 write_event = _impl.write_event

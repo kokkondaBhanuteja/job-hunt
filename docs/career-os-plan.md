@@ -16,7 +16,7 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 | **3 React UI** | ✅ done | Board (Kanban by state) · Runs · Analytics · Settings; job-detail actions |
 | **4 Deepen** | ◑ mostly | ✅ enrichment, idempotent scoring, auto-advance, **tailoring + cover letters**, **answer templates**, **recruiter CRM + outreach**, **company memory**. ❌ external company-research *fetch* (needs scraper), prioritization rank (needs applicant_count/posted_at) |
 | **5 Sources** | ◑ partial | ✅ Naukri + **RemoteOK** + **Greenhouse** + **Lever** (public APIs) + cross-source dedup + shared persist helper. ❌ LinkedIn / Wellfound (browser+auth) |
-| **6 Apply** | ◑ partial | ✅ **ATS detection** + **AI pre-submit reviewer** (quality gate). ❌ Playwright form-fill, review-queue UI, checkpoints |
+| **6 Apply** | ◑ partial | ✅ **ATS detection**, **AI pre-submit reviewer**, **crash-resumable checkpoints**, **application-package assembly** (tailored resume + cover + template answers), **submitted-resume snapshot**. ❌ live Playwright form-fill (per-ATS), review-queue UI |
 | **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |
 
 **Known loose ends:** no real Ollama scoring run yet (only stub-tested — needs Ollama running on the host);

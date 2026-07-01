@@ -127,6 +127,14 @@ class JobState(StrEnum):
     WITHDRAWN = "withdrawn"
 
 
+# States that are applied/closed/parked — excluded from "top matches to act on now".
+# (top-matches also requires a score via the join, so this is effectively "scored & live".)
+CLOSED_STATES: tuple[JobState, ...] = (
+    JobState.APPLIED, JobState.OA, JobState.INTERVIEW, JobState.HR, JobState.OFFER,
+    JobState.REJECTED, JobState.ARCHIVED, JobState.WITHDRAWN, JobState.DEFERRED,
+)
+
+
 class RunStatus(StrEnum):
     """Lifecycle of a background run (discovery/scoring/apply)."""
 
@@ -162,8 +170,11 @@ class EventType(StrEnum):
     RATE_LIMIT_REACHED = "rate_limit.reached"
 
 
-# Job statuses considered "still open for review / action" (used by top-matches).
+# Legacy: job *statuses* considered open (jobs.status is retired in favor of jobs.state).
 REVIEWABLE_STATUSES: tuple[JobStatus, ...] = (JobStatus.NEW, JobStatus.READY_TO_REVIEW)
+
+# jobs.state values that are "scored + still worth reviewing/acting on" (top-matches).
+# Defined lazily below once JobState exists.
 
 
 # Score thresholds (0-100). Centralized so tuning happens in one place.

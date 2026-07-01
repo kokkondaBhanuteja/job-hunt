@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from job_hunt.enums import (
-    REVIEWABLE_STATUSES,
+    CLOSED_STATES,
     ApplicationStage,
     DraftKind,
     JobState,
@@ -775,7 +775,7 @@ def write_llm_call(
 
 
 def top_matches(min_score: int = 70, limit: int = 10) -> list[sqlite3.Row]:
-    """For dashboard / MCP tool: best-scoring jobs with their winning variant."""
+    """Best-scoring jobs — ONE row per job with its actual winning (max-score) variant."""
     with connect() as conn:
         return conn.execute(
             f"""
@@ -786,12 +786,13 @@ def top_matches(min_score: int = 70, limit: int = 10) -> list[sqlite3.Row]:
                 j.location      AS location,
                 j.apply_url     AS apply_url,
                 j.source        AS source,
-                MAX(s.fit_score) AS best_score,
+                s.fit_score     AS best_score,
                 rv.slug         AS best_variant
             FROM jobs j
-            JOIN scores s        ON s.job_id = j.id
+            JOIN scores s ON s.job_id = j.id
+                        AND s.fit_score = (SELECT MAX(fit_score) FROM scores WHERE job_id = j.id)
             JOIN resume_variants rv ON rv.id = s.variant_id
-            WHERE j.status IN ({sql_values(REVIEWABLE_STATUSES)})
+            WHERE j.state NOT IN ({sql_values(CLOSED_STATES)})
               AND s.fit_score >= ?
             GROUP BY j.id
             ORDER BY best_score DESC, j.discovered_at DESC
@@ -891,6 +892,28 @@ def write_job_transition(
             "VALUES (?, ?, ?, ?, ?)",
             (int(job_id), from_state, to_state, reason, now_iso()),
         )
+
+
+def apply_transition(
+    *, job_id: int, from_state: str | None, to_state: str, reason: str | None = None,
+    event_type: str | None = None, event_class: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    """Audit + state change + (optional) event append — in ONE transaction (the outbox invariant)."""
+    ts = now_iso()
+    with connect() as conn:  # single connect() == single transaction (commit on clean exit)
+        conn.execute(
+            "INSERT INTO job_transitions (job_id, from_state, to_state, reason, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (int(job_id), from_state, to_state, reason, ts),
+        )
+        conn.execute("UPDATE jobs SET state = ? WHERE id = ?", (to_state, int(job_id)))
+        if event_type is not None:
+            conn.execute(
+                "INSERT INTO events (type, class, payload, created_at) VALUES (?, ?, ?, ?)",
+                (event_type, event_class,
+                 _to_json(payload) if payload is not None else None, ts),
+            )
 
 
 # ---------- event outbox ----------

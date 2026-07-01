@@ -16,14 +16,10 @@ from job_hunt.storage import repo
 
 def _best_variant_resume(job_id: int) -> tuple[str | None, dict[str, Any]]:
     """The highest-scoring variant's slug + parsed resume for a job (or (None, {}))."""
-    scores = repo.list_scores_for_job(job_id)
-    if not scores:
+    row = repo.best_scored_variant(job_id)
+    if row is None:
         return None, {}
-    slug = scores[0]["variant"]
-    for variant in repo.list_resume_variants():
-        if variant["slug"] == slug:
-            return slug, json.loads(variant["parsed_json"])
-    return slug, {}
+    return row["slug"], json.loads(row["parsed_json"])
 
 
 def review_application(

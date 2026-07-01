@@ -171,6 +171,60 @@ def set_job_enriched(job_id: int, description_full: str) -> None:
         )
 
 
+# ---------- drafting ----------
+
+
+def best_scored_variant(job_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT rv.id, rv.slug, rv.parsed_json::text AS parsed_json
+            FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
+            WHERE s.job_id = %s ORDER BY s.fit_score DESC LIMIT 1
+            """,
+            (job_id,),
+        ).fetchone()
+
+
+def save_tailored_resume(*, job_id: int, variant_id: int, content: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO tailored_resumes (job_id, variant_id, content)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (job_id, variant_id) DO UPDATE SET
+              content = EXCLUDED.content, created_at = now()
+            """,
+            (int(job_id), int(variant_id), content),
+        )
+
+
+def get_tailored_resume(job_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, variant_id, content, created_at::text AS created_at "
+            "FROM tailored_resumes WHERE job_id = %s ORDER BY id DESC LIMIT 1",
+            (int(job_id),),
+        ).fetchone()
+
+
+def save_draft(*, job_id: int, kind: str, body: str) -> int:
+    with connect() as conn:
+        return conn.execute(
+            "INSERT INTO drafts (job_id, kind, body) VALUES (%s, %s, %s) RETURNING id",
+            (int(job_id), str(kind), body),
+        ).fetchone()["id"]
+
+
+def list_drafts_for_job(job_id: int) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, kind, body, status, created_at::text AS created_at "
+            "FROM drafts WHERE job_id = %s ORDER BY id DESC",
+            (int(job_id),),
+        ).fetchall()
+
+
 def write_llm_call(
     *, task: str, provider: str, model: str, prompt: str | None, response: str | None,
     prompt_tokens: int | None = None, completion_tokens: int | None = None,

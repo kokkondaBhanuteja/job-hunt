@@ -161,6 +161,27 @@ def cancel_run(run_id: int) -> dict[str, Any]:
     return {"ok": True, "id": run_id}
 
 
+@api.post("/jobs/{job_id}/tailor")
+def tailor(job_id: int) -> dict[str, Any]:
+    result = services.tailor_for_job(job_id)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@api.post("/jobs/{job_id}/cover")
+def cover(job_id: int) -> dict[str, Any]:
+    result = services.draft_cover_for_job(job_id)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@api.get("/jobs/{job_id}/drafts")
+def drafts(job_id: int) -> list[dict[str, Any]]:
+    return services.list_drafts(job_id)
+
+
 @api.post("/apply/review")
 def apply_review(body: ReviewIn) -> dict[str, Any]:
     """AI pre-submit review of an application (never submits — for the review queue)."""

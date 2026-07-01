@@ -215,3 +215,29 @@ APPLICATION_REVIEW = Prompt(
     ),
     schema=APPLICATION_REVIEW_SCHEMA,
 )
+
+
+# ---------- drafting: resume tailoring + cover letters (prose, no schema) ----------
+
+RESUME_TAILOR = Prompt(
+    name="resume_tailor",
+    version=1,
+    system=(
+        "You tailor a candidate's resume to a specific job. Using ONLY facts present in "
+        "the candidate's resume, rewrite it to foreground the experience, skills, and "
+        "projects most relevant to this job, weaving in the job's terminology where it is "
+        "truthful. Never invent or exaggerate experience. Output a clean, ATS-friendly "
+        "Markdown resume — no commentary."
+    ),
+)
+
+COVER_LETTER = Prompt(
+    name="cover_letter",
+    version=1,
+    system=(
+        "You write concise, specific cover letters for software-engineering roles. "
+        "150-200 words, professional but human. Ground every claim in the candidate's real "
+        "experience; name the company/role and the 2-3 most relevant qualifications. Avoid "
+        "clichés ('passionate about innovation') and invent nothing. Output only the letter body."
+    ),
+)

@@ -65,6 +65,13 @@ class ScrapeStatus(StrEnum):
     BLOCKED = "blocked"  # login wall / captcha / anti-bot challenge detected
 
 
+class DraftKind(StrEnum):
+    """Kind of generated draft stored in `drafts`."""
+
+    COVER = "cover"
+    OUTREACH = "outreach"
+
+
 class ATSPlatform(StrEnum):
     """Applicant-tracking system behind a job's apply page — picks the apply flow."""
 

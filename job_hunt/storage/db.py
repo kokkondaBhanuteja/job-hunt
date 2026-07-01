@@ -27,6 +27,7 @@ from typing import Any, Iterator
 
 from job_hunt.enums import (
     REVIEWABLE_STATUSES,
+    DraftKind,
     JobState,
     JobStatus,
     ReplyType,
@@ -159,6 +160,27 @@ CREATE TABLE IF NOT EXISTS events (
     processed_at TEXT                                 -- NULL until the worker handles it
 );
 CREATE INDEX IF NOT EXISTS idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
+
+-- Tailored resume per (job, variant) — LLM-emphasized, invents nothing.
+CREATE TABLE IF NOT EXISTS tailored_resumes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    variant_id  INTEGER NOT NULL REFERENCES resume_variants(id),
+    content     TEXT NOT NULL,                  -- tailored resume (markdown)
+    created_at  TEXT NOT NULL,
+    UNIQUE(job_id, variant_id)
+);
+
+-- Generated drafts: cover letters + recruiter outreach.
+CREATE TABLE IF NOT EXISTS drafts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL CHECK (kind IN ({sql_in_list(DraftKind)})),
+    body        TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'draft',   -- draft | accepted
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_drafts_job ON drafts(job_id);
 
 -- Saved searches. Discovery runs once per ACTIVE profile.
 CREATE TABLE IF NOT EXISTS search_profiles (
@@ -441,6 +463,59 @@ def set_job_enriched(job_id: int, description_full: str) -> None:
             "UPDATE jobs SET description_full = ?, enriched_at = ? WHERE id = ?",
             (description_full, now_iso(), int(job_id)),
         )
+
+
+# ---------- drafting (tailored resumes + cover letters/outreach) ----------
+
+
+def best_scored_variant(job_id: int) -> sqlite3.Row | None:
+    """The highest-scoring variant (id, slug, parsed_json) for a job, or None."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT rv.id, rv.slug, rv.parsed_json
+            FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
+            WHERE s.job_id = ? ORDER BY s.fit_score DESC LIMIT 1
+            """,
+            (job_id,),
+        ).fetchone()
+
+
+def save_tailored_resume(*, job_id: int, variant_id: int, content: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO tailored_resumes (job_id, variant_id, content, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(job_id, variant_id) DO UPDATE SET
+              content = excluded.content, created_at = excluded.created_at
+            """,
+            (int(job_id), int(variant_id), content, now_iso()),
+        )
+
+
+def get_tailored_resume(job_id: int) -> sqlite3.Row | None:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM tailored_resumes WHERE job_id = ? ORDER BY id DESC LIMIT 1",
+            (int(job_id),),
+        ).fetchone()
+
+
+def save_draft(*, job_id: int, kind: str, body: str) -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO drafts (job_id, kind, body, created_at) VALUES (?, ?, ?, ?)",
+            (int(job_id), str(kind), body, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM drafts WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
+        ).fetchall()
 
 
 def write_llm_call(

@@ -116,6 +116,26 @@ def cmd_enrich(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tailor(args: argparse.Namespace) -> int:
+    result = services.tailor_for_job(args.job_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"tailored resume for job {args.job_id} (variant {result['variant']}):\n")
+    print(result["content"])
+    return 0
+
+
+def cmd_cover(args: argparse.Namespace) -> int:
+    result = services.draft_cover_for_job(args.job_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"cover letter draft #{result['draft_id']} for job {args.job_id}:\n")
+    print(result["body"])
+    return 0
+
+
 def cmd_score(args: argparse.Namespace) -> int:
     try:
         summary = services.score_pending(verbose=args.verbose)
@@ -251,6 +271,14 @@ def build_parser() -> argparse.ArgumentParser:
     en.add_argument("--limit", type=int, default=50)
     en.add_argument("--headless", action="store_true", help="Hide the browser")
     en.set_defaults(func=cmd_enrich)
+
+    tl = sub.add_parser("tailor", help="Generate a JD-tailored resume for a job")
+    tl.add_argument("job_id", type=int)
+    tl.set_defaults(func=cmd_tailor)
+
+    cv = sub.add_parser("cover", help="Generate a cover letter for a job")
+    cv.add_argument("job_id", type=int)
+    cv.set_defaults(func=cmd_cover)
 
     s = sub.add_parser("score", help="LLM-score every pending job × every variant")
     s.add_argument("--verbose", action="store_true")

@@ -43,6 +43,13 @@ scores_meta_for_job = _impl.scores_meta_for_job
 find_variant_id_by_slug = _impl.find_variant_id_by_slug
 set_job_enriched = _impl.set_job_enriched
 
+# drafting
+best_scored_variant = _impl.best_scored_variant
+save_tailored_resume = _impl.save_tailored_resume
+get_tailored_resume = _impl.get_tailored_resume
+save_draft = _impl.save_draft
+list_drafts_for_job = _impl.list_drafts_for_job
+
 # state machine
 get_job_state = _impl.get_job_state
 set_job_state = _impl.set_job_state

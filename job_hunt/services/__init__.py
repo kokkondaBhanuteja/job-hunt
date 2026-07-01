@@ -10,6 +10,7 @@ from __future__ import annotations
 from job_hunt.services.applications import log_application
 from job_hunt.services.apply import review_application
 from job_hunt.services.discovery import discover, discover_naukri
+from job_hunt.services.drafting import draft_cover_for_job, list_drafts, tailor_for_job
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import parse_resume_vault
@@ -33,6 +34,9 @@ __all__ = [
     "list_resume_vault",
     "log_application",
     "review_application",
+    "tailor_for_job",
+    "draft_cover_for_job",
+    "list_drafts",
     "parse_resume_vault",
     "add_profile",
     "list_profiles",

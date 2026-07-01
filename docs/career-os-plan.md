@@ -327,6 +327,13 @@ Still to do in P4: resume tailoring, cover letters/outreach, company research, p
   (apply / defer / wait-for-referral).
 - Resume **tailoring** + **version snapshots**; **fresh cover letters** + outreach (**recruiter CRM**); seed **answer-template library**. UI review/edit.
 
+_Status (drafting slice DONE): migration `0005` + sqlite — `tailored_resumes` + `drafts` (kind: cover|outreach).
+`DraftKind` enum. `RESUME_TAILOR` + `COVER_LETTER` prompts (prose, invent-nothing) in the Prompt Library.
+`resume/tailor.py` (tailoring task) + `draft/cover.py` (drafting task) via the AI Gateway. `repo.best_scored_variant`
++ save/get tailored + drafts (both backends; apply service refactored to reuse it). `services.tailor_for_job` /
+`draft_cover_for_job` / `list_drafts`; `POST /api/jobs/{id}/tailor|cover`, `GET …/drafts`; `hunt tailor|cover`.
+82 tests green. Still open in P4: recruiter outreach/CRM, company research, answer-template library, prioritization rank._
+
 ### Phase 5 — More sources (plugins)
 - Implement the plugin contract for LinkedIn / Wellfound / RemoteOK / Greenhouse / Lever. Cross-source dedup via the
   P1 key; per-source search profiles + rate limits + scrape-health.

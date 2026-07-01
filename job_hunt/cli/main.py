@@ -219,6 +219,25 @@ def cmd_serve_api(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_embed(args: argparse.Namespace) -> int:
+    result = services.embed_jobs(limit=args.limit)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"  embedded {result['embedded']}/{result['candidates']} jobs")
+    return 0
+
+
+def cmd_semantic(args: argparse.Namespace) -> int:
+    result = services.semantic_match(args.query, limit=args.limit)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    for r in result["results"]:
+        print(f"  [{r['distance']:.3f}] {r['company'][:25]:<25} | {r['title'][:55]}")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     """Print the daily report; optionally send it to the configured channel."""
     from job_hunt.notify import build_daily_report, send_daily_report
@@ -311,6 +330,15 @@ def build_parser() -> argparse.ArgumentParser:
     rc = sub.add_parser("run-cycle", help="Discovery+scoring for all active profiles")
     rc.add_argument("--headless", action="store_true", help="Hide the browser")
     rc.set_defaults(func=cmd_run_cycle)
+
+    eb = sub.add_parser("embed", help="Embed jobs for semantic search (Postgres only)")
+    eb.add_argument("--limit", type=int, default=200)
+    eb.set_defaults(func=cmd_embed)
+
+    sm = sub.add_parser("semantic", help="Semantic job search (Postgres only)")
+    sm.add_argument("query")
+    sm.add_argument("--limit", type=int, default=10)
+    sm.set_defaults(func=cmd_semantic)
 
     rp = sub.add_parser("report", help="Print (and optionally send) the daily report")
     rp.add_argument("--send", action="store_true", help="Send to the configured channel")

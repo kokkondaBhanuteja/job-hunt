@@ -53,6 +53,12 @@ list_drafts_for_job = _impl.list_drafts_for_job
 save_learning = _impl.save_learning
 list_learnings_for_job = _impl.list_learnings_for_job
 
+# embeddings (Postgres only)
+set_job_embedding = _impl.set_job_embedding
+set_variant_embedding = _impl.set_variant_embedding
+jobs_missing_embedding = _impl.jobs_missing_embedding
+semantic_jobs = _impl.semantic_jobs
+
 # state machine
 get_job_state = _impl.get_job_state
 set_job_state = _impl.set_job_state

@@ -22,6 +22,7 @@ from job_hunt.services.review import (
     list_resume_vault,
     list_top_matches,
 )
+from job_hunt.services.semantic import embed_jobs, semantic_match
 from job_hunt.services.runs import get_run, list_runs, request_cancel, run_discovery
 from job_hunt.services.scoring import score_pending
 
@@ -39,6 +40,8 @@ __all__ = [
     "dashboard",
     "variant_performance",
     "learn_from_rejection",
+    "embed_jobs",
+    "semantic_match",
     "review_application",
     "tailor_for_job",
     "draft_cover_for_job",

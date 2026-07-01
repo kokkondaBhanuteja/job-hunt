@@ -202,6 +202,22 @@ def analytics() -> dict[str, Any]:
     return services.dashboard()
 
 
+@api.post("/embed")
+def embed(limit: int = 200) -> dict[str, Any]:
+    result = services.embed_jobs(limit=limit)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@api.get("/semantic")
+def semantic(q: str, limit: int = 10) -> dict[str, Any]:
+    result = services.semantic_match(q, limit=limit)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 @api.post("/jobs/{job_id}/learn-rejection")
 def learn_rejection(job_id: int) -> dict[str, Any]:
     result = services.learn_from_rejection(job_id)

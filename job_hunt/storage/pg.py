@@ -236,6 +236,48 @@ def save_learning(
         ).fetchone()["id"]
 
 
+def _vec(values: list[float]) -> str:
+    """pgvector text literal, e.g. '[0.1,0.2,...]'."""
+    return "[" + ",".join(repr(float(v)) for v in values) + "]"
+
+
+def set_job_embedding(job_id: int, embedding: list[float]) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE jobs SET embedding = %s::vector WHERE id = %s", (_vec(embedding), int(job_id))
+        )
+
+
+def set_variant_embedding(variant_id: int, embedding: list[float]) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE resume_variants SET embedding = %s::vector WHERE id = %s",
+            (_vec(embedding), int(variant_id)),
+        )
+
+
+def jobs_missing_embedding(limit: int = 200) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, title, company, description, description_full FROM jobs "
+            "WHERE embedding IS NULL AND (description_full IS NOT NULL OR description IS NOT NULL) "
+            "LIMIT %s",
+            (limit,),
+        ).fetchall()
+
+
+def semantic_jobs(embedding: list[float], limit: int = 10) -> list[dict[str, Any]]:
+    """Nearest jobs to a query embedding by cosine distance."""
+    vec = _vec(embedding)
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, title, company, location, apply_url, "
+            "(embedding <=> %s::vector) AS distance FROM jobs "
+            "WHERE embedding IS NOT NULL ORDER BY embedding <=> %s::vector LIMIT %s",
+            (vec, vec, limit),
+        ).fetchall()
+
+
 def list_learnings_for_job(job_id: int) -> list[dict[str, Any]]:
     with connect() as conn:
         return conn.execute(

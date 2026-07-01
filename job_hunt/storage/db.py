@@ -555,6 +555,27 @@ def list_learnings_for_job(job_id: int) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+# ---------- embeddings (Postgres/pgvector only) ----------
+
+_SEMANTIC_MSG = "semantic search requires the Postgres backend (DB_BACKEND=postgres)"
+
+
+def set_job_embedding(job_id: int, embedding: list[float]) -> None:
+    raise NotImplementedError(_SEMANTIC_MSG)
+
+
+def set_variant_embedding(variant_id: int, embedding: list[float]) -> None:
+    raise NotImplementedError(_SEMANTIC_MSG)
+
+
+def jobs_missing_embedding(limit: int = 200) -> list[sqlite3.Row]:
+    raise NotImplementedError(_SEMANTIC_MSG)
+
+
+def semantic_jobs(embedding: list[float], limit: int = 10) -> list[sqlite3.Row]:
+    raise NotImplementedError(_SEMANTIC_MSG)
+
+
 def write_llm_call(
     *,
     task: str,

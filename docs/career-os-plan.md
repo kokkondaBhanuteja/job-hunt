@@ -379,6 +379,13 @@ Still open in P7: learning loop, Telegram/Discord notifications, pgvector semant
   **which prompt/model produced better resumes/tailoring** (joins `llm_calls` ↔ outcomes), tailoring time.
   **Cost dashboard** (from `llm_calls`).
 - **Learning loop**: rejection → JD-vs-resume keyword-gap → future tailoring weight; interview → up-weight winning variant.
+
+_Status (learning slice DONE): `LearningKind` enum + `learnings` table (migration `0007` + sqlite) + repo save/list.
+`REJECTION_GAP` prompt + `learn/analyze.py` (JD vs resume → missing_keywords + summary, AI Gateway, stub-testable).
+`services.learn_from_rejection(job_id)` persists the gap; `services.variant_performance()` aggregates applications×
+stage per variant (interviews/offers/rejections) — added to the analytics dashboard + Analytics UI. `POST
+/api/jobs/{id}/learn-rejection`. 98 tests green. Fixed an f-string SCHEMA bug (braces in a SQL comment).
+Still open in P7: pgvector semantic match._
 - Telegram/Discord daily report + priority alerts.
 - Add `embedding` column + index + model + backfill → pgvector semantic job↔resume matching.
 

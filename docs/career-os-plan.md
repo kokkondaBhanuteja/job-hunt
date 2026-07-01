@@ -14,7 +14,7 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 | **1 Postgres + foundations** | ✅ done | Postgres+pgvector (:55432) w/ SQLite test path via `DB_BACKEND`; Browser Manager; state machine + event bus + runs; worker/scheduler; plugin contract; search profiles |
 | **2 API** | ✅ done | FastAPI over services, 127.0.0.1 + token auth |
 | **3 React UI** | ✅ done | Board (Kanban by state) · Runs · Analytics · Settings; job-detail actions |
-| **4 Deepen** | ◑ partial | ✅ JD enrichment, idempotent JD-aware scoring, event-driven auto-advance, **resume tailoring + cover letters**. ❌ outreach/CRM, company research, answer-template library, prioritization rank |
+| **4 Deepen** | ◑ partial | ✅ JD enrichment, idempotent JD-aware scoring, event-driven auto-advance, **resume tailoring + cover letters**, **answer-template library**. ❌ outreach/CRM, company research, prioritization rank |
 | **5 Sources** | ◑ partial | ✅ Naukri + **RemoteOK** (public API) + cross-source dedup. ❌ LinkedIn / Wellfound / Greenhouse / Lever |
 | **6 Apply** | ◑ partial | ✅ **ATS detection** + **AI pre-submit reviewer** (quality gate). ❌ Playwright form-fill, review-queue UI, checkpoints |
 | **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |

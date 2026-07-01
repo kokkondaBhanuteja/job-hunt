@@ -9,27 +9,18 @@ them. Cross-source dedup (canonical key) collapses the same role found on Naukri
 """
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import httpx
 
-from job_hunt.enums import JobState
+from job_hunt.plugins._persist import persist_full_jd_job, strip_html
 from job_hunt.plugins.base import register
-from job_hunt.sources.dedup import dedup_hash
-from job_hunt.states import mark_discovered, transition_job
-from job_hunt.storage.repo import insert_job_if_new, set_job_enriched
 
 REMOTEOK_API = "https://remoteok.com/api"
 _UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
-_TAG = re.compile(r"<[^>]+>")
-
-
-def _strip_html(text: str) -> str:
-    return _TAG.sub(" ", text or "").replace("&amp;", "&").strip()
 
 
 def _fetch(url: str = REMOTEOK_API) -> list[dict[str, Any]]:
@@ -67,31 +58,19 @@ class RemoteOKSource:
 
             company = row.get("company") or "Unknown"
             loc = row.get("location") or "Remote"
-            full_jd = _strip_html(row.get("description", ""))
             jobs.append({"title": position, "company": company, "location": loc,
                          "apply_url": row.get("url"), "tags": tags})
             found += 1
             if dry_run:
                 continue
-
-            job_id = insert_job_if_new(
-                dedup_hash=dedup_hash(company, position, loc),
+            if persist_full_jd_job(
                 source="remoteok", source_job_id=str(row.get("id") or ""),
                 title=position, company=company, location=loc,
-                description=(full_jd[:400] or None), apply_url=row.get("url") or "",
-                posted_date=row.get("date"), raw_payload={"tags": tags},
-            )
-            if job_id is None:  # cross-source duplicate
-                continue
-            new += 1
-            if full_jd:  # RemoteOK gives the full JD up front → skip enrichment
-                set_job_enriched(job_id, full_jd)
-                try:
-                    transition_job(job_id, JobState.ENRICHED, reason="api-full-jd")
-                except Exception:  # noqa: BLE001
-                    pass
-            else:
-                mark_discovered(job_id)
+                full_jd=strip_html(row.get("description", "")),
+                apply_url=row.get("url"), posted_date=row.get("date"),
+                raw_payload={"tags": tags},
+            ):
+                new += 1
 
         return {"found": found, "new": new, "jobs": jobs}
 

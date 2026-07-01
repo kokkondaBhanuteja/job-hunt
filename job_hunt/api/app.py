@@ -59,6 +59,12 @@ class ApplicationIn(BaseModel):
     status: str = "applied"
 
 
+class ReviewIn(BaseModel):
+    job_id: int
+    cover_letter: str = ""
+    answers: dict[str, str] = {}
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -153,6 +159,17 @@ def get_run(run_id: int) -> dict[str, Any]:
 def cancel_run(run_id: int) -> dict[str, Any]:
     services.request_cancel(run_id)
     return {"ok": True, "id": run_id}
+
+
+@api.post("/apply/review")
+def apply_review(body: ReviewIn) -> dict[str, Any]:
+    """AI pre-submit review of an application (never submits — for the review queue)."""
+    result = services.review_application(
+        body.job_id, cover_letter=body.cover_letter, answers=body.answers
+    )
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
 
 
 @api.post("/applications")

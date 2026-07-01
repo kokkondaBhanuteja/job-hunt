@@ -171,3 +171,47 @@ RESUME_PARSE = Prompt(
     ),
     schema=RESUME_SCHEMA,
 )
+
+
+# ---------- AI pre-submit application reviewer (quality gate before submit) ----------
+
+APPLICATION_REVIEW_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["ready", "issues"],
+    "properties": {
+        "ready": {
+            "type": "boolean",
+            "description": "true only if the application is strong and safe to submit as-is.",
+        },
+        "issues": {
+            "type": "array",
+            "description": "Problems found, most severe first. Empty if none.",
+            "items": {
+                "type": "object",
+                "required": ["severity", "message"],
+                "properties": {
+                    "severity": {"type": "string", "enum": ["blocker", "warning", "nit"]},
+                    "field": {
+                        "type": "string",
+                        "description": "which part: resume | cover_letter | answers | overall",
+                    },
+                    "message": {"type": "string", "description": "specific, actionable."},
+                },
+            },
+        },
+    },
+}
+
+APPLICATION_REVIEW = Prompt(
+    name="application_review",
+    version=1,
+    system=(
+        "You are a meticulous reviewer checking a job application right before it is "
+        "submitted. Compare the resume, cover letter, and screening answers against the "
+        "job description. Flag: claims not supported by the resume, key JD requirements "
+        "the application ignores, internal contradictions, empty or placeholder fields, "
+        "and tone/length problems. Set ready=false if any blocker exists. Be specific and "
+        "concise. Output JSON only."
+    ),
+    schema=APPLICATION_REVIEW_SCHEMA,
+)

@@ -339,6 +339,15 @@ Naukri. Generic `services.discover(source, …)` + `hunt discover --source`. 67 
 (per-company boards) remain — the point is proven: a new source = one file + register()._
 
 ### Phase 6 — Apply (review-before-submit, humanized, recoverable)
+
+_Status (quality-gate slice DONE): `ATSPlatform` enum + `apply/ats.py` `detect_ats(url)` (greenhouse/lever/
+workday/ashby/smartrecruiters/icims/naukri/remoteok/unknown, pure). **AI pre-submit reviewer** (`apply/reviewer.py`
++ `APPLICATION_REVIEW` prompt): compares resume + cover letter + answers vs the JD → `{ready, issues[severity,
+field,message]}` via the AI Gateway (drafting task, stub-testable). `services.review_application(job_id, …)`
+pulls full JD + best-variant resume + ATS; `POST /api/apply/review` backs the review queue. It NEVER submits.
+79 tests green. Remaining: Playwright per-ATS form-fill + humanized pacing, checkpoint/resume, the React apply
+review queue, submitted-snapshot recording, marquee notify-and-hold._
+
 - **ATS detection** + per-platform adapters; form-fill from the **answer-template library** (truthful variation).
 - **Humanized pacing** via Browser Manager; hard-enforce **per-day cap + active-hours**.
 - **AI pre-submit reviewer** (Reviewer #17): an agent checks the filled application vs JD/resume and flags problems

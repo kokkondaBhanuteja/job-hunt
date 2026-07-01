@@ -65,6 +65,20 @@ class ScrapeStatus(StrEnum):
     BLOCKED = "blocked"  # login wall / captcha / anti-bot challenge detected
 
 
+class ATSPlatform(StrEnum):
+    """Applicant-tracking system behind a job's apply page — picks the apply flow."""
+
+    GREENHOUSE = "greenhouse"
+    LEVER = "lever"
+    WORKDAY = "workday"
+    ASHBY = "ashby"
+    SMARTRECRUITERS = "smartrecruiters"
+    ICIMS = "icims"
+    NAUKRI = "naukri"
+    REMOTEOK = "remoteok"
+    UNKNOWN = "unknown"
+
+
 class JobState(StrEnum):
     """Explicit lifecycle state on `jobs.state` (the state machine; supersedes the
     coarse `jobs.status` over time). Transitions are validated + audited + emit events."""

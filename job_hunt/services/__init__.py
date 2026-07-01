@@ -8,6 +8,7 @@ calls live here; entrypoints stay thin adapters. Services return plain dicts/lis
 from __future__ import annotations
 
 from job_hunt.services.applications import log_application
+from job_hunt.services.apply import review_application
 from job_hunt.services.discovery import discover, discover_naukri
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
@@ -31,6 +32,7 @@ __all__ = [
     "get_job",
     "list_resume_vault",
     "log_application",
+    "review_application",
     "parse_resume_vault",
     "add_profile",
     "list_profiles",

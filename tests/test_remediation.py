@@ -119,3 +119,32 @@ def test_raw_select_rejects_mutations():
         repo.raw_select("DELETE FROM jobs")
     with pytest.raises(ValueError):
         repo.raw_select("UPDATE jobs SET state='x'")
+
+
+# ---------- A4: atomic first lifecycle hop (no orphaned jobs) ----------
+
+
+def test_insert_emits_discovered_atomically(tmp_db):
+    jid = tmp_db.insert_job_if_new(
+        dedup_hash="a4", source="naukri", source_job_id=None, title="BE", company="Acme",
+        location="blr", description="d", apply_url="u", posted_date=None, emit_discovered=True,
+    )
+    with tmp_db.connect() as conn:
+        events = conn.execute(
+            "SELECT count(*) AS c FROM events WHERE type='job.discovered'"
+        ).fetchone()["c"]
+        trans = conn.execute(
+            "SELECT count(*) AS c FROM job_transitions WHERE job_id=? AND to_state='discovered'",
+            (jid,),
+        ).fetchone()["c"]
+    assert events == 1 and trans == 1  # row + event committed together
+    assert any(e["type"] == "job.discovered" for e in tmp_db.fetch_unprocessed_events())
+
+
+def test_insert_without_flag_emits_nothing(tmp_db):
+    tmp_db.insert_job_if_new(
+        dedup_hash="a4b", source="naukri", source_job_id=None, title="BE", company="Acme",
+        location="blr", description="d", apply_url="u", posted_date=None,
+    )
+    with tmp_db.connect() as conn:
+        assert conn.execute("SELECT count(*) AS c FROM events").fetchone()["c"] == 0

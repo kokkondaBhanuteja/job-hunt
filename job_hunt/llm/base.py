@@ -12,7 +12,15 @@ from typing import Any, Protocol, runtime_checkable
 
 
 class LLMError(RuntimeError):
-    """Raised when a provider is unreachable or returns an error."""
+    """Raised when a provider is unreachable or returns an error.
+
+    `retryable=False` marks a permanent failure (bad key, malformed request) so the
+    caller stops retrying the same provider instead of burning attempts.
+    """
+
+    def __init__(self, *args: object, retryable: bool = True) -> None:
+        super().__init__(*args)
+        self.retryable = retryable
 
 
 @dataclass

@@ -51,7 +51,12 @@ class OpenAICompatProvider:
                 timeout=timeout_s,
             )
             resp.raise_for_status()
-        except httpx.HTTPError as exc:
+        except httpx.HTTPStatusError as exc:  # 4xx auth/bad-request = permanent, don't retry
+            permanent = exc.response.status_code in (400, 401, 403, 404, 422)
+            raise LLMError(
+                f"{self.name} call failed ({model}): {exc}", retryable=not permanent
+            ) from exc
+        except httpx.HTTPError as exc:  # timeout / connection = transient, retry
             raise LLMError(f"{self.name} call failed ({model}): {exc}") from exc
 
         body = resp.json()

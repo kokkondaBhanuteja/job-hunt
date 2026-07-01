@@ -16,6 +16,7 @@ from job_hunt.enums import JobState
 from job_hunt.llm import registry
 from job_hunt.llm import chat_json
 from job_hunt.llm.prompts import SCORING
+from job_hunt.logging_config import get_logger
 from job_hunt.states import can_transition, transition_job
 from job_hunt.storage import repo
 from job_hunt.storage.repo import (
@@ -24,6 +25,8 @@ from job_hunt.storage.repo import (
     scores_meta_for_job,
     write_score,
 )
+
+logger = get_logger(__name__)
 
 
 def _jd_for(job: Any) -> tuple[str, str]:
@@ -158,9 +161,9 @@ def _score_job_row(job: Any, variants: Any, provider_model: str, *, verbose: boo
             if verbose:
                 print(f"  [{variant['slug']:>16}] {result['fit_score']:3d} ({scored_against}) "
                       f"| {job['company'][:25]:<25} | {job['title'][:50]}")
-        except Exception as exc:  # noqa: BLE001 — log + continue
-            if verbose:
-                print(f"  ! score failed for job={job['id']} variant={variant['slug']}: {exc}")
+        except Exception:  # noqa: BLE001 — log + continue (don't let one variant kill the scan)
+            logger.warning("scoring failed for job=%s variant=%s",
+                           job["id"], variant["slug"], exc_info=True)
             continue
 
     if wrote:  # advance the state machine only from a legal source state (no silent swallow)

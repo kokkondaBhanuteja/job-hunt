@@ -10,14 +10,19 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from time import perf_counter
 from typing import Any
 
 from job_hunt.llm import registry
 from job_hunt.llm.base import LLMError, LLMProvider
+from job_hunt.logging_config import get_logger
 from job_hunt.storage.repo import write_llm_call
 
+logger = get_logger(__name__)
+
 _MAX_ATTEMPTS = int(os.getenv("LLM_MAX_ATTEMPTS", "2"))
+_BACKOFF_BASE_S = float(os.getenv("LLM_BACKOFF_BASE_S", "0.5"))
 
 
 def _build_messages(
@@ -89,11 +94,16 @@ def chat(
 
     provider, model = registry.resolve(task)
     last_exc: Exception | None = None
-    for _ in range(max(1, _MAX_ATTEMPTS)):
+    attempts = max(1, _MAX_ATTEMPTS)
+    for attempt in range(attempts):
         try:
             return _call(provider, model, **kwargs)
         except LLMError as exc:
             last_exc = exc
+            if not exc.retryable:  # permanent (bad key / bad request) → don't burn attempts
+                break
+            if attempt + 1 < attempts:
+                time.sleep(_BACKOFF_BASE_S * (2 ** attempt))  # exponential backoff
 
     fallback = registry.resolve_fallback(task)
     if fallback is not None:
@@ -113,9 +123,28 @@ def chat_json(
     system: str | None = None,
     temperature: float = 0.2,
 ) -> dict[str, Any]:
-    """Same as `chat()` but returns parsed JSON, validated against `schema`."""
-    raw = chat(prompt, task=task, system=system, json_schema=schema, temperature=temperature)
-    return _parse_json(raw, schema)
+    """Same as `chat()` but returns parsed JSON validated against `schema`.
+
+    Invalid/malformed output — the most common local-model failure — is RETRIED with a
+    repair turn ("your previous response was invalid: …"), up to LLM_MAX_ATTEMPTS. The
+    previous behavior validated only once outside any retry and hard-failed.
+    """
+    attempts = max(1, _MAX_ATTEMPTS)
+    last_exc: LLMError | None = None
+    turn = prompt
+    for attempt in range(attempts):
+        raw = chat(turn, task=task, system=system, json_schema=schema, temperature=temperature)
+        try:
+            return _parse_json(raw, schema)
+        except LLMError as exc:
+            last_exc = exc
+            logger.warning("chat_json invalid output (attempt %d/%d): %s",
+                           attempt + 1, attempts, exc)
+            turn = (
+                f"{prompt}\n\nYour previous response was invalid ({exc}). "
+                "Return ONLY valid JSON matching the required schema — no prose, no code fences."
+            )
+    raise last_exc if last_exc is not None else LLMError("chat_json failed")
 
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)

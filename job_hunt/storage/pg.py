@@ -18,7 +18,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from job_hunt.enums import CLOSED_STATES, JobStatus, sql_values
+from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, JobStatus, sql_values
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://jobhunt:jobhunt@localhost:55432/jobhunt"
@@ -75,8 +75,13 @@ def insert_job_if_new(
     apply_url: str,
     posted_date: str | None,
     raw_payload: dict[str, Any] | None = None,
+    emit_discovered: bool = False,
 ) -> int | None:
-    """Insert a job; return its id, or None if the dedup_hash already existed."""
+    """Insert a job; return its id, or None if the dedup_hash already existed.
+
+    With `emit_discovered=True`, the row + DISCOVERED audit row + JOB_DISCOVERED event are
+    written in ONE transaction so a new job can never exist without its discovery event.
+    """
     with connect() as conn:
         row = conn.execute(
             """
@@ -93,7 +98,21 @@ def insert_job_if_new(
                 Jsonb(raw_payload) if raw_payload is not None else None,
             ),
         ).fetchone()
-        return int(row["id"]) if row else None
+        if row is None:
+            return None
+        job_id = int(row["id"])
+        if emit_discovered:
+            conn.execute(
+                "INSERT INTO job_transitions (job_id, from_state, to_state, reason) "
+                "VALUES (%s, %s, %s, %s)",
+                (job_id, None, str(JobState.DISCOVERED), "scrape"),
+            )
+            conn.execute(
+                "INSERT INTO events (type, class, payload) VALUES (%s, %s, %s)",
+                (str(EventType.JOB_DISCOVERED), str(EventClass.DOMAIN),
+                 Jsonb({"job_id": job_id})),
+            )
+        return job_id
 
 
 def upsert_resume_variant(
@@ -636,8 +655,9 @@ def write_event(*, type: str, cls: str, payload: dict[str, Any] | None) -> None:
 def fetch_unprocessed_events(limit: int = 100) -> list[dict[str, Any]]:
     with connect() as conn:
         return conn.execute(
-            "SELECT id, type, class, payload::text AS payload, created_at::text AS created_at "
-            "FROM events WHERE processed_at IS NULL ORDER BY id LIMIT %s",
+            "SELECT id, type, class, payload::text AS payload, created_at::text AS created_at, "
+            "retry_count FROM events WHERE processed_at IS NULL AND dead_at IS NULL "
+            "ORDER BY id LIMIT %s",
             (limit,),
         ).fetchall()
 
@@ -647,6 +667,21 @@ def mark_event_processed(event_id: int) -> None:
         conn.execute(
             "UPDATE events SET processed_at = now() WHERE id = %s", (int(event_id),)
         )
+
+
+def record_event_failure(event_id: int, *, max_retries: int) -> str:
+    """Increment retry_count; dead-letter once it reaches max_retries. Returns 'retry'|'dead'."""
+    with connect() as conn:
+        count = conn.execute(
+            "UPDATE events SET retry_count = retry_count + 1 WHERE id = %s RETURNING retry_count",
+            (int(event_id),),
+        ).fetchone()["retry_count"]
+        if count >= max_retries:
+            conn.execute(
+                "UPDATE events SET dead_at = now() WHERE id = %s", (int(event_id),)
+            )
+            return "dead"
+        return "retry"
 
 
 # ---------- runs ----------

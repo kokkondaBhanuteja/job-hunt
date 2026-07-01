@@ -14,8 +14,10 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from job_hunt.browser.manager import TIMEZONE
+from job_hunt.logging_config import get_logger
 from job_hunt.worker import config, pacing, runner
 
+logger = get_logger(__name__)
 _TZ = ZoneInfo(TIMEZONE)
 
 
@@ -45,9 +47,10 @@ def build_scheduler() -> BlockingScheduler:
 
 
 def run() -> None:
-    print(
-        f"worker: discovery every {config.DISCOVERY_INTERVAL_MIN}min "
-        f"(active {config.ACTIVE_START}–{config.ACTIVE_END} {TIMEZONE}, cap {config.DAILY_CAP}/day), "
-        f"event dispatch every {config.DISPATCH_INTERVAL_SEC}s. Ctrl-C to stop."
+    logger.info(
+        "worker: discovery every %dmin (active %s–%s %s, cap %d/day), "
+        "event dispatch every %ds. Ctrl-C to stop.",
+        config.DISCOVERY_INTERVAL_MIN, config.ACTIVE_START, config.ACTIVE_END, TIMEZONE,
+        config.DAILY_CAP, config.DISPATCH_INTERVAL_SEC,
     )
     build_scheduler().start()

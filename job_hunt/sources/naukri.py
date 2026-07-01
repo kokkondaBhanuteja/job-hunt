@@ -23,11 +23,13 @@ from typing import Any
 from playwright.async_api import Page
 
 from job_hunt.browser import classify_scrape, human_pause, managed_context
+from job_hunt.logging_config import get_logger
 # Canonical dedup helpers are shared across sources; re-exported here so existing
 # imports (`from job_hunt.sources.naukri import dedup_hash`) keep working.
 from job_hunt.sources.dedup import _normalize_title, _slug, dedup_hash  # noqa: F401
-from job_hunt.states import mark_discovered
 from job_hunt.storage.repo import insert_job_if_new
+
+logger = get_logger(__name__)
 
 # ---------- Paths / config ----------
 
@@ -131,7 +133,9 @@ async def _extract_cards(page: Page, selectors: dict[str, str]) -> list[JobCard]
                 )
             )
         except Exception:
-            # One bad card shouldn't kill the whole crawl.
+            # One bad card shouldn't kill the whole crawl — but log it: if EVERY card
+            # fails, that's selector rot, and debug logs are the only trail.
+            logger.debug("failed to parse a Naukri result card", exc_info=True)
             continue
     return cards
 
@@ -220,13 +224,10 @@ async def crawl(
                     "experience": c.experience,
                     "snippet": c.snippet,
                 },
+                emit_discovered=True,          # row + JOB_DISCOVERED atomically (no orphans)
             )
             if inserted is not None:
                 new_count += 1
-                try:
-                    mark_discovered(inserted)
-                except Exception:  # noqa: BLE001 — never let bookkeeping break a crawl
-                    pass
 
     return {
         "found": len(found),

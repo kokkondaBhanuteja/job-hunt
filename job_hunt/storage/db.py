@@ -29,6 +29,8 @@ from job_hunt.enums import (
     CLOSED_STATES,
     ApplicationStage,
     DraftKind,
+    EventClass,
+    EventType,
     JobState,
     JobStatus,
     ReplyType,
@@ -160,7 +162,9 @@ CREATE TABLE IF NOT EXISTS events (
     class        TEXT NOT NULL,
     payload      TEXT,                                -- JSON
     created_at   TEXT NOT NULL,
-    processed_at TEXT                                 -- NULL until the worker handles it
+    processed_at TEXT,                                -- NULL until the worker handles it
+    retry_count  INTEGER NOT NULL DEFAULT 0,          -- handler failures so far
+    dead_at      TEXT                                 -- set when dead-lettered (stops blocking)
 );
 CREATE INDEX IF NOT EXISTS idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 
@@ -332,6 +336,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "runs", "heartbeat_at", "TEXT")
     _ensure_column(conn, "runs", "cancel_requested", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(conn, "runs", "log", "TEXT NOT NULL DEFAULT ''")
+    _ensure_column(conn, "events", "retry_count", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(conn, "events", "dead_at", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, ddl: str) -> None:
@@ -402,8 +408,15 @@ def insert_job_if_new(
     apply_url: str,
     posted_date: str | None,
     raw_payload: dict[str, Any] | None = None,
+    emit_discovered: bool = False,
 ) -> int | None:
-    """Insert a job. Returns its id on insert, or None if it was already there."""
+    """Insert a job. Returns its id on insert, or None if it was already there.
+
+    With `emit_discovered=True`, the row + its DISCOVERED audit row + the JOB_DISCOVERED
+    event are written in ONE transaction, so a freshly-created job can never exist without
+    its discovery event (which would orphan it out of the pipeline).
+    """
+    ts = now_iso()
     with connect() as conn:
         try:
             cur = conn.execute(
@@ -414,22 +427,26 @@ def insert_job_if_new(
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    dedup_hash,
-                    source,
-                    source_job_id,
-                    title,
-                    company,
-                    location,
-                    description,
-                    apply_url,
-                    posted_date,
-                    now_iso(),
+                    dedup_hash, source, source_job_id, title, company, location,
+                    description, apply_url, posted_date, ts,
                     _to_json(raw_payload) if raw_payload is not None else None,
                 ),
             )
-            return int(cur.lastrowid) if cur.lastrowid else None
         except sqlite3.IntegrityError:
             return None
+        job_id = int(cur.lastrowid) if cur.lastrowid else None
+        if job_id is not None and emit_discovered:
+            conn.execute(
+                "INSERT INTO job_transitions (job_id, from_state, to_state, reason, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (job_id, None, str(JobState.DISCOVERED), "scrape", ts),
+            )
+            conn.execute(
+                "INSERT INTO events (type, class, payload, created_at) VALUES (?, ?, ?, ?)",
+                (str(EventType.JOB_DISCOVERED), str(EventClass.DOMAIN),
+                 _to_json({"job_id": job_id}), ts),
+            )
+        return job_id
 
 
 def list_resume_variants() -> list[sqlite3.Row]:
@@ -938,8 +955,8 @@ def fetch_unprocessed_events(limit: int = 100) -> list[dict[str, Any]]:
         return [
             dict(r)
             for r in conn.execute(
-                "SELECT id, type, class, payload, created_at FROM events "
-                "WHERE processed_at IS NULL ORDER BY id LIMIT ?",
+                "SELECT id, type, class, payload, created_at, retry_count FROM events "
+                "WHERE processed_at IS NULL AND dead_at IS NULL ORDER BY id LIMIT ?",
                 (limit,),
             ).fetchall()
         ]
@@ -950,6 +967,23 @@ def mark_event_processed(event_id: int) -> None:
         conn.execute(
             "UPDATE events SET processed_at = ? WHERE id = ?", (now_iso(), int(event_id))
         )
+
+
+def record_event_failure(event_id: int, *, max_retries: int) -> str:
+    """Increment retry_count; dead-letter once it reaches max_retries. Returns 'retry'|'dead'."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE events SET retry_count = retry_count + 1 WHERE id = ?", (int(event_id),)
+        )
+        count = conn.execute(
+            "SELECT retry_count FROM events WHERE id = ?", (int(event_id),)
+        ).fetchone()["retry_count"]
+        if count >= max_retries:
+            conn.execute(
+                "UPDATE events SET dead_at = ? WHERE id = ?", (now_iso(), int(event_id))
+            )
+            return "dead"
+        return "retry"
 
 
 # ---------- runs ----------

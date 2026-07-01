@@ -80,6 +80,7 @@ apply_transition = _impl.apply_transition
 write_event = _impl.write_event
 fetch_unprocessed_events = _impl.fetch_unprocessed_events
 mark_event_processed = _impl.mark_event_processed
+record_event_failure = _impl.record_event_failure
 
 # runs
 create_run = _impl.create_run

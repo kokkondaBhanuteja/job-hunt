@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from job_hunt.enums import RunStatus
+from job_hunt.enums import EventType, RunStatus, ScrapeStatus
 from job_hunt.events import bus
 from job_hunt.plugins import get_source
 from job_hunt.scoring.match import score_all_pending
@@ -36,7 +36,16 @@ def run_discovery_cycle(
             pages=int(profile.get("pages", 1) or 1),
             headless=headless,
         )
-        repo.append_run_log(run_id, f"found={result['found']} new={result['new']}")
+        health = result.get("health")
+        repo.append_run_log(
+            run_id, f"found={result['found']} new={result['new']} health={health or 'ok'}"
+        )
+
+        if health == ScrapeStatus.BLOCKED:  # login wall / captcha — fail loudly, don't look "empty"
+            bus.emit(EventType.SCRAPE_BLOCKED, payload={"source": source_name})
+            repo.finish_run(run_id, RunStatus.FAILED, jobs_found=result["found"],
+                            jobs_new=result["new"], errors={"scrape": "blocked"})
+            return {"run_id": run_id, "status": RunStatus.FAILED, **result}
 
         if repo.run_cancel_requested(run_id):
             repo.finish_run(run_id, RunStatus.CANCELLED,

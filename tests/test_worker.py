@@ -80,6 +80,20 @@ def test_run_discovery_cycle_wraps_a_run(tmp_db):
     assert "found=3 new=2" in run["log"]
 
 
+def test_run_cycle_fails_loudly_on_blocked_scrape(tmp_db):
+    class _Blocked:
+        name = "blocked-src"
+
+        def discover(self, **_):
+            return {"found": 0, "new": 0, "jobs": [], "health": "blocked"}
+
+    register(_Blocked())
+    res = runner.run_discovery_cycle({"keywords": "x", "location": "y"}, source_name="blocked-src", score=False)
+    assert res["status"] == RunStatus.FAILED
+    assert repo.get_run(res["run_id"])["status"] == RunStatus.FAILED
+    assert "scrape.blocked" in [e["type"] for e in repo.fetch_unprocessed_events()]
+
+
 def test_run_discovery_cycle_records_failure(tmp_db):
     class _Boom:
         name = "boom"

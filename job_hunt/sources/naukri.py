@@ -22,7 +22,7 @@ from typing import Any
 
 from playwright.async_api import Page
 
-from job_hunt.browser import human_pause, managed_context
+from job_hunt.browser import classify_scrape, human_pause, managed_context
 # Canonical dedup helpers are shared across sources; re-exported here so existing
 # imports (`from job_hunt.sources.naukri import dedup_hash`) keep working.
 from job_hunt.sources.dedup import _normalize_title, _slug, dedup_hash  # noqa: F401
@@ -180,11 +180,15 @@ async def crawl(
     new_count = 0
 
     # Browser Manager owns the stealthed persistent profile + fingerprint.
+    blocked = False
     async with managed_context("naukri", headless=headless) as ctx:
         page = await ctx.new_page()
         for page_no in range(1, pages + 1):
             url = build_search_url(keyword, location, page=page_no)
             await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
+            if "login" in (page.url or "").lower():  # redirected to a login wall
+                blocked = True
+                break
             # Wait for at least one card OR timeout — Naukri sometimes renders
             # an empty results page when blocked.
             try:
@@ -228,6 +232,7 @@ async def crawl(
         "found": len(found),
         "new": new_count,
         "jobs": [c.__dict__ for c in found],
+        "health": str(classify_scrape(len(found), blocked_signal=blocked, expected_min=1)),
     }
 
 

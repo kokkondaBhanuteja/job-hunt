@@ -1,106 +1,125 @@
-# job-hunt
+# job-hunt — a personal "Career OS"
 
-Personal job-hunt automation. Lives on your Mac, runs entirely on local LLM (Ollama),
-stores everything in one SQLite file, driven from any MCP host (Claude Code / Goose /
-Cherry Studio / Continue.dev). Zero APIs, zero cloud, zero recurring cost.
+A self-hosted, quality-first job-hunt platform. It discovers jobs across boards, scores
+each against your résumés with an LLM, enriches to the full JD, **tailors your résumé and
+drafts cover letters / recruiter outreach**, runs an **AI pre-submit review**, tracks the
+interview pipeline, and reports analytics — driven from a **React web UI**, a REST API, a
+CLI, or any MCP host.
 
-## What it does (v0)
+**Product thesis:** be a *highly efficient human, not a bot* — 20–40 targeted, tailored
+applications beat 300 generic ones. Every automation saves time, improves quality, or aids a
+decision **while you keep control of what matters** (review before submit).
 
-1. **Parses resumes from a vault.** Drop `.tex` or `.pdf` files in `data/resumes/`.
-   Each one becomes a "variant" — the toolkit picks which variant best fits each job.
-2. **Discovers jobs on Naukri.com.** Playwright crawls the public listing pages
-   with a persisted session (log in manually once, reused after).
-3. **Scores every job × every variant** with `qwen2.5:7b` running locally on Ollama.
-4. **Exposes everything as MCP tools** — talk to any MCP host:
-   - *"What's worth applying to today?"*
-   - *"Show me job 42"*
-   - *"Log that I applied to #2 with the backend-node variant"*
+Runs on your machine. Local LLM (Ollama) by default = **$0**; any task can be pointed at an
+API key instead.
 
-No HTML dashboard. The MCP host is the UI.
+---
 
-## Setup (one-time, ~10 min)
+## Architecture (one glance)
+
+```
+React UI ─┐
+REST API ─┤
+CLI      ─┼──▶  services/  (the keystone: all business logic)  ──▶ storage (Postgres | SQLite)
+MCP      ─┤          │
+worker   ─┘          ├── llm/      AI Gateway: provider registry + prompt library + cost log
+                     ├── plugins/  source contract (naukri, remoteok, greenhouse, lever)
+                     ├── browser/  the only place Playwright launches (stealth, rate-limit)
+                     ├── events/   in-DB transactional outbox (the "workflow")
+                     └── states.py job state machine (DISCOVERED→…→OFFER)
+```
+
+- **One `services/` layer** — CLI, API, MCP, and worker all call it; no duplicated logic.
+- **Pluggable LLM ("AI Gateway", `llm/`)** — provider registry (Ollama / OpenAI-compat / stub),
+  versioned prompt library, retries + fallback, and a full `llm_calls` cost/latency log.
+- **Two storage backends via `DB_BACKEND`** — `postgres` (pgvector, prod) or `sqlite` (fast tests).
+- **Event-driven pipeline** — an in-DB outbox + job state machine; the worker auto-advances
+  `discovered → enrich → scored → …`.
+
+## The pipeline
+
+```
+discover ─▶ enrich (full JD) ─▶ score (idempotent, JD-aware) ─▶ tailor + cover letter
+        ─▶ AI review ─▶ (you approve) apply ─▶ track stages ─▶ analytics + learning
+```
+
+---
+
+## Setup
 
 ```bash
-# 1. Ollama (the LLM)
-brew install ollama
-brew services start ollama
-ollama pull qwen2.5:7b
+# 1. Postgres + pgvector (the datastore)
+docker compose up -d db                    # host port 55432
 
-# 2. The project
-cd ~/Documents/job-hunt
+# 2. Python project
 uv sync
-uv run playwright install chromium
+uv run playwright install chromium         # for the browser sources
 
-# 3. Seed the resume vault (drop .tex / .pdf files in)
-ls data/resumes/   # backend-node.tex etc.
+# 3. Local LLM (optional but default)
+brew install ollama && brew services start ollama
+ollama pull qwen2.5:7b                      # scoring/drafting
+ollama pull nomic-embed-text               # semantic search (optional)
 
-# 4. Smoke-test that everything is wired
-uv run hunt selfcheck
+# 4. Copy any existing v0 SQLite data into Postgres (optional)
+uv run python scripts/sqlite_to_postgres.py
+
+# 5. Sanity check
+DB_BACKEND=postgres uv run hunt selfcheck
 ```
 
-## Daily flow (the value)
+Config lives in env (see `.env.example`): `DB_BACKEND`, `DATABASE_URL`, per-task
+`LLM_<TASK>_PROVIDER/MODEL` (+ `OPENAI_API_KEY` etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`,
+`API_TOKEN`.
+
+## Run the platform
 
 ```bash
-# Overnight (launchd will run this for you, see scripts/install-schedule.sh)
-uv run hunt discover-naukri --keyword "nestjs backend" --location bangalore --pages 3
-uv run hunt score
+# API (127.0.0.1, token-authed) — prints an ephemeral token if API_TOKEN is unset
+DB_BACKEND=postgres uv run hunt serve-api
 
-# Morning
-uv run hunt top --min-score 70 --limit 10
-# … or, more naturally:
-# (in your MCP host) "what's worth applying to today?"
+# Web UI
+cd frontend && npm install && npm run dev        # → http://localhost:5173 (paste the token in Settings)
+
+# Background worker (scheduled discovery + event dispatch + daily report)
+DB_BACKEND=postgres uv run hunt worker
 ```
 
-## Wiring the MCP server into a host
+## CLI (`uv run hunt …`)
 
-The MCP server speaks stdio. Add this to your host's config:
+| Command | Does |
+|---|---|
+| `selfcheck` | verify DB + each task's LLM provider (local or API key) |
+| `discover --source <naukri\|remoteok\|greenhouse\|lever> --keyword … [--location …]` | crawl a source |
+| `enrich` | fetch full JDs for discovered jobs |
+| `score` | idempotent JD-aware scoring of every job × variant |
+| `top [--min-score]` | best matches |
+| `tailor <job_id>` / `cover <job_id>` | JD-tailored résumé / cover letter |
+| `profiles` / `add-profile …` | saved searches |
+| `run-cycle` / `worker` | one discovery+scoring cycle / the long-running scheduler |
+| `report [--send]` | daily summary (Telegram/Discord if configured) |
+| `embed` / `semantic "query"` | pgvector semantic search (Postgres only) |
+| `serve-api` / `serve-mcp` | REST API / MCP stdio server |
+| `db "SELECT …"` | ad-hoc read query against the active backend |
 
-### Claude Code (`.mcp.json` in any project)
+## Testing
 
-```json
-{
-  "mcpServers": {
-    "job-hunt": {
-      "command": "uv",
-      "args": ["--directory", "/Users/BackendIntern/Documents/job-hunt", "run", "hunt", "serve-mcp"]
-    }
-  }
-}
+```bash
+uv run pytest -q      # SQLite fast path; Postgres-gated tests run if the DB is up
 ```
-
-### Goose / Cherry Studio / Continue.dev
-
-Same command + args, dropped into their MCP-server config. All of them speak the
-same stdio protocol.
 
 ## Layout
 
 ```
-job-hunt/
-  job_hunt/
-    llm/ollama.py            chat() helper, model-by-task (scoring vs drafting)
-    resume/parser.py         pdf/latex → structured JSON via qwen
-    sources/naukri.py        Playwright crawler with persisted session
-    scoring/match.py         qwen scores each (job, variant) pair
-    storage/db.py            SQLite — single file at data/jobhunt.db
-    mcp_server/server.py     FastMCP server exposing the workflow as tools
-    cli/main.py              `uv run hunt …` subcommands
-  config/
-    selectors/naukri.json    Hot-patchable CSS selectors (override defaults)
-  data/
-    resumes/                 Your hand-maintained .tex / .pdf vault
-    jobhunt.db               All state (open in DB Browser for SQLite)
-    sessions/naukri/         Persistent Playwright profile (login state)
+job_hunt/   services/ · llm/ · storage/ (db.py sqlite, pg.py postgres, repo.py façade)
+            plugins/ · browser/ · events/ · states.py · enrich/ · scoring/ · resume/
+            draft/ · apply/ · learn/ · embed/ · notify/ · worker/ · api/ · mcp_server/ · cli/
+frontend/   React + TS + Vite + TanStack Query (Board · Runs · Analytics · Settings)
+migrations/ numbered .sql (Postgres); SQLite schema is in storage/db.py
+docs/       career-os-plan.md (architecture + build status)
 ```
 
-## Cost
+## Cost & privacy
 
-$0/month. No keys, no cloud, no expiring tokens. Just your Mac and Ollama.
-
-## Adding a new source (Foundit, Greenhouse, ...)
-
-1. Add `job_hunt/sources/<name>.py` modeled on `naukri.py`
-2. Add a `discover_<name>` MCP tool in `mcp_server/server.py`
-3. Add a `discover-<name>` CLI subcommand in `cli/main.py`
-
-Everything else (scoring, top-matches, application logging) is source-agnostic.
+$0 by default (local Ollama, local Postgres). Point any hard task at an API key when you
+want more quality; `llm_calls` tracks every token and dollar. The API binds to `127.0.0.1`
+and requires a token even locally — it can spend credits and (later) submit applications.

@@ -22,7 +22,7 @@ from typing import Any
 
 from playwright.async_api import Page
 
-from job_hunt.browser import classify_scrape, human_pause, managed_context
+from job_hunt.browser import classify_scrape, human_pause, managed_context, rate_limiter
 from job_hunt.logging_config import get_logger
 # Canonical dedup helpers are shared across sources; re-exported here so existing
 # imports (`from job_hunt.sources.naukri import dedup_hash`) keep working.
@@ -140,6 +140,23 @@ async def _extract_cards(page: Page, selectors: dict[str, str]) -> list[JobCard]
     return cards
 
 
+_BLOCK_MARKERS = (
+    "captcha", "unusual traffic", "verify you are human", "are you a robot",
+    "access denied", "please verify", "detected unusual",
+)
+
+
+async def _looks_blocked(page: Page) -> bool:
+    """Heuristic soft-block detection: a captcha/verification interstitial that renders no
+    result cards and doesn't redirect to /login looks identical to 'no results' unless we
+    inspect the page. Returns True if known block markers appear in the page text."""
+    try:
+        body = (await page.content()).lower()
+    except Exception:  # noqa: BLE001
+        return False
+    return any(marker in body for marker in _BLOCK_MARKERS)
+
+
 async def _safe_text(card: Any, selector: str) -> str | None:
     """inner_text that survives missing elements."""
     try:
@@ -189,16 +206,20 @@ async def crawl(
         page = await ctx.new_page()
         for page_no in range(1, pages + 1):
             url = build_search_url(keyword, location, page=page_no)
+            await rate_limiter().acquire("naukri")  # enforce per-source min interval
             await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
             if "login" in (page.url or "").lower():  # redirected to a login wall
                 blocked = True
                 break
-            # Wait for at least one card OR timeout — Naukri sometimes renders
-            # an empty results page when blocked.
+            # Wait for at least one card OR timeout. A timeout is ambiguous — genuinely
+            # empty results, OR a soft-block (captcha/interstitial that DIDN'T redirect).
             try:
                 await page.wait_for_selector(selectors["card"], timeout=20_000)
             except Exception:
-                # Could be: 0 results, OR blocked. Log + move on.
+                if await _looks_blocked(page):  # captcha/verify markers → not "empty"
+                    blocked = True
+                    break
+                logger.debug("no cards on Naukri page %d (looks genuinely empty)", page_no)
                 continue
 
             await _scroll_to_load_more(page)

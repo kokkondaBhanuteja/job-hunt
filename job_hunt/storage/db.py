@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     state           TEXT NOT NULL DEFAULT '{JobState.DISCOVERED}'
                         CHECK (state IN ({sql_in_list(JobState)}))
 );
-CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_source ON jobs(source);
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 
@@ -467,21 +466,6 @@ def list_board_jobs(limit: int = 200) -> list[dict[str, Any]]:
             (limit,)).fetchall()]
 
 
-def list_jobs_for_scoring(limit: int = 200) -> list[sqlite3.Row]:
-    """Jobs with `status='new'` that don't yet have any score row."""
-    with connect() as conn:
-        return conn.execute(
-            """
-            SELECT j.*
-            FROM jobs j
-            LEFT JOIN scores s ON s.job_id = j.id
-            WHERE j.status = 'new' AND s.id IS NULL
-            LIMIT ?
-            """,
-            (limit,),
-        ).fetchall()
-
-
 def write_score(
     *,
     job_id: int,
@@ -520,7 +504,7 @@ def list_scorable_jobs(limit: int = 200) -> list[sqlite3.Row]:
             """
             SELECT id, title, company, location, source, description, description_full, state
             FROM jobs
-            WHERE state IN ('discovered', 'enriched', 'scored', 'opportunity')
+            WHERE state IN ('discovered', 'enriched', 'scored')
             ORDER BY discovered_at DESC
             LIMIT ?
             """,
@@ -882,14 +866,6 @@ def record_application(*, job_id: int, variant_id: int, cover_letter: str) -> No
         )
 
 
-def set_job_status(job_id: int, status: JobStatus | str) -> None:
-    """Move a job to a new lifecycle status."""
-    with connect() as conn:
-        conn.execute(
-            "UPDATE jobs SET status = ? WHERE id = ?", (str(status), int(job_id))
-        )
-
-
 # ---------- state machine ----------
 
 
@@ -1057,6 +1033,15 @@ def list_recent_runs(limit: int = 20) -> list[dict[str, Any]]:
     with connect() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+
+def count_runs_today() -> int:
+    """Discovery runs started today (drives the per-day cap)."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT count(*) AS c FROM runs WHERE substr(started_at, 1, 10) = ?",
+            (now_iso()[:10],),
+        ).fetchone()["c"]
 
 
 # ---------- search profiles ----------

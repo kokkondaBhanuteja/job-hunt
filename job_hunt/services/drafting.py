@@ -11,8 +11,9 @@ from typing import Any
 
 from job_hunt.draft.cover import generate_cover_letter
 from job_hunt.draft.outreach import generate_outreach
-from job_hunt.enums import DraftKind
+from job_hunt.enums import DraftKind, JobState
 from job_hunt.resume.tailor import tailor_resume
+from job_hunt.states import advance_if_legal
 from job_hunt.storage import repo
 
 
@@ -37,6 +38,7 @@ def tailor_for_job(job_id: int) -> dict[str, Any]:
     jd_text = job["description_full"] or job["description"] or ""
     content = tailor_resume(jd_text=jd_text, resume_json=resume_json)
     repo.save_tailored_resume(job_id=job_id, variant_id=int(variant["id"]), content=content)
+    advance_if_legal(job_id, JobState.TAILORING_READY, reason="resume tailored")
     return {"job_id": job_id, "variant": variant["slug"], "content": content}
 
 
@@ -53,6 +55,7 @@ def draft_cover_for_job(job_id: int) -> dict[str, Any]:
         company=job["company"], role=job["title"],
     )
     draft_id = repo.save_draft(job_id=job_id, kind=DraftKind.COVER, body=body)
+    advance_if_legal(job_id, JobState.DRAFTED, reason="cover letter drafted")
     return {"job_id": job_id, "draft_id": draft_id, "kind": str(DraftKind.COVER), "body": body}
 
 
@@ -69,6 +72,7 @@ def draft_outreach_for_job(job_id: int, contact_name: str = "") -> dict[str, Any
         company=job["company"], role=job["title"], contact_name=contact_name,
     )
     draft_id = repo.save_draft(job_id=job_id, kind=DraftKind.OUTREACH, body=body)
+    advance_if_legal(job_id, JobState.DRAFTED, reason="outreach drafted")
     return {"job_id": job_id, "draft_id": draft_id, "kind": str(DraftKind.OUTREACH), "body": body}
 
 

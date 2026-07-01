@@ -111,12 +111,10 @@ class JobState(StrEnum):
     DISCOVERED = "discovered"
     ENRICHED = "enriched"
     SCORED = "scored"
-    OPPORTUNITY = "opportunity"        # passed the score threshold → worth pursuing
     ARCHIVED = "archived"              # below threshold / filtered out
-    TAILORING_READY = "tailoring_ready"
-    DRAFTED = "drafted"
-    REVIEW_PENDING = "review_pending"
-    READY_TO_APPLY = "ready_to_apply"
+    TAILORING_READY = "tailoring_ready"   # a tailored résumé exists
+    DRAFTED = "drafted"                   # a cover letter / outreach exists
+    REVIEW_PENDING = "review_pending"     # application package assembled, awaiting your review
     APPLIED = "applied"
     OA = "oa"
     INTERVIEW = "interview"

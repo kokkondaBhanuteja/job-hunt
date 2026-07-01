@@ -13,23 +13,25 @@ from job_hunt.storage import repo
 S = JobState
 
 # Legal transitions. A state absent from a target set cannot be reached from there.
+# Every state here is actually entered by code (no aspirational states): the automated
+# pipeline drives DISCOVERED→ENRICHED→SCORED and the drafting/apply services drive
+# SCORED→TAILORING_READY→DRAFTED→REVIEW_PENDING. APPLIED and the interview stages are
+# reached by user-driven (force) transitions from applications services.
 ALLOWED_TRANSITIONS: dict[JobState, set[JobState]] = {
     S.DISCOVERED:      {S.ENRICHED, S.SCORED, S.ARCHIVED, S.WITHDRAWN},
     S.ENRICHED:        {S.SCORED, S.ARCHIVED, S.WITHDRAWN},
-    S.SCORED:          {S.OPPORTUNITY, S.ARCHIVED, S.DEFERRED, S.WITHDRAWN},
-    S.OPPORTUNITY:     {S.TAILORING_READY, S.DEFERRED, S.ARCHIVED, S.WITHDRAWN},
-    S.TAILORING_READY: {S.DRAFTED, S.DEFERRED, S.WITHDRAWN},
+    S.SCORED:          {S.TAILORING_READY, S.ARCHIVED, S.DEFERRED, S.WITHDRAWN},
+    S.TAILORING_READY: {S.DRAFTED, S.DEFERRED, S.ARCHIVED, S.WITHDRAWN},
     S.DRAFTED:         {S.REVIEW_PENDING, S.DEFERRED, S.WITHDRAWN},
-    S.REVIEW_PENDING:  {S.READY_TO_APPLY, S.DEFERRED, S.ARCHIVED, S.WITHDRAWN},
-    S.READY_TO_APPLY:  {S.APPLIED, S.DEFERRED, S.WITHDRAWN},
+    S.REVIEW_PENDING:  {S.APPLIED, S.DEFERRED, S.ARCHIVED, S.WITHDRAWN},
     S.APPLIED:         {S.OA, S.INTERVIEW, S.REJECTED, S.WITHDRAWN},
     S.OA:              {S.INTERVIEW, S.REJECTED, S.WITHDRAWN},
     S.INTERVIEW:       {S.HR, S.OFFER, S.REJECTED, S.WITHDRAWN},
     S.HR:              {S.OFFER, S.REJECTED, S.WITHDRAWN},
     S.OFFER:           {S.WITHDRAWN},
     S.REJECTED:        set(),
-    S.ARCHIVED:        {S.OPPORTUNITY},
-    S.DEFERRED:        {S.OPPORTUNITY, S.TAILORING_READY, S.READY_TO_APPLY, S.ARCHIVED, S.WITHDRAWN},
+    S.ARCHIVED:        {S.TAILORING_READY, S.WITHDRAWN},
+    S.DEFERRED:        {S.TAILORING_READY, S.ARCHIVED, S.WITHDRAWN},
     S.WITHDRAWN:       set(),
 }
 
@@ -54,6 +56,20 @@ class InvalidTransition(ValueError):
 
 def can_transition(src: JobState, dst: JobState) -> bool:
     return dst in ALLOWED_TRANSITIONS.get(src, set())
+
+
+def advance_if_legal(job_id: int, to_state: JobState, *, reason: str = "") -> bool:
+    """Transition only if the machine allows it from the current state; else no-op.
+
+    Used by artifact-producing services (tailor/cover/prepare) to advance the pursuit
+    funnel without caring about the exact current state — re-running or out-of-order
+    calls degrade gracefully instead of raising.
+    """
+    current = JobState(repo.get_job_state(job_id))
+    if not can_transition(current, to_state):
+        return False
+    transition_job(job_id, to_state, reason=reason)
+    return True
 
 
 def transition_job(

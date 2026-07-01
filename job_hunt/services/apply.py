@@ -12,6 +12,8 @@ from typing import Any
 from job_hunt.apply.ats import detect_ats
 from job_hunt.apply.plan import build_application_package
 from job_hunt.apply.reviewer import review_application as _run_review
+from job_hunt.enums import JobState
+from job_hunt.states import advance_if_legal
 from job_hunt.storage import repo
 
 
@@ -83,6 +85,7 @@ def prepare_application(
     )
     answers = {a["question"]: a["answer"] for a in package["answers"]}
     verdict = _run_review(jd_text=jd_text, resume_json=resume_json, cover_letter=cover, answers=answers)
+    advance_if_legal(job_id, JobState.REVIEW_PENDING, reason="application package assembled")
     return {"job_id": job_id, "ats": str(ats), "variant": variant_slug, "package": package, **verdict}
 
 

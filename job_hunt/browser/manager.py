@@ -7,6 +7,7 @@ duplicated across sources/naukri.py and sources/login.py.
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from random import uniform
@@ -14,6 +15,17 @@ from typing import AsyncIterator
 
 from playwright.async_api import BrowserContext, async_playwright
 from playwright_stealth import Stealth
+
+from job_hunt.browser.ratelimit import RateLimiter
+
+# One shared per-source limiter — the Manager owns pacing, so every scraper is throttled
+# by the same minimum interval per site (LinkedIn ≠ Naukri). Wired into the crawlers.
+_RATE_LIMITER = RateLimiter(min_interval_s=float(os.getenv("SCRAPE_MIN_INTERVAL_S", "2.0")))
+
+
+def rate_limiter() -> RateLimiter:
+    """The process-wide per-source rate limiter."""
+    return _RATE_LIMITER
 
 # One stable fingerprint everywhere (principle #9: no churn). Keep current.
 USER_AGENT = (

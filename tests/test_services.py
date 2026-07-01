@@ -42,11 +42,11 @@ def test_log_application_rejects_unknown_variant(tmp_db):
     assert "error" in out
 
 
-def test_schema_check_constraint_rejects_invalid_status(tmp_db):
+def test_schema_check_constraint_rejects_invalid_state(tmp_db):
     """The enum-derived CHECK constraint must actually be enforced by SQLite."""
     job_id = _seed(tmp_db)
     with pytest.raises(sqlite3.IntegrityError):
-        tmp_db.set_job_status(job_id, "not-a-real-status")
+        tmp_db.set_job_state(job_id, "not-a-real-state")
 
 
 def test_get_job_includes_confidence_in_scores(tmp_db):

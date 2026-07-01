@@ -18,7 +18,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, JobStatus, sql_values
+from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, sql_values
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://jobhunt:jobhunt@localhost:55432/jobhunt"
@@ -166,7 +166,7 @@ def list_scorable_jobs(limit: int = 200) -> list[dict[str, Any]]:
             """
             SELECT id, title, company, location, source, description, description_full, state
             FROM jobs
-            WHERE state IN ('discovered', 'enriched', 'scored', 'opportunity')
+            WHERE state IN ('discovered', 'enriched', 'scored')
             ORDER BY discovered_at DESC
             LIMIT %s
             """,
@@ -478,13 +478,6 @@ def record_application(*, job_id: int, variant_id: int, cover_letter: str) -> No
         )
 
 
-def set_job_status(job_id: int, status: JobStatus | str) -> None:
-    with connect() as conn:
-        conn.execute(
-            "UPDATE jobs SET status = %s WHERE id = %s", (str(status), int(job_id))
-        )
-
-
 # ---------- reads (JSON/timestamps returned as text for SQLite parity) ----------
 
 
@@ -505,20 +498,6 @@ def list_board_jobs(limit: int = 200) -> list[dict[str, Any]]:
             "FROM jobs j LEFT JOIN scores s ON s.job_id = j.id "
             "GROUP BY j.id ORDER BY (MAX(s.fit_score) IS NULL), MAX(s.fit_score) DESC LIMIT %s",
             (limit,),
-        ).fetchall()
-
-
-def list_jobs_for_scoring(limit: int = 200) -> list[dict[str, Any]]:
-    with connect() as conn:
-        return conn.execute(
-            """
-            SELECT j.id, j.title, j.company, j.location, j.source, j.description
-            FROM jobs j
-            LEFT JOIN scores s ON s.job_id = j.id
-            WHERE j.status = %s AND s.id IS NULL
-            LIMIT %s
-            """,
-            (str(JobStatus.NEW), limit),
         ).fetchall()
 
 
@@ -762,6 +741,14 @@ def list_recent_runs(limit: int = 20) -> list[dict[str, Any]]:
             "FROM runs ORDER BY id DESC LIMIT %s",
             (limit,),
         ).fetchall()
+
+
+def count_runs_today() -> int:
+    """Discovery runs started today (drives the per-day cap)."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT count(*) AS c FROM runs WHERE started_at::date = CURRENT_DATE"
+        ).fetchone()["c"]
 
 
 # ---------- search profiles ----------

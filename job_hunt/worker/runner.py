@@ -10,9 +10,13 @@ from typing import Any
 
 from job_hunt.enums import EventType, RunStatus, ScrapeStatus
 from job_hunt.events import bus
+from job_hunt.logging_config import get_logger
 from job_hunt.plugins import get_source
 from job_hunt.scoring.match import score_all_pending
 from job_hunt.storage import repo
+from job_hunt.worker import config, pacing
+
+logger = get_logger(__name__)
 
 
 def run_discovery_cycle(
@@ -70,8 +74,11 @@ def run_discovery_cycle(
 
 
 def run_all_active_profiles(*, headless: bool = True) -> list[dict[str, Any]]:
-    """Run a discovery cycle for every enabled search profile."""
+    """Run a discovery cycle for every enabled search profile, up to the daily cap."""
     repo.init_db()
+    if pacing.cap_reached(repo.count_runs_today(), config.DAILY_CAP):
+        logger.info("daily discovery cap (%d runs) reached — skipping this cycle", config.DAILY_CAP)
+        return []
     return [run_discovery_cycle(p, headless=headless) for p in repo.list_active_search_profiles()]
 
 

@@ -7,7 +7,12 @@ from job_hunt import plugins, services
 from job_hunt.enums import RunStatus
 from job_hunt.plugins.base import register
 from job_hunt.storage import repo
-from job_hunt.worker import pacing, runner
+from job_hunt.worker import config, pacing, runner
+
+
+def test_discovery_cap_skips_cycle_when_reached(tmp_db, monkeypatch):
+    monkeypatch.setattr(repo, "count_runs_today", lambda: config.DAILY_CAP)
+    assert runner.run_all_active_profiles() == []  # cap reached → no discovery runs
 
 
 # ---------- pacing ----------

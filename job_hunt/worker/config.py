@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import os
 
-# Anti-detection pacing (principles #11, #1): only act in realistic local hours,
-# and cap submissions per day. Times are local "HH:MM".
+# Anti-detection pacing: only act in realistic local hours, and cap discovery runs per
+# day (enforced in runner.run_all_active_profiles; the same cap will gate submissions once
+# live form-fill lands). Times are local "HH:MM".
 ACTIVE_START = os.getenv("WORKER_ACTIVE_START", "09:30")
 ACTIVE_END = os.getenv("WORKER_ACTIVE_END", "21:00")
 DAILY_CAP = int(os.getenv("WORKER_DAILY_CAP", "30"))

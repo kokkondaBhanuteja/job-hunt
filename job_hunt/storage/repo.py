@@ -31,10 +31,8 @@ write_score = _impl.write_score
 write_llm_call = _impl.write_llm_call
 record_application = _impl.record_application
 set_application_stage = _impl.set_application_stage
-set_job_status = _impl.set_job_status
 
 list_resume_variants = _impl.list_resume_variants
-list_jobs_for_scoring = _impl.list_jobs_for_scoring
 list_scorable_jobs = _impl.list_scorable_jobs
 list_board_jobs = _impl.list_board_jobs
 top_matches = _impl.top_matches
@@ -92,6 +90,7 @@ run_cancel_requested = _impl.run_cancel_requested
 append_run_log = _impl.append_run_log
 get_run = _impl.get_run
 list_recent_runs = _impl.list_recent_runs
+count_runs_today = _impl.count_runs_today
 
 # search profiles
 create_search_profile = _impl.create_search_profile

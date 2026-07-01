@@ -62,14 +62,15 @@ def test_write_score_and_top_matches(tmp_db):
     assert tmp_db.top_matches(min_score=90, limit=10) == []
 
 
-def test_list_jobs_for_scoring_excludes_already_scored(tmp_db):
+def test_list_scorable_jobs_excludes_already_scored(tmp_db):
     job_id = _insert_job(tmp_db, h="pending-hash")
-    assert [r["id"] for r in tmp_db.list_jobs_for_scoring()] == [job_id]
+    assert [r["id"] for r in tmp_db.list_scorable_jobs()] == [job_id]
 
     vid = tmp_db.upsert_resume_variant(
         slug="v", source_path="/x.tex", parsed={"h": 1}, tags=[]
     )
     tmp_db.write_score(job_id=job_id, variant_id=vid, fit_score=50, reasoning="ok")
 
-    # Once scored, it drops out of the scoring queue.
-    assert tmp_db.list_jobs_for_scoring() == []
+    # list_scorable_jobs is state-based: the job is still 'discovered' (score written directly),
+    # so it remains scorable — the idempotency gate in scoring/match handles the skip.
+    assert [r["id"] for r in tmp_db.list_scorable_jobs()] == [job_id]

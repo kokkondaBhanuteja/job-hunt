@@ -69,6 +69,12 @@ class StageIn(BaseModel):
     stage: str
 
 
+class AnswerTemplateIn(BaseModel):
+    question_pattern: str
+    answer_text: str
+    tags: list[str] = []
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -195,6 +201,23 @@ def apply_review(body: ReviewIn) -> dict[str, Any]:
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
+
+
+@api.get("/answer-templates")
+def answer_templates() -> list[dict[str, Any]]:
+    return services.list_answer_templates()
+
+
+@api.post("/answer-templates", status_code=201)
+def create_answer_template(body: AnswerTemplateIn) -> dict[str, Any]:
+    tid = services.add_answer_template(body.question_pattern, body.answer_text, body.tags)
+    return {"id": tid}
+
+
+@api.get("/answer-templates/suggest")
+def suggest_answer(q: str) -> dict[str, Any]:
+    result = services.suggest_answer(q)
+    return result or {"answer": None}
 
 
 @api.get("/analytics")

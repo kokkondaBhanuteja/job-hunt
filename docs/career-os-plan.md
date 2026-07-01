@@ -1,6 +1,27 @@
 # Job-Hunt → "Career OS" Platform — Architecture & Build Plan
 
-_Last updated: 2026-06-30 · **Status: architecture frozen — next step is implementing Phase 0.** Further additions go to "Future considerations", not the core design._
+_Last updated: 2026-07-01 · Architecture frozen. Built in vertical slices on branch `developer`._
+
+## Build status (2026-07-01)
+
+**100 tests green** (SQLite fast path + gated Postgres). Migrations `0001–0008`. 10 commits on `developer`.
+The end-to-end loop works from CLI, API, MCP, and the React UI:
+**discover → enrich → score → tailor → cover letter → AI review → apply-log → track stages → analytics.**
+
+| Phase | State | Highlights |
+|---|---|---|
+| **0 Foundations** | ✅ done | tests, AI Gateway (pluggable LLM, prompt library, retries, cost log, confidence), `services/` keystone, enums+CHECK |
+| **1 Postgres + foundations** | ✅ done | Postgres+pgvector (:55432) w/ SQLite test path via `DB_BACKEND`; Browser Manager; state machine + event bus + runs; worker/scheduler; plugin contract; search profiles |
+| **2 API** | ✅ done | FastAPI over services, 127.0.0.1 + token auth |
+| **3 React UI** | ✅ done | Board (Kanban by state) · Runs · Analytics · Settings; job-detail actions |
+| **4 Deepen** | ◑ partial | ✅ JD enrichment, idempotent JD-aware scoring, event-driven auto-advance, **resume tailoring + cover letters**. ❌ outreach/CRM, company research, answer-template library, prioritization rank |
+| **5 Sources** | ◑ partial | ✅ Naukri + **RemoteOK** (public API) + cross-source dedup. ❌ LinkedIn / Wellfound / Greenhouse / Lever |
+| **6 Apply** | ◑ partial | ✅ **ATS detection** + **AI pre-submit reviewer** (quality gate). ❌ Playwright form-fill, review-queue UI, checkpoints |
+| **7 Track/learn/semantic** | ✅ done | interview-stage funnel, analytics + **cost dashboard**, Telegram/Discord **daily report**, **learning loop** (rejection gaps + variant performance), **pgvector** semantic search |
+
+**Known loose ends:** no real Ollama scoring run yet (only stub-tested); scrape-health not wired into `runs`;
+README still describes v0; `config/selectors/naukri.json` referenced but absent; physical `backend/` move never done
+(package stays at repo root beside `frontend/`).
 
 ## Context
 
@@ -388,6 +409,14 @@ stage per variant (interviews/offers/rejections) — added to the analytics dash
 Still open in P7: pgvector semantic match._
 - Telegram/Discord daily report + priority alerts.
 - Add `embedding` column + index + model + backfill → pgvector semantic job↔resume matching.
+
+_Status (semantic slice DONE): `embed/` — `embed_text` via pluggable provider (Ollama `nomic-embed-text` +
+deterministic stub, env `EMBED_PROVIDER`). Migration `0008`: `CREATE EXTENSION vector` + `jobs.embedding` +
+`resume_variants.embedding` `vector(768)`. Postgres repo: set-embedding + cosine nearest-neighbor (`<=>`);
+SQLite raises a clear "Postgres only". `services.embed_jobs` / `semantic_match` (guarded to postgres). `POST
+/api/embed`, `GET /api/semantic`, `hunt embed` / `hunt semantic`. 100 tests green (gated pg round-trip); verified
+live (embedded 38 real jobs, ranked search). Real semantic quality needs the Ollama embed model; stub proves mechanics.
+**Phase 7 now essentially complete** (funnel, analytics, cost, notifications, learning, semantic)._
 
 _Status (notifications slice DONE): `notify/` — `Notifier` protocol + Telegram + Discord (webhook, injectable
 transport) + `NullNotifier`; `get_notifier()` from `NOTIFY_CHANNEL` env. `report.build_daily_report()` composes a

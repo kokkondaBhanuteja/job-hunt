@@ -52,6 +52,8 @@ save_draft = _impl.save_draft
 list_drafts_for_job = _impl.list_drafts_for_job
 save_learning = _impl.save_learning
 list_learnings_for_job = _impl.list_learnings_for_job
+save_answer_template = _impl.save_answer_template
+list_answer_templates = _impl.list_answer_templates
 
 # embeddings (Postgres only)
 set_job_embedding = _impl.set_job_embedding

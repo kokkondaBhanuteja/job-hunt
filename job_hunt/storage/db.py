@@ -164,6 +164,15 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 
+-- Reusable, truthful screening-question answers (drawn from during apply form-fill).
+CREATE TABLE IF NOT EXISTS answer_templates (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_pattern TEXT NOT NULL,                 -- e.g. "why do you want to join"
+    answer_text      TEXT NOT NULL,
+    tags             TEXT,                           -- JSON array
+    created_at       TEXT NOT NULL
+);
+
 -- What outcomes taught us (feeds future tailoring / variant preference).
 CREATE TABLE IF NOT EXISTS learnings (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -533,6 +542,26 @@ def list_drafts_for_job(job_id: int) -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(
             "SELECT * FROM drafts WHERE job_id = ? ORDER BY id DESC", (int(job_id),)
+        ).fetchall()
+
+
+def save_answer_template(
+    *, question_pattern: str, answer_text: str, tags: list[str] | None = None
+) -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO answer_templates (question_pattern, answer_text, tags, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (question_pattern, answer_text,
+             _to_json(tags) if tags is not None else None, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def list_answer_templates() -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM answer_templates ORDER BY id DESC"
         ).fetchall()
 
 

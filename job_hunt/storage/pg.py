@@ -225,6 +225,25 @@ def list_drafts_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def save_answer_template(
+    *, question_pattern: str, answer_text: str, tags: list[str] | None = None
+) -> int:
+    with connect() as conn:
+        return conn.execute(
+            "INSERT INTO answer_templates (question_pattern, answer_text, tags) "
+            "VALUES (%s, %s, %s) RETURNING id",
+            (question_pattern, answer_text, Jsonb(tags) if tags is not None else None),
+        ).fetchone()["id"]
+
+
+def list_answer_templates() -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, question_pattern, answer_text, tags::text AS tags, "
+            "created_at::text AS created_at FROM answer_templates ORDER BY id DESC"
+        ).fetchall()
+
+
 def save_learning(
     *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
 ) -> int:

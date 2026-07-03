@@ -14,18 +14,18 @@ wheels/
 .env
 
 # Generated runtime data — keep dir, ignore contents
-data/jobhunt.db
-data/jobhunt.db-journal
-data/jobhunt.db-shm
-data/jobhunt.db-wal
-data/sessions/
-data/logs/
+backend/data/jobhunt.db
+backend/data/jobhunt.db-journal
+backend/data/jobhunt.db-shm
+backend/data/jobhunt.db-wal
+backend/data/sessions/
+backend/data/logs/
 
 # Keep the vault DIR but ignore the actual resume files (they are private)
-data/resumes/*.pdf
-data/resumes/*.tex
-data/resumes/*.docx
-!data/resumes/.gitkeep
+backend/data/resumes/*.pdf
+backend/data/resumes/*.tex
+backend/data/resumes/*.docx
+!backend/data/resumes/.gitkeep
 
 # OS
 .DS_Store

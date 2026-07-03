@@ -1,0 +1,59 @@
+[project]
+name = "job-hunt"
+version = "0.1.0"
+description = "Personal job-hunt automation — discover jobs, score them locally with Ollama, drive from any MCP host."
+requires-python = ">=3.12"
+dependencies = [
+    "apscheduler>=3.11.3",
+    "fastapi>=0.138.2",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.27.2",
+    "pdfplumber>=0.11.9",
+    "playwright>=1.60.0",
+    "playwright-stealth>=2.0.3",
+    "psycopg[binary]>=3.3.4",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+    "uvicorn[standard]>=0.49.0",
+]
+
+[project.scripts]
+hunt = "job_hunt.cli.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["job_hunt"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "migrations"]
+
+[tool.ruff.lint]
+# E/F = pycodestyle/pyflakes core; I = isort import order; N = naming (PEP 8);
+# UP = pyupgrade (modern syntax like `list[X]`); B = flake8-bugbear.
+select = ["E", "F", "I", "N", "UP", "B"]
+ignore = [
+    "E501",   # line-too-long — handled by formatter; we ceiling at 112 in CLAUDE.md
+    "B008",   # function calls in defaults — FastAPI Depends() pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files may shadow names via fixtures and monkeypatch.
+"tests/*" = ["N802", "N803"]
+# CLI is the one place print() is the primary output surface.
+"job_hunt/cli/*" = ["T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

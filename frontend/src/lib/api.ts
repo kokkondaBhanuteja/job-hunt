@@ -1,0 +1,166 @@
+// Typed client for the job-hunt FastAPI. Base URL + bearer token live in
+// localStorage (set on the Settings page).
+
+import { API_ENDPOINTS, DEFAULT_API_BASE, ROUTES, STORAGE_KEYS } from "./constants";
+
+export function getApiBase(): string {
+  return localStorage.getItem(STORAGE_KEYS.apiBase) || DEFAULT_API_BASE;
+}
+export function getToken(): string {
+  return localStorage.getItem(STORAGE_KEYS.apiToken) || "";
+}
+export function setConfig(base: string, token: string) {
+  localStorage.setItem(STORAGE_KEYS.apiBase, base);
+  localStorage.setItem(STORAGE_KEYS.apiToken, token);
+}
+
+async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
+  const res = await fetch(getApiBase() + path, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+      ...(opts.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    // Centralized session-expiry handling: clear the bad token and bounce the
+    // user to Settings. Every caller sees a consistent error and doesn't need
+    // its own auth-failure branch.
+    localStorage.removeItem(STORAGE_KEYS.apiToken);
+    if (!window.location.hash.endsWith(ROUTES.settings)) {
+      window.location.hash = ROUTES.settings;
+    }
+    throw new Error("401: session expired — set your API token in Settings");
+  }
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return (await res.json()) as T;
+}
+
+export interface Health {
+  status: string;
+  datastore: string;
+  sources: string[];
+  llm: Record<string, { provider: string; model: string }>;
+}
+export interface BoardJob {
+  id: number;
+  title: string;
+  company: string;
+  location: string | null;
+  state: string;
+  apply_url: string;
+  best_score: number | null;
+}
+export interface ScoreRow {
+  variant: string;
+  fit_score: number;
+  confidence: number | null;
+  reasoning: string;
+}
+export interface JobDetail {
+  job: Record<string, unknown> & {
+    id: number;
+    title: string;
+    company: string;
+    location: string | null;
+    description: string | null;
+    apply_url: string;
+    state: string;
+    status: string;
+  };
+  scores: ScoreRow[];
+}
+export interface Run {
+  id: number;
+  status: string;
+  jobs_found: number;
+  jobs_new: number;
+  started_at: string | null;
+  finished_at: string | null;
+  log: string;
+}
+export interface Profile {
+  id: number;
+  name: string;
+  keywords: string;
+  location: string;
+  pages: number;
+  enabled: number | boolean;
+}
+export interface TailorResult {
+  job_id: number;
+  variant: string | null;
+  content: string;
+}
+export interface CoverResult {
+  job_id: number;
+  draft_id: number;
+  kind: string;
+  body: string;
+}
+export interface Draft {
+  id: number;
+  kind: string;
+  body: string;
+  status: string;
+  created_at: string;
+}
+export interface ReviewIssue {
+  severity: string;
+  field?: string;
+  message: string;
+}
+export interface ReviewResult {
+  job_id: number;
+  ats: string;
+  variant: string | null;
+  ready: boolean;
+  issues: ReviewIssue[];
+}
+export interface Analytics {
+  jobs_by_state: { state: string; n: number }[];
+  jobs_by_source: { source: string; n: number }[];
+  funnel: { stage: string; n: number }[];
+  source_effectiveness: { source: string; applied: number }[];
+  llm_by_task: { task: string; calls: number; cost: number }[];
+  variant_performance: {
+    variant: string;
+    applications: number;
+    interviews: number;
+    offers: number;
+    rejections: number;
+  }[];
+  llm_cost: { calls: number; cost: number; tokens: number };
+}
+
+export const api = {
+  health: () =>
+    fetch(getApiBase() + API_ENDPOINTS.health).then((r) => r.json() as Promise<Health>),
+  // Authed probe: /health is open, so it can't tell us the token is valid. This can.
+  ping: () => req<unknown>(API_ENDPOINTS.ping),
+  board: () => req<BoardJob[]>(API_ENDPOINTS.board),
+  job: (id: number) => req<JobDetail>(API_ENDPOINTS.job(id)),
+  runs: () => req<Run[]>(API_ENDPOINTS.runsList),
+  discover: () => req<{ started: boolean }>(API_ENDPOINTS.discover, { method: "POST" }),
+  score: () => req<{ started: boolean }>(API_ENDPOINTS.score, { method: "POST" }),
+  profiles: () => req<Profile[]>(API_ENDPOINTS.profiles),
+  addProfile: (b: { name: string; keywords: string; location: string; pages: number }) =>
+    req<{ id: number }>(API_ENDPOINTS.profiles, { method: "POST", body: JSON.stringify(b) }),
+  setProfileEnabled: (id: number, enabled: boolean) =>
+    req(API_ENDPOINTS.profile(id), { method: "PATCH", body: JSON.stringify({ enabled }) }),
+  logApplication: (b: { job_id: number; variant_slug: string; cover_letter: string; status?: string }) =>
+    req(API_ENDPOINTS.applications, { method: "POST", body: JSON.stringify(b) }),
+  tailor: (id: number) => req<TailorResult>(API_ENDPOINTS.jobTailor(id), { method: "POST" }),
+  cover: (id: number) => req<CoverResult>(API_ENDPOINTS.jobCover(id), { method: "POST" }),
+  drafts: (id: number) => req<Draft[]>(API_ENDPOINTS.jobDrafts(id)),
+  review: (id: number, cover_letter = "") =>
+    req<ReviewResult>(API_ENDPOINTS.applyReview, {
+      method: "POST",
+      body: JSON.stringify({ job_id: id, cover_letter, answers: {} }),
+    }),
+  analytics: () => req<Analytics>(API_ENDPOINTS.analytics),
+};

@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../api";
-
-const FUNNEL_ORDER = ["applied", "oa", "interview", "hr", "offer", "rejected"];
+import { EmptyView } from "../components/EmptyView";
+import { ErrorView } from "../components/ErrorView";
+import { LoadingView } from "../components/LoadingView";
+import { api } from "../lib/api";
+import { FUNNEL_STAGES, QUERY_KEYS } from "../lib/constants";
 
 export function Analytics() {
-  const q = useQuery({ queryKey: ["analytics"], queryFn: api.analytics });
+  const q = useQuery({ queryKey: QUERY_KEYS.analytics, queryFn: api.analytics });
 
-  if (q.isError) return <div className="banner error">{String(q.error)}</div>;
-  if (!q.data) return <div className="muted">Loading…</div>;
+  if (q.isError) return <ErrorView error={q.error} />;
+  if (!q.data) return <LoadingView />;
   const d = q.data;
   const funnel = Object.fromEntries(d.funnel.map((f) => [f.stage, f.n]));
 
@@ -18,7 +20,7 @@ export function Analytics() {
       <section className="card-block">
         <h2>Application funnel</h2>
         <div className="funnel">
-          {FUNNEL_ORDER.map((stage) => (
+          {FUNNEL_STAGES.map((stage) => (
             <div className="funnel-step" key={stage}>
               <div className="funnel-n">{funnel[stage] ?? 0}</div>
               <div className="funnel-label">{stage}</div>
@@ -80,7 +82,7 @@ function MiniTable({ title, rows }: { title?: string; rows: string[][] }) {
   return (
     <div className="mini-table">
       {title && <div className="mini-title">{title}</div>}
-      {rows.length === 0 && <div className="muted small">no data yet</div>}
+      {rows.length === 0 && <EmptyView>no data yet</EmptyView>}
       {rows.map((cells, i) => (
         <div className="mini-row" key={i}>
           {cells.map((c, j) => (

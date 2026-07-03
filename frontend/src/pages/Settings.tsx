@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, getApiBase, getToken, setConfig } from "../api";
+import { ErrorView } from "../components/ErrorView";
+import { api, getApiBase, getToken, setConfig } from "../lib/api";
+import { DEFAULT_API_BASE, QUERY_KEYS } from "../lib/constants";
 
 export function Settings() {
   const qc = useQueryClient();
@@ -8,8 +10,8 @@ export function Settings() {
   const [token, setToken] = useState(getToken());
   const [saved, setSaved] = useState(false);
 
-  const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: api.profiles, enabled: !!getToken() });
+  const health = useQuery({ queryKey: QUERY_KEYS.health, queryFn: api.health, retry: false });
+  const profiles = useQuery({ queryKey: QUERY_KEYS.profiles, queryFn: api.profiles, enabled: !!getToken() });
 
   const [pName, setPName] = useState("");
   const [pKeywords, setPKeywords] = useState("");
@@ -23,12 +25,12 @@ export function Settings() {
       setPName("");
       setPKeywords("");
       setPLocation("");
-      qc.invalidateQueries({ queryKey: ["profiles"] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.profiles });
     },
   });
   const toggle = useMutation({
     mutationFn: (v: { id: number; enabled: boolean }) => api.setProfileEnabled(v.id, v.enabled),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["profiles"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.profiles }),
   });
 
   function save() {
@@ -46,7 +48,7 @@ export function Settings() {
         <h2>Connection</h2>
         <label>
           API base
-          <input value={base} onChange={(e) => setBase(e.target.value)} placeholder="http://127.0.0.1:8000" />
+          <input value={base} onChange={(e) => setBase(e.target.value)} placeholder={DEFAULT_API_BASE} />
         </label>
         <label>
           API token
@@ -91,7 +93,7 @@ export function Settings() {
             Add
           </button>
         </div>
-        {addProfile.isError && <div className="banner error">{String(addProfile.error)}</div>}
+        {addProfile.isError && <ErrorView error={addProfile.error} />}
         <table className="table">
           <thead>
             <tr>

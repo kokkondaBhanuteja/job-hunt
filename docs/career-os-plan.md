@@ -35,9 +35,8 @@ The end-to-end loop works from CLI, API, MCP, and the React UI:
 - **Deferred (R5):** prompt-template centralization, durable job API, event lease/DLQ + retry_count, Browser-Manager pool, rate-limit/daily-cap enforcement, React Router, Board split, deeper Postgres tests.
 
 **Known loose ends:** no real Ollama scoring run yet (only stub-tested — needs Ollama running on the host);
-`config/selectors/naukri.json` referenced but absent (dead fallback); physical `backend/` move never done
-(package stays at repo root beside `frontend/`). *(Fixed: README now reflects the full platform; scrape-health
-wired into `runs` — a blocked Naukri scrape fails the run + emits `SCRAPE_BLOCKED`.)*
+`backend/config/selectors/naukri.json` referenced but absent (dead fallback). *(Fixed: README now reflects the full platform; scrape-health
+wired into `runs` — a blocked Naukri scrape fails the run + emits `SCRAPE_BLOCKED`; physical `backend/` move done.)*
 
 ## Context
 

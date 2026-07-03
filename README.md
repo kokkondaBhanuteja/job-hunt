@@ -48,10 +48,11 @@ discover ─▶ enrich (full JD) ─▶ score (idempotent, JD-aware) ─▶ tail
 ## Setup
 
 ```bash
-# 1. Postgres + pgvector (the datastore)
+# 1. Postgres + pgvector (the datastore) — from the repo root
 docker compose up -d db                    # host port 55432
 
-# 2. Python project
+# 2. Python project — everything backend lives under backend/
+cd backend
 uv sync
 uv run playwright install chromium         # for the browser sources
 
@@ -67,21 +68,21 @@ uv run python scripts/sqlite_to_postgres.py
 DB_BACKEND=postgres uv run hunt selfcheck
 ```
 
-Config lives in env (see `.env.example`): `DB_BACKEND`, `DATABASE_URL`, per-task
-`LLM_<TASK>_PROVIDER/MODEL` (+ `OPENAI_API_KEY` etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`,
-`API_TOKEN`.
+Config lives in env (see `backend/.env.example` — copy to `backend/.env.local`):
+`DB_BACKEND`, `DATABASE_URL`, per-task `LLM_<TASK>_PROVIDER/MODEL` (+ `OPENAI_API_KEY`
+etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`, `API_TOKEN`.
 
 ## Run the platform
 
 ```bash
 # API (127.0.0.1, token-authed) — prints an ephemeral token if API_TOKEN is unset
-DB_BACKEND=postgres uv run hunt serve-api
+cd backend && DB_BACKEND=postgres uv run hunt serve-api
 
-# Web UI
+# Web UI (separate terminal, from the repo root)
 cd frontend && npm install && npm run dev        # → http://localhost:5173 (paste the token in Settings)
 
 # Background worker (scheduled discovery + event dispatch + daily report)
-DB_BACKEND=postgres uv run hunt worker
+cd backend && DB_BACKEND=postgres uv run hunt worker
 ```
 
 ## CLI (`uv run hunt …`)
@@ -104,18 +105,28 @@ DB_BACKEND=postgres uv run hunt worker
 ## Testing
 
 ```bash
-uv run pytest -q      # SQLite fast path; Postgres-gated tests run if the DB is up
+cd backend && uv run pytest -q      # SQLite fast path; Postgres-gated tests run if the DB is up
 ```
 
 ## Layout
 
 ```
-job_hunt/   services/ · llm/ · storage/ (db.py sqlite, pg.py postgres, repo.py façade)
-            plugins/ · browser/ · events/ · states.py · enrich/ · scoring/ · resume/
-            draft/ · apply/ · learn/ · embed/ · notify/ · worker/ · api/ · mcp_server/ · cli/
-frontend/   React + TS + Vite + TanStack Query (Board · Runs · Analytics · Settings)
-migrations/ numbered .sql (Postgres); SQLite schema is in storage/db.py
-docs/       career-os-plan.md (architecture + build status)
+backend/                Python. All backend code + its data/config/scripts/tests.
+├── job_hunt/           services/ · llm/ · storage/ (db.py sqlite, pg.py postgres, repo.py façade)
+│                        plugins/ · browser/ · events/ · states.py · enrich/ · scoring/
+│                        resume/ · draft/ · apply/ · learn/ · embed/ · notify/
+│                        worker/ · api/ · mcp_server/ · cli/
+├── migrations/         numbered .sql (Postgres); SQLite schema is in storage/db.py
+├── tests/              pytest suite
+├── scripts/            one-off tools (SQLite→PG migration, naukri debug, launchd install)
+├── config/             CSS selectors etc.
+├── data/               runtime data (SQLite DB, logs, resume vault) — mostly gitignored
+├── pyproject.toml      Python deps + `hunt` CLI entrypoint
+└── uv.lock
+
+frontend/               React + TS + Vite + TanStack Query (Board · Runs · Analytics · Settings)
+docs/                   career-os-plan.md (architecture + build status), engineering-standards.md
+docker-compose.yml      Boots the Postgres+pgvector container
 ```
 
 ## Cost & privacy

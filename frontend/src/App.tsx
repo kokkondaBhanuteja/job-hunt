@@ -1,25 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, getToken } from "./api";
-import { screenOf, useHashRoute } from "./router";
+import { api, getToken } from "./lib/api";
+import { QUERY_KEYS, SCREEN } from "./lib/constants";
+import { screenOf, useHashRoute } from "./lib/router";
 import { Analytics } from "./pages/Analytics";
 import { Board } from "./pages/Board";
 import { Runs } from "./pages/Runs";
 import { Settings } from "./pages/Settings";
 
 const TABS = [
-  { key: "board", label: "Board" },
-  { key: "runs", label: "Runs" },
-  { key: "analytics", label: "Analytics" },
-  { key: "settings", label: "Settings" },
+  { key: SCREEN.board, label: "Board" },
+  { key: SCREEN.runs, label: "Runs" },
+  { key: SCREEN.analytics, label: "Analytics" },
+  { key: SCREEN.settings, label: "Settings" },
 ];
 
 export function App() {
   const screen = screenOf(useHashRoute());
-  const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
+  const health = useQuery({ queryKey: QUERY_KEYS.health, queryFn: api.health, retry: false });
   // /health is unauthenticated — probe an authed endpoint so a bad token reads as
   // "unauthorized", not "connected".
   const auth = useQuery({
-    queryKey: ["auth"],
+    queryKey: QUERY_KEYS.auth,
     queryFn: api.ping,
     retry: false,
     enabled: !!getToken(),
@@ -52,13 +53,13 @@ export function App() {
       </header>
 
       <main className="content">
-        {!getToken() && screen !== "settings" && (
+        {!getToken() && screen !== SCREEN.settings && (
           <div className="banner">Set your API token in Settings to connect.</div>
         )}
-        {screen === "board" && <Board />}
-        {screen === "runs" && <Runs />}
-        {screen === "analytics" && <Analytics />}
-        {screen === "settings" && <Settings />}
+        {screen === SCREEN.board && <Board />}
+        {screen === SCREEN.runs && <Runs />}
+        {screen === SCREEN.analytics && <Analytics />}
+        {screen === SCREEN.settings && <Settings />}
       </main>
     </div>
   );

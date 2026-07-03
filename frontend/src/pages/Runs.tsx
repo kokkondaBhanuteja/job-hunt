@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { ErrorView } from "../components/ErrorView";
+import { api } from "../lib/api";
+import { QUERY_KEYS, RUNS_POLL_MS } from "../lib/constants";
 
 export function Runs() {
   const qc = useQueryClient();
-  const runs = useQuery({ queryKey: ["runs"], queryFn: api.runs, refetchInterval: 4000 });
+  const runs = useQuery({ queryKey: QUERY_KEYS.runs, queryFn: api.runs, refetchInterval: RUNS_POLL_MS });
 
   const discover = useMutation({
     mutationFn: api.discover,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["runs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.runs }),
   });
   const score = useMutation({
     mutationFn: api.score,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["runs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.runs }),
   });
 
   return (
@@ -28,10 +30,10 @@ export function Runs() {
         </div>
       </div>
       {(discover.isError || score.isError) && (
-        <div className="banner error">{String(discover.error || score.error)}</div>
+        <ErrorView error={discover.error || score.error} />
       )}
 
-      {runs.isError && <div className="banner error">{String(runs.error)}</div>}
+      {runs.isError && <ErrorView error={runs.error} />}
       <table className="table">
         <thead>
           <tr>

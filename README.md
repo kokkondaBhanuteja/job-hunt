@@ -2,9 +2,13 @@
 
 A self-hosted, quality-first job-hunt platform. It discovers jobs across boards, scores
 each against your résumés with an LLM, enriches to the full JD, **tailors your résumé and
-drafts cover letters / recruiter outreach**, runs an **AI pre-submit review**, tracks the
-interview pipeline, and reports analytics — driven from a **React web UI**, a REST API, a
-CLI, or any MCP host.
+drafts cover letters / recruiter outreach**, runs an **AI pre-submit review**,
+**auto-fills ATS application forms** (Greenhouse/Lever — for *you* to submit),
+**triages your inbox into pipeline signal**, tracks the interview pipeline, and reports
+analytics — driven from a **React web UI**, a REST API, a CLI, or any MCP host.
+
+Everything the AI does is grounded in **your context** — paste your résumé/background once
+(Settings → Career context) and it's injected into every score, tailor, cover letter, and review.
 
 **Product thesis:** be a *highly efficient human, not a bot* — 20–40 targeted, tailored
 applications beat 300 generic ones. Every automation saves time, improves quality, or aids a
@@ -69,8 +73,13 @@ DB_BACKEND=postgres uv run hunt selfcheck
 ```
 
 Config lives in env (see `backend/.env.example` — copy to `backend/.env.local`):
-`DB_BACKEND`, `DATABASE_URL`, per-task `LLM_<TASK>_PROVIDER/MODEL` (+ `OPENAI_API_KEY`
-etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`, `API_TOKEN`.
+`API_TOKEN`, `DB_BACKEND`, `DATABASE_URL`, per-task `LLM_<TASK>_PROVIDER/MODEL`
+(+ `OPENAI_API_KEY` etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`.
+
+**Inbox triage (optional):** to read/structure your own Gmail, enable 2-Step Verification,
+create an [App Password](https://myaccount.google.com/apppasswords), and set all three of
+`EMAIL_IMAP_HOST` / `EMAIL_ADDRESS` / `EMAIL_APP_PASSWORD` in `backend/.env.local`. The app
+password is only ever sent to your mail server — never logged, stored, or put in an LLM prompt.
 
 ## Run the platform
 
@@ -95,6 +104,11 @@ cd backend && DB_BACKEND=postgres uv run hunt worker
 | `score` | idempotent JD-aware scoring of every job × variant |
 | `top [--min-score]` | best matches |
 | `tailor <job_id>` / `cover <job_id>` | JD-tailored résumé / cover letter |
+| `context <file>` | set/show the career context injected into every AI call |
+| `applicant --set key=value …` | standing application answers (name, notice period, CTC…) used by auto-fill |
+| `apply-fill <job_id>` | open the job's ATS form, auto-fill it from your data, stop for you to submit |
+| `email sync` / `email list` / `email show <id>` | pull + structure your inbox, browse triaged mail |
+| `email action <id> --kind draft_reply\|apply_label\|archive [--confirm]` / `email dismiss <id>` | propose then confirm a reversible mail action |
 | `profiles` / `add-profile …` | saved searches |
 | `run-cycle` / `worker` | one discovery+scoring cycle / the long-running scheduler |
 | `report [--send]` | daily summary (Telegram/Discord if configured) |
@@ -114,8 +128,8 @@ cd backend && uv run pytest -q      # SQLite fast path; Postgres-gated tests run
 backend/                Python. All backend code + its data/config/scripts/tests.
 ├── job_hunt/           services/ · llm/ · storage/ (db.py sqlite, pg.py postgres, repo.py façade)
 │                        plugins/ · browser/ · events/ · states.py · enrich/ · scoring/
-│                        resume/ · draft/ · apply/ · learn/ · embed/ · notify/
-│                        worker/ · api/ · mcp_server/ · cli/
+│                        resume/ · draft/ · apply/ (ATS auto-fill) · learn/ · embed/ · notify/
+│                        email/ (stdlib IMAP reader) · worker/ · api/ · mcp_server/ · cli/
 ├── migrations/         numbered .sql (Postgres); SQLite schema is in storage/db.py
 ├── tests/              pytest suite
 ├── scripts/            one-off tools (SQLite→PG migration, naukri debug, launchd install)
@@ -124,7 +138,7 @@ backend/                Python. All backend code + its data/config/scripts/tests
 ├── pyproject.toml      Python deps + `hunt` CLI entrypoint
 └── uv.lock
 
-frontend/               React + TS + Vite + TanStack Query (Board · Runs · Analytics · Settings)
+frontend/               React + TS + Vite + TanStack Query (Board · Inbox · Runs · Analytics · Settings)
 docs/                   career-os-plan.md (architecture + build status), engineering-standards.md
 docker-compose.yml      Boots the Postgres+pgvector container
 ```
@@ -133,4 +147,9 @@ docker-compose.yml      Boots the Postgres+pgvector container
 
 $0 by default (local Ollama, local Postgres). Point any hard task at an API key when you
 want more quality; `llm_calls` tracks every token and dollar. The API binds to `127.0.0.1`
-and requires a token even locally — it can spend credits and (later) submit applications.
+and requires a token even locally — it can spend credits and submit applications.
+
+**Inbox triage** reads over IMAP with an app password that never leaves your machine. Email
+content is treated as **untrusted data** (never executed as instructions), and every mailbox
+action — draft reply / label / archive, **never send or delete** — requires your explicit
+confirmation. Auto-fill likewise stops at the review screen for you to submit.

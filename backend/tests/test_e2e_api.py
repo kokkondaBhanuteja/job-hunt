@@ -150,6 +150,75 @@ def test_email_inbox_read_and_sync(client, tmp_db, monkeypatch):
     assert synced.status_code == 202 and synced.json()["started"] is True
 
 
+def test_email_action_propose(client, tmp_db, monkeypatch):
+    """POST /api/emails/{id}/propose returns EmailActionProposal without calling LLM."""
+    eid = repo.upsert_email_message(
+        mailbox="INBOX", uid=20, message_id="<m20@acme>", thread_id=None,
+        from_addr="recruiter@lever.co", from_name="Acme HR",
+        subject="Next steps", received_at="2026-07-01T10:00:00+00:00",
+        snippet="Let us schedule", body_text="Let us schedule a call.",
+    )
+    monkeypatch.setattr(
+        app_module.services,
+        "propose_action",
+        lambda email_id, kind, *, label=None: {
+            "action_id": 1,
+            "kind": kind,
+            "payload": {},
+            "state": "proposed",
+        },
+    )
+    resp = client.post(
+        f"/api/emails/{eid}/propose", headers=AUTH, json={"kind": "archive"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action_id"] == 1 and body["state"] == "proposed"
+
+
+def test_email_action_gate_returns_400_without_confirm(client, tmp_db):
+    """POST /api/emails/{id}/action with confirm=false must return 400 — the gate check."""
+    eid = repo.upsert_email_message(
+        mailbox="INBOX", uid=21, message_id="<m21@acme>", thread_id=None,
+        from_addr="hr@acme.com", from_name="HR", subject="Follow up",
+        received_at="2026-07-01T11:00:00+00:00",
+        snippet="Following up", body_text="Following up.",
+    )
+    resp = client.post(
+        f"/api/emails/{eid}/action",
+        headers=AUTH,
+        json={"kind": "archive", "confirm": False},
+    )
+    assert resp.status_code == 400
+
+
+def test_email_action_confirm_succeeds(client, tmp_db, monkeypatch):
+    """POST /api/emails/{id}/action with confirm=true returns 200; no real IMAP called."""
+    eid = repo.upsert_email_message(
+        mailbox="INBOX", uid=22, message_id="<m22@acme>", thread_id=None,
+        from_addr="hr@acme.com", from_name="HR", subject="Confirm",
+        received_at="2026-07-01T12:00:00+00:00",
+        snippet="Please confirm", body_text="Please confirm availability.",
+    )
+    monkeypatch.setattr(
+        app_module.services,
+        "confirm_action",
+        lambda email_id, *, action_id=None, confirm=False: {
+            "action_id": 1,
+            "kind": "archive",
+            "state": "executed",
+            "executed_at": "2026-07-01T12:05:00+00:00",
+        },
+    )
+    resp = client.post(
+        f"/api/emails/{eid}/action",
+        headers=AUTH,
+        json={"kind": "archive", "confirm": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["state"] == "executed"
+
+
 def test_reap_stale_runs(tmp_db):
     rid = tmp_db.create_run(["naukri"])
     tmp_db.start_run(rid)

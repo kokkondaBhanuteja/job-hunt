@@ -129,6 +129,18 @@ class ApplicantIn(BaseModel):
     referral_source: str | None = None
 
 
+class ProposeIn(BaseModel):
+    kind: str
+    label: str | None = None
+
+
+class EmailActionIn(BaseModel):
+    kind: str
+    action_id: int | None = None
+    confirm: bool = False
+    label: str | None = None
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -371,6 +383,26 @@ def list_emails(category: str | None = None, state: str | None = None) -> list[d
 def email_detail(email_id: int) -> dict[str, Any]:
     """Return one triaged email's full detail, or 404 if absent."""
     return _unwrap(services.get_email(email_id))
+
+
+@api.post("/emails/{email_id}/propose", response_model=dto.EmailActionProposal)
+def propose_email_action(email_id: int, body: ProposeIn) -> dict[str, Any]:
+    """Propose an email action for human review and return the stored proposal."""
+    return _unwrap(services.propose_action(email_id, body.kind, label=body.label))
+
+
+@api.post("/emails/{email_id}/action")
+def execute_email_action(email_id: int, body: EmailActionIn) -> dict[str, Any]:
+    """Execute or gate a proposed email action; requires confirm=True to open IMAP."""
+    return _unwrap(
+        services.confirm_action(email_id, action_id=body.action_id, confirm=body.confirm)
+    )
+
+
+@api.post("/emails/{email_id}/dismiss")
+def dismiss_email_action(email_id: int) -> dict[str, Any]:
+    """Dismiss the pending proposed action on an email."""
+    return _unwrap(services.dismiss_action(email_id))
 
 
 @api.post("/emails/sync", status_code=202)

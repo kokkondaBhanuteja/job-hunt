@@ -10,6 +10,8 @@ Only the stably-shaped read endpoints get DTOs. The job-detail endpoint stays an
 """
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -181,3 +183,12 @@ class Applicant(BaseModel):
     referral_source: str | None = None
     extra: str | None = None
     updated_at: str | None = None
+
+
+class EmailActionProposal(BaseModel):
+    """Proposed email action awaiting human confirmation."""
+
+    action_id: int
+    kind: str
+    payload: dict[str, Any] | None = None
+    state: str

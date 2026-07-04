@@ -44,6 +44,9 @@ export const API_ENDPOINTS = {
   emails: "/api/emails",
   emailDetail: (id: number) => `/api/emails/${id}`,
   emailsSync: "/api/emails/sync",
+  emailPropose: (id: number) => `/api/emails/${id}/propose`,
+  emailAction: (id: number) => `/api/emails/${id}/action`,
+  emailDismiss: (id: number) => `/api/emails/${id}/dismiss`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */

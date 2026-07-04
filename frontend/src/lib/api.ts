@@ -194,6 +194,13 @@ export interface EmailDetail {
   structured_at: string | null;
   created_at: string | null;
 }
+// Mirrors backend dto.EmailActionProposal.
+export interface EmailActionProposal {
+  action_id: number;
+  kind: string;
+  payload: Record<string, string | null | undefined> | null;
+  state: string;
+}
 
 export const api = {
   health: () =>
@@ -241,4 +248,22 @@ export const api = {
   },
   emailDetail: (id: number) => req<EmailDetail>(API_ENDPOINTS.emailDetail(id)),
   syncEmails: () => req<{ started: boolean }>(API_ENDPOINTS.emailsSync, { method: "POST" }),
+  proposeAction: (id: number, kind: string, label?: string | null) =>
+    req<EmailActionProposal>(API_ENDPOINTS.emailPropose(id), {
+      method: "POST",
+      body: JSON.stringify({ kind, label: label ?? null }),
+    }),
+  confirmAction: (
+    id: number,
+    body: { kind: string; action_id?: number; confirm: boolean; label?: string | null },
+  ) =>
+    req<{ action_id: number; kind: string; state: string; executed_at: string }>(
+      API_ENDPOINTS.emailAction(id),
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  dismissAction: (id: number) =>
+    req<{ action_id: number; state: string }>(
+      API_ENDPOINTS.emailDismiss(id),
+      { method: "POST" },
+    ),
 };

@@ -135,7 +135,7 @@ def email_list(category: str = "", action_state: str = "") -> list[dict[str, Any
     """List emails from the inbox with optional filtering.
 
     Args:
-        category: filter by category (e.g., "offer", "rejection", "other") — empty = no filter
+        category: filter by category (e.g., "recruiter_outreach", "rejection", "other") — empty = no filter
         action_state: filter by action_state — empty = no filter
 
     Returns:

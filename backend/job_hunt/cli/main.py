@@ -359,6 +359,29 @@ def cmd_email_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_email_action(args: argparse.Namespace) -> int:
+    """Propose or confirm an email action (IMAP write requires --confirm)."""
+    if args.confirm:
+        result = services.confirm_action(args.email_id, confirm=True)
+    else:
+        result = services.propose_action(args.email_id, args.kind, label=args.label)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_email_dismiss(args: argparse.Namespace) -> int:
+    """Dismiss the pending proposed action on an email."""
+    result = services.dismiss_action(args.email_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -492,7 +515,10 @@ def build_parser() -> argparse.ArgumentParser:
     es.set_defaults(func=cmd_email_sync)
 
     el = em_sub.add_parser("list", help="List emails with optional filtering")
-    el.add_argument("--category", help="filter by category (e.g., offer, rejection, other)")
+    el.add_argument(
+        "--category",
+        help="filter by category (e.g., recruiter_outreach, rejection, other)",
+    )
     el.add_argument("--state", help="filter by action_state")
     el.add_argument("--limit", type=int, default=100, help="max rows to return (default: 100)")
     el.set_defaults(func=cmd_email_list)
@@ -500,6 +526,26 @@ def build_parser() -> argparse.ArgumentParser:
     esh = em_sub.add_parser("show", help="Show a single email by ID")
     esh.add_argument("email_id", type=int, help="email ID to display")
     esh.set_defaults(func=cmd_email_show)
+
+    ea = em_sub.add_parser("action", help="Propose or confirm an email action")
+    ea.add_argument("email_id", type=int, help="email ID")
+    ea.add_argument(
+        "--kind",
+        choices=["draft_reply", "apply_label", "archive"],
+        required=True,
+        help="action kind: draft_reply, apply_label, or archive",
+    )
+    ea.add_argument("--label", help="label name (required for apply_label kind)")
+    ea.add_argument(
+        "--confirm",
+        action="store_true",
+        help="confirm and execute the proposed action (opens IMAP for write)",
+    )
+    ea.set_defaults(func=cmd_email_action)
+
+    edm = em_sub.add_parser("dismiss", help="Dismiss the pending action on an email")
+    edm.add_argument("email_id", type=int, help="email ID")
+    edm.set_defaults(func=cmd_email_dismiss)
 
     return p
 

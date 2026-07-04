@@ -2,16 +2,19 @@
 
 The engine never submits: it fills every field it can and hands a highlighted (unsubmitted)
 form to the human. Fill logic runs against a `FormPage` protocol so it is testable without a
-real browser; the Playwright adapter is the production `FormPage`.
+real browser; the async production path uses `managed_context` (real Playwright) and blocks
+until the human closes the tab.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from typing import Any, Protocol
 
 from job_hunt.apply.ats import detect_ats
 from job_hunt.apply.formfill_profiles import load_profile, validate_profile
+from job_hunt.browser import managed_context
 from job_hunt.logging_config import get_logger
 from job_hunt.storage import repo
 
@@ -119,6 +122,58 @@ def _gather_data(job: Any) -> dict[str, Any]:
     }
 
 
+async def _fill_page_async(
+    page: Any, profile: dict[str, Any], data: dict[str, Any]
+) -> dict[str, Any]:
+    """Fill every resolvable field via the async Playwright page API; never submit."""
+    err = validate_profile(profile)
+    if err:
+        raise ValueError(f"invalid form profile: {err}")
+
+    filled: list[str] = []
+    unfilled: list[str] = []
+    for field in profile["fields"]:
+        selector = field["selector"]
+        value = _resolve(field["source"], data)
+        if value is None:
+            if not field.get("optional"):
+                unfilled.append(selector)
+            continue
+        if await page.query_selector(selector) is None:
+            if not field.get("optional"):
+                unfilled.append(selector)
+            continue
+        kind = field.get("kind", "text")
+        if kind == "file":
+            await page.set_input_files(selector, value)
+        elif kind == "select":
+            await page.select_option(selector, label=value)
+        elif kind == "checkbox":
+            await page.set_checked(selector, value.lower() in ("true", "yes", "1"))
+        else:
+            await page.fill(selector, value)
+        filled.append(selector)
+
+    submit = profile.get("submit") or {}
+    if submit.get("selector") and await page.query_selector(submit["selector"]) is not None:
+        await page.eval_on_selector(
+            submit["selector"], "el => el.style.outline='3px solid #16A34A'"
+        )
+
+    return {"filled": filled, "unfilled": unfilled}
+
+
+async def _fill_via_browser(url: str, profile: dict[str, Any], data: dict[str, Any], ats: str) -> dict[str, Any]:
+    """Open `url` in a headful Chromium context, fill the form, block until the human closes the tab."""
+    async with managed_context("formfill", headless=False) as ctx:
+        page = await ctx.new_page()
+        await page.goto(url, wait_until="domcontentloaded")
+        summary = await _fill_page_async(page, profile, data)
+        logger.info("form filled — review in the browser, submit, then close the tab")
+        await page.wait_for_event("close", timeout=0)  # block until the human closes the tab
+        return {"ats": ats, "review_url": url, **summary}
+
+
 def prepare_form_fill(
     job_id: int, *, page_factory: Callable[[str], FormPage] | None = None
 ) -> dict[str, Any]:
@@ -134,62 +189,8 @@ def prepare_form_fill(
         return {"error": f"no form profile for '{ats}' yet"}
 
     data = _gather_data(job)
-    factory = page_factory or _playwright_page_factory
-    page = factory(job["apply_url"])
-    summary = _fill_page(page, profile, data)
-    return {"ats": ats, "review_url": job["apply_url"], **summary}
-
-
-def _playwright_page_factory(url: str) -> FormPage:
-    """Open `url` in the managed (headful) browser and return a Playwright-backed FormPage.
-
-    CONCERN: managed_context is an async context manager. This sync wrapper acquires the
-    context via __aenter__ but never calls __aexit__, so the browser context is leaked.
-    Future task: make prepare_form_fill fully async so the context can be properly closed
-    via 'async with managed_context(...)'.
-    """
-    import asyncio
-
-    from job_hunt.browser.manager import managed_context
-
-    async def _acquire() -> FormPage:
-        # Deliberately bypass 'async with' so the page remains live after this coroutine.
-        ctx = await managed_context("formfill", headless=False).__aenter__()
-        page = await ctx.new_page()
-        await page.goto(url, wait_until="domcontentloaded")
-        return _PlaywrightPage(page)
-
-    return asyncio.get_event_loop().run_until_complete(_acquire())
-
-
-class _PlaywrightPage:
-    """FormPage backed by a live Playwright page. Fills fields; never clicks submit."""
-
-    def __init__(self, page: Any):
-        self._page = page
-
-    def has(self, selector: str) -> bool:
-        """Return True if the selector matches at least one element on the page."""
-        return self._page.query_selector(selector) is not None
-
-    def fill_text(self, selector: str, value: str) -> None:
-        """Type `value` into the element matching `selector`."""
-        self._page.fill(selector, value)
-
-    def select_option(self, selector: str, value: str) -> None:
-        """Select the <option> with label `value` in the <select> at `selector`."""
-        self._page.select_option(selector, label=value)
-
-    def set_file(self, selector: str, path: str) -> None:
-        """Attach local file `path` to the file-input at `selector`."""
-        self._page.set_input_files(selector, path)
-
-    def set_checkbox(self, selector: str, checked: bool) -> None:
-        """Set the checked state of the checkbox at `selector`."""
-        self._page.set_checked(selector, checked)
-
-    def highlight(self, selector: str) -> None:
-        """Outline the element at `selector` in green — signals the review boundary."""
-        self._page.eval_on_selector(
-            selector, "el => el.style.outline = '3px solid #16A34A'"
-        )
+    if page_factory is not None:
+        page = page_factory(job["apply_url"])
+        summary = _fill_page(page, profile, data)
+        return {"ats": ats, "review_url": job["apply_url"], **summary}
+    return asyncio.run(_fill_via_browser(job["apply_url"], profile, data, ats))

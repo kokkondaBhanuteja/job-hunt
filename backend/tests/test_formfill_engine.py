@@ -1,7 +1,9 @@
 """_fill_page drives a FormPage: fills what it can, records what it can't, never submits."""
 from __future__ import annotations
 
-from job_hunt.apply.formfill import _fill_page
+import asyncio
+
+from job_hunt.apply.formfill import _fill_page, _fill_page_async
 
 
 class _FakePage:
@@ -114,3 +116,64 @@ def test_prepare_form_fill_unknown_ats_errors(tmp_db):
         posted_date=None, emit_discovered=False,
     )
     assert "error" in formfill.prepare_form_fill(jid)
+
+
+# ---------------------------------------------------------------------------
+# Async fill loop tests — no real browser; driven via asyncio.run (no pytest-asyncio)
+# ---------------------------------------------------------------------------
+
+
+class _FakeAsyncPage:
+    """Async fake page: records fills; only selectors in `present` 'exist'."""
+
+    def __init__(self, present: set[str]):
+        self.present = present
+        self.text: dict[str, str] = {}
+        self.files: dict[str, str] = {}
+        self.highlighted: list[str] = []
+        self.submitted = False
+
+    async def query_selector(self, s: str) -> object | None:
+        return object() if s in self.present else None
+
+    async def fill(self, s: str, v: str) -> None:
+        self.text[s] = v
+
+    async def select_option(self, s: str, *, label: str) -> None:
+        self.text[s] = label
+
+    async def set_input_files(self, s: str, p: str) -> None:
+        self.files[s] = p
+
+    async def set_checked(self, s: str, c: bool) -> None:
+        self.text[s] = str(c)
+
+    async def eval_on_selector(self, s: str, _js: str) -> None:
+        self.highlighted.append(s)
+
+
+def test_fill_page_async_fills_present_fields_and_records_unfilled():
+    page = _FakeAsyncPage(present={"#first_name", "#email", "#resume",
+                                   "#missing_required", "#submit"})
+    result = asyncio.run(_fill_page_async(page, PROFILE, DATA))
+    assert page.text["#first_name"] == "Bhanu"
+    assert page.text["#email"] == "a@b.in"
+    assert page.files["#resume"] == "/r.pdf"
+    assert "#missing_required" in result["unfilled"]
+    assert "#phone" not in result["unfilled"]
+    assert set(result["filled"]) == {"#first_name", "#email", "#resume"}
+
+
+def test_fill_page_async_skips_optional_missing():
+    # #phone is optional and has no value in DATA; it must not appear in unfilled
+    page = _FakeAsyncPage(present={"#phone"})
+    result = asyncio.run(_fill_page_async(page, PROFILE, DATA))
+    assert "#phone" not in result["unfilled"]
+
+
+def test_fill_page_async_never_submits_highlights_submit():
+    page = _FakeAsyncPage(present={"#first_name", "#email", "#resume",
+                                   "#missing_required", "#submit"})
+    asyncio.run(_fill_page_async(page, PROFILE, DATA))
+    assert page.submitted is False
+    assert page.highlighted == ["#submit"]

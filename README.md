@@ -79,7 +79,7 @@ etc.), `NOTIFY_CHANNEL`, `EMBED_PROVIDER`, `API_TOKEN`.
 cd backend && DB_BACKEND=postgres uv run hunt serve-api
 
 # Web UI (separate terminal, from the repo root)
-cd frontend && npm install && npm run dev        # → http://localhost:5173 (paste the token in Settings)
+cd frontend && npm install && npm run dev        # → http://localhost:5000 (paste the token in Settings)
 
 # Background worker (scheduled discovery + event dispatch + daily report)
 cd backend && DB_BACKEND=postgres uv run hunt worker

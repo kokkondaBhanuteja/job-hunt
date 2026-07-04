@@ -344,7 +344,7 @@ Query + hand-written dark-dashboard CSS. `src/api.ts` typed client (bearer token
 **Board** (Kanban by job state; score-band cards; click → detail panel with JD + variant scores + confidence +
 "mark applied"), **Runs** (polling table + Discover/Score buttons), **Settings** (token/base, health, search-profile
 list/add/enable). New `GET /api/board`. `npm run build` passes (tsc + vite). Run: `hunt serve-api` +
-`cd frontend && npm run dev` → localhost:5173, paste the API token. (Browser screenshot skipped — Chrome extension
+`cd frontend && npm run dev` → localhost:5000, paste the API token. (Browser screenshot skipped — Chrome extension
 not connected.)_
 
 ### Phase 4 — Deepen the loop

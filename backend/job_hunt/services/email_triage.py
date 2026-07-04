@@ -311,24 +311,29 @@ def propose_action(
         except (json.JSONDecodeError, TypeError):
             extracted = {}
 
+        # Build the draft prompt from structured extracted fields ONLY.
+        # Raw headers (subject, from_name, from_addr, body_text) are never
+        # interpolated here — they are attacker-controlled and must not reach
+        # the LLM to prevent prompt-injection attacks.
         preamble = context_preamble()
-        from_name = row_dict.get("from_name") or ""
-        from_addr_val = row_dict.get("from_addr") or ""
-        subject = row_dict.get("subject") or ""
+        recruiter_name = extracted.get("recruiter_name") or ""
         company = extracted.get("company") or ""
         role = extracted.get("role") or ""
+        summary = extracted.get("summary") or ""
         category = extracted.get("category") or ""
 
+        greeting = f"Hi {recruiter_name}" if recruiter_name else "Hi"
         prompt = (
             f"{preamble}"
-            "Draft a concise, professional reply to the following email.\n\n"
-            f"From: {from_name} <{from_addr_val}>\n"
-            f"Subject: {subject}\n"
+            "Draft a concise, professional reply to a recruiter email.\n\n"
+            f"Greeting: {greeting}\n"
         )
         if company:
             prompt += f"Company: {company}\n"
         if role:
             prompt += f"Role: {role}\n"
+        if summary:
+            prompt += f"Summary: {summary}\n"
         if category:
             prompt += f"Category: {category}\n"
 
@@ -382,6 +387,11 @@ def confirm_action(
     action = dict(action_row)
     act_id: int = int(action["id"])
 
+    # Ownership check — prevent a confused-deputy attack where an action
+    # belonging to one email is confirmed via a different email_id.
+    if int(action["email_id"]) != int(email_id):
+        return {"error": "action does not belong to this email"}
+
     if action["state"] != str(EmailActionState.PROPOSED):
         return {
             "error": (
@@ -411,7 +421,10 @@ def confirm_action(
     except (json.JSONDecodeError, TypeError):
         payload = {}
 
-    action_kind = EmailActionKind(action["kind"])
+    try:
+        action_kind = EmailActionKind(action["kind"])
+    except ValueError:
+        return {"error": f"stored action kind '{action['kind']}' is not a recognised action type"}
     now = datetime.now(UTC).isoformat()
 
     try:
@@ -478,6 +491,12 @@ def dismiss_action(
 
     action = dict(action_row)
     act_id = int(action["id"])
+
+    # Ownership check — only applies when the caller supplied an explicit
+    # action_id; the get_latest_action_for_email path already filters by email_id.
+    if action_id is not None and int(action["email_id"]) != int(email_id):
+        return {"error": "action does not belong to this email"}
+
     now = datetime.now(UTC).isoformat()
 
     repo.set_email_action_result(

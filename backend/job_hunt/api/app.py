@@ -21,7 +21,10 @@ from job_hunt import plugins, services
 from job_hunt.api import dto
 from job_hunt.enums import Score
 from job_hunt.llm.registry import resolve as resolve_llm
+from job_hunt.logging_config import get_logger
 from job_hunt.storage import repo
+
+logger = get_logger(__name__)
 
 # ---------- auth ----------
 
@@ -105,6 +108,25 @@ class ContactIn(BaseModel):
 class ContextIn(BaseModel):
     content: str
     format: str = "md"
+
+
+class ApplicantIn(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    location: str | None = None
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    portfolio_url: str | None = None
+    work_authorization: str | None = None
+    needs_sponsorship: bool | None = None
+    willing_to_relocate: bool | None = None
+    notice_period: str | None = None
+    expected_ctc: str | None = None
+    current_ctc: str | None = None
+    years_experience: str | None = None
+    referral_source: str | None = None
 
 
 # ---------- app ----------
@@ -271,6 +293,25 @@ def set_context(body: ContextIn) -> dict[str, Any]:
     return _unwrap(services.set_context(body.content, body.format))
 
 
+@api.get("/applicant", response_model=dto.Applicant)
+def get_applicant() -> dict[str, Any]:
+    """Return the stored applicant personal-details profile."""
+    return services.get_applicant()
+
+
+@api.post("/applicant")
+def set_applicant(body: ApplicantIn) -> dict[str, Any]:
+    """Persist the supplied applicant fields; returns {ok: true} on success."""
+    return _unwrap(services.set_applicant(body.model_dump(exclude_none=True)))
+
+
+@api.post("/jobs/{job_id}/fill", status_code=202)
+def fill_job(job_id: int, background: BackgroundTasks) -> dict[str, Any]:
+    """Kick off a non-blocking ATS form-fill for the given job."""
+    background.add_task(_safe_fill, job_id)
+    return {"started": True}
+
+
 @api.get("/answer-templates")
 def answer_templates() -> list[dict[str, Any]]:
     return services.list_answer_templates()
@@ -325,6 +366,14 @@ def _safe_score() -> None:
         services.score_pending(track=True)  # creates a run row so the Runs UI can show it
     except Exception:  # noqa: BLE001 — background task; the failure is recorded on the run row
         pass
+
+
+def _safe_fill(job_id: int) -> None:
+    """Run prepare_form_fill in the background; log and swallow any exception."""
+    try:
+        services.prepare_form_fill(job_id)
+    except Exception:  # noqa: BLE001 — background task; log and swallow
+        logger.exception("form-fill failed for job %s", job_id)
 
 
 app.include_router(api)

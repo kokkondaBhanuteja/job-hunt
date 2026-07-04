@@ -105,6 +105,22 @@ def test_context_set_and_get_round_trip(client):
     assert got["content"].startswith("# Me") and got["format"] == "md"
 
 
+def test_applicant_and_fill_endpoints(client, tmp_db, monkeypatch):
+    """Round-trip: GET /applicant returns null fields; POST saves; POST /jobs/{id}/fill is 202."""
+    got = client.get("/api/applicant", headers=AUTH)
+    assert got.status_code == 200 and got.json()["first_name"] is None
+
+    posted = client.post("/api/applicant", headers=AUTH,
+                         json={"first_name": "Bhanu", "email": "a@b.in"})
+    assert posted.status_code == 200 and posted.json()["ok"] is True
+
+    monkeypatch.setattr("job_hunt.api.app.services.prepare_form_fill",
+                        lambda job_id: None)
+    jid = _scored_job(tmp_db)
+    fill = client.post(f"/api/jobs/{jid}/fill", headers=AUTH)
+    assert fill.status_code == 202 and fill.json()["started"] is True
+
+
 def test_reap_stale_runs(tmp_db):
     rid = tmp_db.create_run(["naukri"])
     tmp_db.start_run(rid)

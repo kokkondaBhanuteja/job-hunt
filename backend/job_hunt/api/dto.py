@@ -123,3 +123,26 @@ class UserContext(BaseModel):
     content: str | None = None
     format: str | None = None
     updated_at: str | None = None
+
+
+class Applicant(BaseModel):
+    """Applicant personal-details profile (all fields optional — populated incrementally)."""
+
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    location: str | None = None
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    portfolio_url: str | None = None
+    work_authorization: str | None = None
+    needs_sponsorship: bool | None = None
+    willing_to_relocate: bool | None = None
+    notice_period: str | None = None
+    expected_ctc: str | None = None
+    current_ctc: str | None = None
+    years_experience: str | None = None
+    referral_source: str | None = None
+    extra: str | None = None
+    updated_at: str | None = None

@@ -7,6 +7,7 @@ calls live here; entrypoints stay thin adapters. Services return plain dicts/lis
 """
 from __future__ import annotations
 
+from job_hunt.apply.formfill import prepare_form_fill
 from job_hunt.services.analytics import (
     daily_report_text,
     dashboard,
@@ -83,4 +84,5 @@ __all__ = [
     "get_run",
     "request_cancel",
     "run_discovery",
+    "prepare_form_fill",
 ]

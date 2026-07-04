@@ -71,3 +71,46 @@ def test_fill_page_skips_absent_selectors():
     page = _FakePage(present={"#email"})  # only email exists on the page
     result = _fill_page(page, PROFILE, DATA)
     assert result["filled"] == ["#email"]
+
+
+def test_prepare_form_fill_uses_profile_and_returns_summary(tmp_db, monkeypatch):
+    from job_hunt.apply import formfill
+    from job_hunt.storage import repo
+
+    jid = tmp_db.insert_job_if_new(
+        dedup_hash="gh", source="greenhouse", source_job_id=None, title="BE",
+        company="Acme", location="remote", description="d",
+        apply_url="https://boards.greenhouse.io/acme/jobs/1", posted_date=None,
+        emit_discovered=False,
+    )
+    repo.set_applicant_profile(fields={"first_name": "Bhanu", "email": "a@b.in"})
+
+    captured = {}
+
+    class _FakeOrcPage:
+        def __init__(self): self.text = {}
+        def has(self, s): return True
+        def fill_text(self, s, v): self.text[s] = v
+        def select_option(self, s, v): self.text[s] = v
+        def set_file(self, s, p): self.text[s] = p
+        def set_checkbox(self, s, c): self.text[s] = str(c)
+        def highlight(self, s): captured["highlighted"] = s
+
+    def factory(url):
+        captured["url"] = url
+        return _FakeOrcPage()
+
+    result = formfill.prepare_form_fill(jid, page_factory=factory)
+    assert result["ats"] == "greenhouse"
+    assert "a@b.in" in captured["url"] or result["review_url"].startswith("https://boards")
+    assert "input#email" in result["filled"] or "input#first_name" in result["filled"]
+
+
+def test_prepare_form_fill_unknown_ats_errors(tmp_db):
+    from job_hunt.apply import formfill
+    jid = tmp_db.insert_job_if_new(
+        dedup_hash="nk", source="naukri", source_job_id=None, title="BE", company="Acme",
+        location="blr", description="d", apply_url="https://naukri.com/j/1",
+        posted_date=None, emit_discovered=False,
+    )
+    assert "error" in formfill.prepare_form_fill(jid)

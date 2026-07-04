@@ -1,0 +1,17 @@
+{
+  "ats": "greenhouse",
+  "match": { "url_contains": ["greenhouse.io", "boards.greenhouse.io"] },
+  "fields": [
+    { "selector": "input#first_name", "source": "applicant.first_name" },
+    { "selector": "input#last_name", "source": "applicant.last_name" },
+    { "selector": "input#email", "source": "applicant.email" },
+    { "selector": "input#phone", "source": "applicant.phone", "optional": true },
+    { "selector": "input#job_application_answers_attributes_0_text_value",
+      "source": "applicant.work_authorization", "optional": true },
+    { "selector": "input[type='file'][name*='resume']",
+      "source": "file.resume_variant", "kind": "file" },
+    { "selector": "textarea[id*='cover_letter']",
+      "source": "draft.cover", "kind": "text", "optional": true }
+  ],
+  "submit": { "selector": "input[type='submit'], button[type='submit']", "action": "highlight_only" }
+}

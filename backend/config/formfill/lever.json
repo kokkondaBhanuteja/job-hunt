@@ -1,0 +1,14 @@
+{
+  "ats": "lever",
+  "match": { "url_contains": ["jobs.lever.co", "lever.co"] },
+  "fields": [
+    { "selector": "input[name='name']", "source": "applicant.full_name" },
+    { "selector": "input[name='email']", "source": "applicant.email" },
+    { "selector": "input[name='phone']", "source": "applicant.phone", "optional": true },
+    { "selector": "input[name='urls[LinkedIn]']", "source": "applicant.linkedin_url", "optional": true },
+    { "selector": "input[name='urls[GitHub]']", "source": "applicant.github_url", "optional": true },
+    { "selector": "input[type='file'][name='resume']",
+      "source": "file.resume_variant", "kind": "file" }
+  ],
+  "submit": { "selector": "button[type='submit']", "action": "highlight_only" }
+}

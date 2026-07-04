@@ -51,6 +51,7 @@ def _fill_page(page: FormPage, profile: dict[str, Any], data: dict[str, Any]) ->
             if not field.get("optional"):
                 unfilled.append(selector)
             continue
+        value = str(value)
         kind = field.get("kind", "text")
         if kind == "file":
             page.set_file(selector, value)
@@ -98,11 +99,13 @@ def _gather_data(job: Any) -> dict[str, Any]:
     applicant_row = repo.get_applicant_profile()
     applicant = dict(applicant_row) if applicant_row else {}
 
-    variants = repo.list_resume_variants()
+    best = repo.best_scored_variant(int(job["id"]))
+    if best is None:
+        variants = repo.list_resume_variants()
+        best = variants[0] if variants else None
     resume: dict[str, Any] = {}
     resume_path: str | None = None
-    if variants:
-        best = variants[0]
+    if best is not None:
         resume = json.loads(best["parsed_json"]) if best["parsed_json"] else {}
         resume_path = best["source_path"]
 
@@ -143,6 +146,7 @@ async def _fill_page_async(
             if not field.get("optional"):
                 unfilled.append(selector)
             continue
+        value = str(value)
         kind = field.get("kind", "text")
         if kind == "file":
             await page.set_input_files(selector, value)

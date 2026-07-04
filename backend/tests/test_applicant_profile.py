@@ -1,6 +1,8 @@
 """applicant_profile singleton: store the standing answers forms re-ask."""
 from __future__ import annotations
 
+import json
+
 from job_hunt.storage import repo
 
 
@@ -38,3 +40,16 @@ def test_service_set_applicant_rejects_unknown_field(tmp_db):
 def test_service_get_applicant_all_null_when_unset(tmp_db):
     from job_hunt import services
     assert services.get_applicant()["first_name"] is None
+
+
+def test_service_extra_roundtrips_as_json(tmp_db):
+    """extra written as dict round-trips through storage; bad JSON string returns error."""
+    from job_hunt import services
+
+    r = services.set_applicant({"extra": {"how_heard": "website"}})
+    assert r["ok"] is True
+    got = services.get_applicant()
+    assert json.loads(got["extra"]) == {"how_heard": "website"}
+
+    bad = services.set_applicant({"extra": "{bad json"})
+    assert "error" in bad

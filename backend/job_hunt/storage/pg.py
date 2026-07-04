@@ -211,10 +211,11 @@ def set_job_enriched(job_id: int, description_full: str) -> None:
 
 
 def best_scored_variant(job_id: int) -> dict[str, Any] | None:
+    """The highest-scoring variant (id, slug, source_path, parsed_json) for a job, or None."""
     with connect() as conn:
         return conn.execute(
             """
-            SELECT rv.id, rv.slug, rv.parsed_json::text AS parsed_json
+            SELECT rv.id, rv.slug, rv.source_path, rv.parsed_json::text AS parsed_json
             FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
             WHERE s.job_id = %s ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
             """,
@@ -365,12 +366,13 @@ def set_applicant_profile(*, fields: dict[str, Any]) -> None:
     cols = [c for c in _APPLICANT_COLS if c in fields]
     assignments = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols)
     placeholders = ", ".join("%s" for _ in cols)
+    values = [Jsonb(fields[c]) if c == "extra" else fields[c] for c in cols]
     with connect() as conn:
         conn.execute(
             f"INSERT INTO applicant_profile (id, {', '.join(cols)}, updated_at) "
             f"VALUES (1, {placeholders}, now()) "
             f"ON CONFLICT (id) DO UPDATE SET {assignments}, updated_at = now()",
-            tuple(fields[c] for c in cols),
+            values,
         )
 
 

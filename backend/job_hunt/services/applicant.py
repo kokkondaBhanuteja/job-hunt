@@ -1,6 +1,7 @@
 """Applicant-profile services — the standing application answers, injected into form fills."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from job_hunt.logging_config import get_logger
@@ -21,6 +22,12 @@ def set_applicant(fields: dict[str, Any]) -> dict[str, Any]:
         return {"error": f"unknown field(s): {', '.join(sorted(unknown))}"}
     if not clean:
         return {"error": "no fields to set"}
+    if "extra" in clean:
+        if isinstance(clean["extra"], str):
+            try:
+                clean["extra"] = json.loads(clean["extra"])
+            except ValueError:
+                return {"error": "extra must be valid JSON"}
     repo.set_applicant_profile(fields=clean)
     return {"ok": True, "fields": len(clean)}
 

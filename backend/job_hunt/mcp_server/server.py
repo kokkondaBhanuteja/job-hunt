@@ -161,6 +161,61 @@ def email_get(email_id: int) -> dict[str, Any]:
     return services.get_email(email_id)
 
 
+# ---------- Drafting & tailor ----------
+
+
+@mcp.tool()
+def tailor(job_id: int) -> dict[str, Any]:
+    """Generate a tailored resume for this job."""
+    return services.tailor_for_job(job_id)
+
+
+@mcp.tool()
+def cover(job_id: int) -> dict[str, Any]:
+    """Draft a cover letter for this job."""
+    return services.draft_cover_for_job(job_id)
+
+
+@mcp.tool()
+def draft(job_id: int, kind: str) -> dict[str, Any]:
+    """Draft a message for this job.
+
+    Args:
+        job_id: the job ID
+        kind: message type: 'thank_you' | 'follow_up' | 'negotiation'
+    """
+    return services.draft_message_for_job(job_id, kind)
+
+
+@mcp.tool()
+def job_brief(job_id: int) -> dict[str, Any]:
+    """Get a brief summary of the job."""
+    return services.brief_for_job(job_id)
+
+
+@mcp.tool()
+def list_drafts(job_id: int) -> list[dict[str, Any]]:
+    """List all saved drafts for this job."""
+    return services.list_drafts(job_id)
+
+
+@mcp.tool()
+def top_matches(min_score: int = 70, limit: int = 10) -> list[dict[str, Any]]:
+    """List your top-scoring matched jobs.
+
+    Args:
+        min_score: only show jobs scoring this or higher (default 70)
+        limit: how many rows (default 10)
+    """
+    return services.list_top_matches(min_score=min_score, limit=limit)
+
+
+@mcp.tool()
+def company(name: str) -> dict[str, Any]:
+    """Get the company history and info."""
+    return services.company_history(name)
+
+
 # ---------- Run ----------
 
 

@@ -4,11 +4,13 @@ import { QUERY_KEYS, SCREEN } from "./lib/constants";
 import { screenOf, useHashRoute } from "./lib/router";
 import { Analytics } from "./pages/Analytics";
 import { Board } from "./pages/Board";
+import { Inbox } from "./pages/Inbox";
 import { Runs } from "./pages/Runs";
 import { Settings } from "./pages/Settings";
 
 const TABS = [
   { key: SCREEN.board, label: "Board" },
+  { key: SCREEN.inbox, label: "Inbox" },
   { key: SCREEN.runs, label: "Runs" },
   { key: SCREEN.analytics, label: "Analytics" },
   { key: SCREEN.settings, label: "Settings" },
@@ -57,6 +59,7 @@ export function App() {
           <div className="banner">Set your API token in Settings to connect.</div>
         )}
         {screen === SCREEN.board && <Board />}
+        {screen === SCREEN.inbox && <Inbox />}
         {screen === SCREEN.runs && <Runs />}
         {screen === SCREEN.analytics && <Analytics />}
         {screen === SCREEN.settings && <Settings />}

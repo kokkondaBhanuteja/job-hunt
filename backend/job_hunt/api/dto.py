@@ -119,6 +119,41 @@ class Analytics(BaseModel):
     llm_cost: _LLMCost
 
 
+class EmailSummary(BaseModel):
+    """List-row projection of a triaged inbox email."""
+
+    id: int
+    from_addr: str | None = None
+    from_name: str | None = None
+    subject: str | None = None
+    received_at: str | None = None
+    category: str | None = None
+    action_state: str | None = None
+    job_id: int | None = None
+
+
+class EmailDetail(BaseModel):
+    """Full triaged-email detail (body_text omitted — the LLM-extracted fields are what the UI needs)."""
+
+    id: int
+    mailbox: str | None = None
+    uid: int | None = None
+    message_id: str | None = None
+    from_addr: str | None = None
+    from_name: str | None = None
+    subject: str | None = None
+    received_at: str | None = None
+    snippet: str | None = None
+    category: str | None = None
+    extracted: str | None = None
+    company_id: int | None = None
+    job_id: int | None = None
+    application_id: int | None = None
+    action_state: str | None = None
+    structured_at: str | None = None
+    created_at: str | None = None
+
+
 class UserContext(BaseModel):
     content: str | None = None
     format: str | None = None

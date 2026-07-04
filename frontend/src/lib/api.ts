@@ -163,6 +163,37 @@ export interface Applicant {
   extra: string | null;
   updated_at: string | null;
 }
+// Mirrors backend dto.EmailSummary.
+export interface EmailSummary {
+  id: number;
+  from_addr: string | null;
+  from_name: string | null;
+  subject: string | null;
+  received_at: string | null;
+  category: string | null;
+  action_state: string | null;
+  job_id: number | null;
+}
+// Mirrors backend dto.EmailDetail.
+export interface EmailDetail {
+  id: number;
+  mailbox: string | null;
+  uid: number | null;
+  message_id: string | null;
+  from_addr: string | null;
+  from_name: string | null;
+  subject: string | null;
+  received_at: string | null;
+  snippet: string | null;
+  category: string | null;
+  extracted: string | null;
+  company_id: number | null;
+  job_id: number | null;
+  application_id: number | null;
+  action_state: string | null;
+  structured_at: string | null;
+  created_at: string | null;
+}
 
 export const api = {
   health: () =>
@@ -201,4 +232,13 @@ export const api = {
     req<{ ok?: boolean }>(API_ENDPOINTS.applicant, { method: "POST", body: JSON.stringify(b) }),
   fillJob: (id: number) =>
     req<{ started: boolean }>(API_ENDPOINTS.jobFill(id), { method: "POST" }),
+  emails: (params: { category?: string; state?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.category) qs.set("category", params.category);
+    if (params.state) qs.set("state", params.state);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return req<EmailSummary[]>(API_ENDPOINTS.emails + suffix);
+  },
+  emailDetail: (id: number) => req<EmailDetail>(API_ENDPOINTS.emailDetail(id)),
+  syncEmails: () => req<{ started: boolean }>(API_ENDPOINTS.emailsSync, { method: "POST" }),
 };

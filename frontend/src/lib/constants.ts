@@ -4,6 +4,7 @@
 /** Hash-router paths. Prefix with `#` when assigning to window.location. */
 export const ROUTES = {
   board: "/board",
+  inbox: "/inbox",
   runs: "/runs",
   analytics: "/analytics",
   settings: "/settings",
@@ -13,6 +14,7 @@ export const ROUTES = {
 /** Screen identifiers (first segment of the hash route). */
 export const SCREEN = {
   board: "board",
+  inbox: "inbox",
   runs: "runs",
   analytics: "analytics",
   settings: "settings",
@@ -39,6 +41,9 @@ export const API_ENDPOINTS = {
   context: "/api/context",
   applicant: "/api/applicant",
   jobFill: (id: number) => `/api/jobs/${id}/fill`,
+  emails: "/api/emails",
+  emailDetail: (id: number) => `/api/emails/${id}`,
+  emailsSync: "/api/emails/sync",
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -53,6 +58,8 @@ export const QUERY_KEYS = {
   analytics: ["analytics"] as const,
   context: ["context"] as const,
   applicant: ["applicant"] as const,
+  emails: ["emails"] as const,
+  email: (id: number) => ["email", id] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */
@@ -92,6 +99,16 @@ export const JOB_STATE = {
   WITHDRAWN: "withdrawn",
 } as const;
 export type JobStateValue = (typeof JOB_STATE)[keyof typeof JOB_STATE];
+
+/** Mirror of job_hunt/enums.py::EmailCategory — the triage buckets for the Inbox. */
+export const EMAIL_CATEGORY = {
+  RECRUITER_OUTREACH: "recruiter_outreach",
+  INTERVIEW_INVITE: "interview_invite",
+  REJECTION: "rejection",
+  APPLICATION_CONFIRMATION: "application_confirmation",
+  OTHER: "other",
+} as const;
+export type EmailCategoryValue = (typeof EMAIL_CATEGORY)[keyof typeof EMAIL_CATEGORY];
 
 /** Kanban column identifiers shown on the Board. */
 export const BOARD_COLUMN = {

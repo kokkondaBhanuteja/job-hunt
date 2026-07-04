@@ -121,6 +121,35 @@ def test_applicant_and_fill_endpoints(client, tmp_db, monkeypatch):
     assert fill.status_code == 202 and fill.json()["started"] is True
 
 
+def test_email_inbox_read_and_sync(client, tmp_db, monkeypatch):
+    """Inbox list + detail read endpoints work; sync is 202 and never touches real IMAP."""
+    eid = repo.upsert_email_message(
+        mailbox="INBOX", uid=1, message_id="<m1@acme>", thread_id=None,
+        from_addr="recruiter@lever.co", from_name="Acme Recruiting",
+        subject="Interview invite", received_at="2026-06-30T10:00:00+00:00",
+        snippet="We'd like to schedule a call", body_text="We'd like to schedule an interview.",
+    )
+    repo.set_email_structured(
+        eid, category="interview_invite",
+        extracted={"is_job_related": True, "company": "Acme", "role": "Backend Engineer"},
+        structured_at="2026-06-30T10:05:00+00:00",
+    )
+
+    listed = client.get("/api/emails", headers=AUTH)
+    assert listed.status_code == 200
+    row = next(e for e in listed.json() if e["id"] == eid)
+    assert row["category"] == "interview_invite"
+
+    detail = client.get(f"/api/emails/{eid}", headers=AUTH)
+    assert detail.status_code == 200 and detail.json()["subject"] == "Interview invite"
+
+    # Monkeypatch the network calls to no-ops so the background task never hits IMAP/LLM.
+    monkeypatch.setattr(app_module.services, "sync_inbox", lambda: {"fetched": 0, "new": 0})
+    monkeypatch.setattr(app_module.services, "structure_pending", lambda: {"structured": 0, "linked": 0})
+    synced = client.post("/api/emails/sync", headers=AUTH)  # TestClient runs the bg task inline
+    assert synced.status_code == 202 and synced.json()["started"] is True
+
+
 def test_reap_stale_runs(tmp_db):
     rid = tmp_db.create_run(["naukri"])
     tmp_db.start_run(rid)

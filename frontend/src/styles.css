@@ -152,3 +152,12 @@ label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; fo
 .health { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .profile-add { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .profile-add input { flex: 1; min-width: 120px; }
+
+/* inbox */
+.inbox-layout { display: flex; align-items: flex-start; gap: 12px; }
+.inbox-list { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card.active { border-color: var(--accent); }
+.kv { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.kv div { display: flex; gap: 8px; }
+.kv dt { color: var(--muted); min-width: 120px; text-transform: capitalize; }
+.kv dd { margin: 0; }

@@ -361,11 +361,39 @@ def log_application(body: ApplicationIn) -> dict[str, Any]:
     ))
 
 
+@api.get("/emails", response_model=list[dto.EmailSummary])
+def list_emails(category: str | None = None, state: str | None = None) -> list[dict[str, Any]]:
+    """List triaged inbox emails, optionally filtered by category and/or action state."""
+    return services.list_inbox(category=category, action_state=state)
+
+
+@api.get("/emails/{email_id}", response_model=dto.EmailDetail)
+def email_detail(email_id: int) -> dict[str, Any]:
+    """Return one triaged email's full detail, or 404 if absent."""
+    return _unwrap(services.get_email(email_id))
+
+
+@api.post("/emails/sync", status_code=202)
+def sync_emails(background: BackgroundTasks) -> dict[str, Any]:
+    """Kick off a non-blocking IMAP sync + LLM structuring pass (real IMAP must not block)."""
+    background.add_task(_safe_email_sync)
+    return {"started": True}
+
+
 def _safe_score() -> None:
     try:
         services.score_pending(track=True)  # creates a run row so the Runs UI can show it
     except Exception:  # noqa: BLE001 — background task; the failure is recorded on the run row
         pass
+
+
+def _safe_email_sync() -> None:
+    """Sync the inbox then structure pending emails in the background; log and swallow errors."""
+    try:
+        services.sync_inbox()
+        services.structure_pending()
+    except Exception:  # noqa: BLE001 — background task; log and swallow
+        logger.exception("email sync failed")
 
 
 def _safe_fill(job_id: int) -> None:

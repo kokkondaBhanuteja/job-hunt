@@ -1323,6 +1323,15 @@ def list_email_messages(
         ).fetchall()
 
 
+def list_unstructured_emails(limit: int = 50) -> list[sqlite3.Row]:
+    """Return emails that have not been LLM-structured yet (category IS NULL)."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM email_messages WHERE category IS NULL ORDER BY id ASC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+
 def get_sync_state(mailbox: str) -> sqlite3.Row | None:
     """Return the sync cursor row for a mailbox, or None if never synced."""
     with connect() as conn:

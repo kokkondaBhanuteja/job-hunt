@@ -110,6 +110,7 @@ set_email_links = _impl.set_email_links
 set_email_action_state = _impl.set_email_action_state
 get_email_message = _impl.get_email_message
 list_email_messages = _impl.list_email_messages
+list_unstructured_emails = _impl.list_unstructured_emails
 get_sync_state = _impl.get_sync_state
 set_sync_state = _impl.set_sync_state
 get_application_by_job = _impl.get_application_by_job

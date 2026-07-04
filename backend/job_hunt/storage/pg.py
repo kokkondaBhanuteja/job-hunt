@@ -966,6 +966,15 @@ def list_email_messages(
         ).fetchall()
 
 
+def list_unstructured_emails(limit: int = 50) -> list[dict[str, Any]]:
+    """Return emails that have not been LLM-structured yet (category IS NULL)."""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_EMAIL_COLS} FROM email_messages WHERE category IS NULL ORDER BY id ASC LIMIT %s",
+            (limit,),
+        ).fetchall()
+
+
 def get_sync_state(mailbox: str) -> dict[str, Any] | None:
     """Return the sync cursor row for a mailbox, or None if never synced."""
     with connect() as conn:

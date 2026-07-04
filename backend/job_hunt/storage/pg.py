@@ -19,7 +19,15 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from job_hunt.enums import CLOSED_STATES, EventClass, EventType, JobState, RunStatus, sql_values
+from job_hunt.enums import (
+    CLOSED_STATES,
+    EmailActionState,
+    EventClass,
+    EventType,
+    JobState,
+    RunStatus,
+    sql_values,
+)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://jobhunt:jobhunt@localhost:55432/jobhunt"
@@ -1007,3 +1015,63 @@ def get_application_by_job(job_id: int) -> dict[str, Any] | None:
         return conn.execute(
             "SELECT id, stage FROM applications WHERE job_id = %s", (int(job_id),)
         ).fetchone()
+
+
+# ---------- email actions ----------
+
+
+def create_email_action(
+    *,
+    email_id: int,
+    kind: str,
+    payload: dict[str, Any],
+) -> int:
+    """Insert a new email action row in the 'proposed' state. Return its id."""
+    with connect() as conn:
+        row = conn.execute(
+            "INSERT INTO email_actions (email_id, kind, payload, state, created_at) "
+            "VALUES (%s, %s, %s, %s, now()::text) RETURNING id",
+            (
+                int(email_id),
+                kind,
+                Jsonb(payload),
+                str(EmailActionState.PROPOSED),
+            ),
+        ).fetchone()
+        return int(row["id"])
+
+
+def get_email_action(action_id: int) -> dict[str, Any] | None:
+    """Return one email_actions row by id, or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, email_id, kind, payload::text AS payload, state, "
+            "created_at::text AS created_at, executed_at "
+            "FROM email_actions WHERE id = %s",
+            (int(action_id),),
+        ).fetchone()
+
+
+def get_latest_action_for_email(email_id: int) -> dict[str, Any] | None:
+    """Return the most recent email_actions row for email_id (highest id), or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, email_id, kind, payload::text AS payload, state, "
+            "created_at::text AS created_at, executed_at "
+            "FROM email_actions WHERE email_id = %s ORDER BY id DESC LIMIT 1",
+            (int(email_id),),
+        ).fetchone()
+
+
+def set_email_action_result(
+    action_id: int,
+    *,
+    state: str,
+    executed_at: str,
+) -> None:
+    """Update the state and executed_at timestamp of an email action."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE email_actions SET state = %s, executed_at = %s WHERE id = %s",
+            (state, executed_at, int(action_id)),
+        )

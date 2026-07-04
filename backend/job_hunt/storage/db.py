@@ -31,6 +31,7 @@ from job_hunt.enums import (
     ApplicationStage,
     ContextFormat,
     DraftKind,
+    EmailActionKind,
     EmailActionState,
     EmailCategory,
     EventClass,
@@ -351,6 +352,19 @@ CREATE TABLE IF NOT EXISTS email_sync_state (
     last_uid    INTEGER NOT NULL DEFAULT 0,
     updated_at  TEXT NOT NULL
 );
+
+-- Proposed/confirmed/executed actions on individual email messages.
+CREATE TABLE IF NOT EXISTS email_actions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_id    INTEGER NOT NULL REFERENCES email_messages(id),
+    kind        TEXT NOT NULL CHECK (kind IN ({sql_in_list(EmailActionKind)})),
+    payload     TEXT,
+    state       TEXT NOT NULL DEFAULT '{EmailActionState.PROPOSED}'
+                    CHECK (state IN ({sql_in_list(EmailActionState)})),
+    created_at  TEXT NOT NULL,
+    executed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_email_actions_email_id ON email_actions(email_id);
 """
 
 
@@ -1362,3 +1376,59 @@ def get_application_by_job(job_id: int) -> sqlite3.Row | None:
         return conn.execute(
             "SELECT id, stage FROM applications WHERE job_id = ?", (int(job_id),)
         ).fetchone()
+
+
+# ---------- email actions ----------
+
+
+def create_email_action(
+    *,
+    email_id: int,
+    kind: str,
+    payload: dict[str, Any],
+) -> int:
+    """Insert a new email action row in the 'proposed' state. Return its id."""
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO email_actions (email_id, kind, payload, state, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                int(email_id),
+                kind,
+                _to_json(payload),
+                str(EmailActionState.PROPOSED),
+                now_iso(),
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def get_email_action(action_id: int) -> sqlite3.Row | None:
+    """Return one email_actions row by id, or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM email_actions WHERE id = ?", (int(action_id),)
+        ).fetchone()
+
+
+def get_latest_action_for_email(email_id: int) -> sqlite3.Row | None:
+    """Return the most recent email_actions row for email_id (highest id), or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM email_actions WHERE email_id = ? ORDER BY id DESC LIMIT 1",
+            (int(email_id),),
+        ).fetchone()
+
+
+def set_email_action_result(
+    action_id: int,
+    *,
+    state: str,
+    executed_at: str,
+) -> None:
+    """Update the state and executed_at timestamp of an email action."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE email_actions SET state = ?, executed_at = ? WHERE id = ?",
+            (state, executed_at, int(action_id)),
+        )

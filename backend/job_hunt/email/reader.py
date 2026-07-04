@@ -17,13 +17,14 @@ import html.parser
 import imaplib
 import re
 import ssl
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC
 from email import message_from_bytes
 from email.header import decode_header as _stdlib_decode_header
-from email.message import Message
+from email.message import EmailMessage, Message
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any
 
@@ -300,3 +301,76 @@ def _parse_response_int(raw: bytes | int | str | None) -> int:
         return int(raw.strip() if isinstance(raw, str) else raw.decode().strip())
     except (ValueError, AttributeError):
         return 0
+
+
+# ---------------------------------------------------------------------------
+# Reversible mailbox-mutation primitives (v2 human-confirmed actions)
+# ---------------------------------------------------------------------------
+# Safety contract: NO send, NO \Deleted, NO EXPUNGE, NO COPY/MOVE.
+# Drafts = APPEND only (never FLAGS \Seen, never transmitted).
+# Labels/archive = X-GM-LABELS +/- (reversible; Inbox label removal = archive).
+# ---------------------------------------------------------------------------
+
+
+def build_reply_draft(
+    original: RawEmail,
+    reply_body: str,
+    from_address: str,
+) -> bytes:
+    """Build an RFC822 reply draft from *original* and return it as bytes.
+
+    Sets To, From, Subject (Re:-prefixed unless already present), In-Reply-To,
+    and References.  Does NOT send — call append_draft to save to Drafts.
+    """
+    msg = EmailMessage()
+    msg["To"] = original.from_addr or ""
+    msg["From"] = from_address
+    subject = original.subject or ""
+    if not subject.lower().startswith("re:"):
+        subject = "Re: " + subject
+    msg["Subject"] = subject
+    if original.message_id:
+        msg["In-Reply-To"] = original.message_id
+        msg["References"] = original.message_id
+    msg.set_content(reply_body)
+    return msg.as_bytes()
+
+
+def append_draft(
+    conn: imaplib.IMAP4_SSL,
+    draft_bytes: bytes,
+    *,
+    drafts_mailbox: str = "[Gmail]/Drafts",
+) -> None:
+    """Append draft_bytes to drafts_mailbox as a Draft message (never sends).
+
+    Uses IMAP APPEND — the message is stored with the \\Draft flag and is never
+    transmitted.
+    """
+    conn.append(
+        drafts_mailbox,
+        "(\\Draft)",
+        imaplib.Time2Internaldate(time.time()),
+        draft_bytes,
+    )
+
+
+def add_label(
+    conn: imaplib.IMAP4_SSL,
+    mailbox: str,
+    uid: int,
+    label: str,
+) -> None:
+    """Add a Gmail label to the message identified by *uid* (reversible; writable SELECT)."""
+    conn.select(mailbox)
+    conn.uid("STORE", str(uid), "+X-GM-LABELS", f"({label})")
+
+
+def archive(
+    conn: imaplib.IMAP4_SSL,
+    mailbox: str,
+    uid: int,
+) -> None:
+    """Remove the Inbox label from *uid* — Gmail archive (reversible; no \\Deleted or EXPUNGE)."""
+    conn.select(mailbox)
+    conn.uid("STORE", str(uid), "-X-GM-LABELS", "(\\Inbox)")

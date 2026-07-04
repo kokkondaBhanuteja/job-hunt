@@ -166,15 +166,27 @@ def structure_pending(*, limit: int = 50) -> dict[str, Any]:
             prompt_version=EMAIL_STRUCTURE.version,
         )
 
-        if not isinstance(result, dict) or "category" not in result:
+        if not isinstance(result, dict):
             logger.warning(
                 "email_triage: unexpected LLM result for email_id=%d: %r", email_id, result
             )
+            repo.set_email_structured(
+                email_id,
+                category=str(EmailCategory.OTHER),
+                extracted={},
+                structured_at=now_iso,
+            )
+            structured_count += 1
             continue
+
+        try:
+            cat = EmailCategory(result.get("category"))
+        except (ValueError, TypeError):
+            cat = EmailCategory.OTHER
 
         repo.set_email_structured(
             email_id,
-            category=result.get("category"),
+            category=str(cat),
             extracted=result,
             structured_at=now_iso,
         )
@@ -221,14 +233,17 @@ def _is_job_candidate(row: dict[str, Any]) -> bool:
     from_addr: str = (row.get("from_addr") or "").lower()
     subject: str = (row.get("subject") or "").lower()
 
-    # Exclude obvious noise senders first.
+    # ATS platform domains always get structured — even noreply@ senders.
+    # Checked before noise exclusion so notifications@lever.co / noreply@greenhouse.io
+    # are never dropped by the noise filter. Exact domain match prevents substring
+    # false positives (e.g. "notgreenhouse.io").
+    domain = from_addr.split("@")[-1] if "@" in from_addr else ""
+    if any(domain == ats or domain.endswith("." + ats) for ats in _ATS_DOMAINS):
+        return True
+
+    # Exclude obvious noise senders (noreply, newsletter, etc.)
     if _NOISE_RE.search(from_addr):
         return False
-
-    # Include if the sender is a known ATS platform domain.
-    domain = from_addr.split("@")[-1] if "@" in from_addr else ""
-    if any(ats in domain for ats in _ATS_DOMAINS):
-        return True
 
     # Include if subject or sender contains a job-search keyword.
     combined = f"{subject} {from_addr}"
@@ -266,6 +281,9 @@ def _link_email(email_id: int, extracted: dict[str, Any]) -> None:
             best_row = None
             for h in history:
                 title = _normalize(h["title"] or "")
+                if not title:
+                    # Skip title-less jobs — "" in role is always True and would link falsely.
+                    continue
                 if role in title or title in role or _token_overlap(role, title):
                     best_row = h
                     break

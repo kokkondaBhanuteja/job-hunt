@@ -149,7 +149,8 @@ def test_structure_pending_injection_email_does_not_change_action_state(
     """An email whose body contains injection text must only have category set.
 
     The triage structuring path MUST NOT mutate action_state — it is read-only
-    with respect to the action lifecycle.
+    with respect to the action lifecycle. A spy asserts set_email_action_state is
+    never called (0 times), enforcing the invariant rather than just observing it.
     """
     email_id = _upsert_email(
         uid=5,
@@ -174,6 +175,14 @@ def test_structure_pending_injection_email_does_not_change_action_state(
         },
     )
 
+    # Spy: assert set_email_action_state is never called during structuring.
+    action_state_calls: dict[str, int] = {"n": 0}
+
+    def _spy_action_state(*a: object, **k: object) -> None:
+        action_state_calls["n"] += 1
+
+    monkeypatch.setattr(email_triage.repo, "set_email_action_state", _spy_action_state)
+
     email_triage.structure_pending()
 
     row = repo.get_email_message(email_id)
@@ -184,3 +193,64 @@ def test_structure_pending_injection_email_does_not_change_action_state(
         "structure_pending must never mutate action_state; "
         f"got {row['action_state']!r} instead of 'none'"
     )
+    # Spy check: structuring must not call set_email_action_state at all.
+    assert action_state_calls["n"] == 0, (
+        "structure_pending must never call set_email_action_state; "
+        f"it was called {action_state_calls['n']} time(s)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# FIX 1: hallucinated category is coerced to OTHER
+# ---------------------------------------------------------------------------
+
+
+def test_structure_pending_hallucinated_category_stored_as_other(tmp_db, monkeypatch):
+    """A hallucinated/invalid LLM category must be coerced to 'other' without raising."""
+    email_id = _upsert_email(uid=6, message_id="hall-1")
+
+    monkeypatch.setattr(
+        email_triage,
+        "chat_json",
+        lambda *a, **k: {"is_job_related": True, "category": "totally_made_up"},
+    )
+
+    result = email_triage.structure_pending()
+    assert "error" not in result, f"structure_pending raised unexpectedly: {result}"
+
+    row = repo.get_email_message(email_id)
+    assert row["category"] == "other", (
+        f"Expected hallucinated category to be coerced to 'other', got {row['category']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# FIX 2: ATS noreply senders reach the LLM
+# ---------------------------------------------------------------------------
+
+
+def test_structure_pending_ats_noreply_sender_reaches_llm(tmp_db, monkeypatch):
+    """noreply@greenhouse.io must not be excluded by the noise filter — ATS check runs first."""
+    email_id = _upsert_email(
+        uid=7,
+        message_id="ats-noreply-1",
+        from_addr="noreply@greenhouse.io",
+        subject="Your application update",
+        body_text="Greenhouse notification about your application status.",
+    )
+
+    call_count: dict[str, int] = {"n": 0}
+
+    def _stub(*a: object, **k: object) -> dict[str, object]:
+        call_count["n"] += 1
+        return {"is_job_related": True, "category": "application_confirmation"}
+
+    monkeypatch.setattr(email_triage, "chat_json", _stub)
+
+    email_triage.structure_pending()
+
+    assert call_count["n"] >= 1, (
+        "LLM must be called for noreply@greenhouse.io — ATS domains bypass the noise filter"
+    )
+    row = repo.get_email_message(email_id)
+    assert row["category"] == "application_confirmation"

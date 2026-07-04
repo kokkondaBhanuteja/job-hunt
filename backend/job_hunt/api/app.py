@@ -102,6 +102,11 @@ class ContactIn(BaseModel):
     notes: str | None = None
 
 
+class ContextIn(BaseModel):
+    content: str
+    format: str = "md"
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -254,6 +259,16 @@ def apply_review(body: ReviewIn) -> dict[str, Any]:
     return _unwrap(services.review_application(
         body.job_id, cover_letter=body.cover_letter, answers=body.answers
     ))
+
+
+@api.get("/context", response_model=dto.UserContext)
+def get_context() -> dict[str, Any]:
+    return services.get_context()
+
+
+@api.post("/context")
+def set_context(body: ContextIn) -> dict[str, Any]:
+    return _unwrap(services.set_context(body.content, body.format))
 
 
 @api.get("/answer-templates")

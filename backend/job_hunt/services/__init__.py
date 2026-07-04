@@ -17,6 +17,7 @@ from job_hunt.services.answers import add_answer_template, list_answer_templates
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.apply import review_application
 from job_hunt.services.companies import company_history, get_company
+from job_hunt.services.context import get_context, set_context
 from job_hunt.services.crm import add_contact, list_contacts
 from job_hunt.services.discovery import discover, discover_naukri
 from job_hunt.services.drafting import (
@@ -69,6 +70,8 @@ __all__ = [
     "list_contacts",
     "get_company",
     "company_history",
+    "set_context",
+    "get_context",
     "parse_resume_vault",
     "add_profile",
     "list_profiles",

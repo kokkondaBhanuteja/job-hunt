@@ -29,6 +29,7 @@ from typing import Any
 from job_hunt.enums import (
     CLOSED_STATES,
     ApplicationStage,
+    ContextFormat,
     DraftKind,
     EventClass,
     EventType,
@@ -189,6 +190,14 @@ CREATE TABLE IF NOT EXISTS answer_templates (
     answer_text      TEXT NOT NULL,
     tags             TEXT,                           -- JSON array
     created_at       TEXT NOT NULL
+);
+
+-- The user's single career-context blob (pasted md/json), injected into every AI prompt.
+CREATE TABLE IF NOT EXISTS user_context (
+    id         INTEGER PRIMARY KEY CHECK (id = 1),   -- singleton: one active context
+    content    TEXT NOT NULL,
+    format     TEXT NOT NULL CHECK (format IN ({sql_in_list(ContextFormat)})),
+    updated_at TEXT NOT NULL
 );
 
 -- What outcomes taught us (feeds future tailoring / variant preference).
@@ -679,6 +688,23 @@ def list_answer_templates() -> list[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM answer_templates ORDER BY id DESC"
         ).fetchall()
+
+
+def set_user_context(*, content: str, fmt: str) -> None:
+    """Store (or replace) the single user career-context blob."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO user_context (id, content, format, updated_at) VALUES (1, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET content = excluded.content, "
+            "format = excluded.format, updated_at = excluded.updated_at",
+            (content, str(fmt), now_iso()),
+        )
+
+
+def get_user_context() -> sqlite3.Row | None:
+    """Return the single user-context row, or None if unset."""
+    with connect() as conn:
+        return conn.execute("SELECT * FROM user_context WHERE id = 1").fetchone()
 
 
 def save_learning(

@@ -15,9 +15,11 @@ from job_hunt.llm.prompts import APPLICATION_REVIEW
 
 
 def _build_prompt(
-    jd_text: str, resume_json: dict[str, Any], cover_letter: str, answers: dict[str, str]
+    jd_text: str, resume_json: dict[str, Any], cover_letter: str, answers: dict[str, str],
+    user_context: str = "",
 ) -> str:
     return (
+        f"{user_context}"
         "Review this job application before submission.\n\n"
         "=== JOB DESCRIPTION ===\n"
         f"{jd_text[:5000]}\n\n"
@@ -37,10 +39,11 @@ def review_application(
     resume_json: dict[str, Any],
     cover_letter: str = "",
     answers: dict[str, str] | None = None,
+    user_context: str = "",
 ) -> dict[str, Any]:
     """Return the reviewer's verdict {ready: bool, issues: [...]}."""
     return chat_json(
-        _build_prompt(jd_text, resume_json, cover_letter, answers or {}),
+        _build_prompt(jd_text, resume_json, cover_letter, answers or {}, user_context),
         schema=APPLICATION_REVIEW.schema,
         task="drafting",
         system=APPLICATION_REVIEW.system,

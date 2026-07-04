@@ -4,6 +4,7 @@ from __future__ import annotations
 from job_hunt.enums import RunStatus
 from job_hunt.logging_config import get_logger
 from job_hunt.scoring.match import score_all_pending
+from job_hunt.services.context import context_preamble
 from job_hunt.storage import repo
 
 logger = get_logger(__name__)
@@ -17,13 +18,14 @@ def score_pending(*, verbose: bool = False, track: bool = False) -> dict[str, in
     invisible in-process task. Raises RuntimeError when no resume variants exist.
     """
     repo.init_db()
+    user_context = context_preamble()  # inject the candidate's context into every score prompt
     if not track:
-        return score_all_pending(verbose=verbose)
+        return score_all_pending(verbose=verbose, user_context=user_context)
 
     run_id = repo.create_run(["score"])
     repo.start_run(run_id)
     try:
-        result = score_all_pending(verbose=verbose)
+        result = score_all_pending(verbose=verbose, user_context=user_context)
     except Exception as exc:  # noqa: BLE001 — record the failure on the run, then re-raise
         logger.exception("scoring run %s failed", run_id)
         repo.finish_run(run_id, RunStatus.FAILED, errors={"error": str(exc)})

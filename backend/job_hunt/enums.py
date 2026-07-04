@@ -83,6 +83,13 @@ class DraftKind(StrEnum):
     OUTREACH = "outreach"
 
 
+class ContextFormat(StrEnum):
+    """Format the user supplies their career context in (stored verbatim, injected as-is)."""
+
+    MD = "md"
+    JSON = "json"
+
+
 class LearningKind(StrEnum):
     """What an outcome taught us, stored on `learnings`."""
 

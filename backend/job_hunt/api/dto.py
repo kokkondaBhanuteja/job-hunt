@@ -117,3 +117,9 @@ class Analytics(BaseModel):
     llm_by_task: list[_LLMByTask]
     variant_performance: list[_VariantPerformance]
     llm_cost: _LLMCost
+
+
+class UserContext(BaseModel):
+    content: str | None = None
+    format: str | None = None
+    updated_at: str | None = None

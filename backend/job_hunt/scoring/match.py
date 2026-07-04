@@ -40,7 +40,9 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _build_prompt(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> str:
+def _build_prompt(
+    resume_json: dict[str, Any], job_row: Any, jd_text: str, user_context: str = ""
+) -> str:
     """Compact prompt: only the parts of the resume + job relevant to scoring."""
     resume_compact = {
         "headline": resume_json.get("headline"),
@@ -73,6 +75,7 @@ def _build_prompt(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> st
     )
 
     return (
+        f"{user_context}"
         "Score this candidate-resume against this job posting.\n\n"
         "=== CANDIDATE RESUME (variant) ===\n"
         f"{json.dumps(resume_compact, ensure_ascii=False, indent=2)}\n\n"
@@ -82,10 +85,12 @@ def _build_prompt(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> st
     )
 
 
-def score_one(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> dict[str, Any]:
+def score_one(
+    resume_json: dict[str, Any], job_row: Any, jd_text: str, user_context: str = ""
+) -> dict[str, Any]:
     """Score one (variant, job) pair. Returns {'fit_score', 'confidence', 'reasoning'}."""
     return chat_json(
-        _build_prompt(resume_json, job_row, jd_text),
+        _build_prompt(resume_json, job_row, jd_text, user_context),
         schema=SCORING.schema,
         task="scoring",
         system=SCORING.system,
@@ -95,10 +100,11 @@ def score_one(resume_json: dict[str, Any], job_row: Any, jd_text: str) -> dict[s
     )
 
 
-def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
+def score_all_pending(*, verbose: bool = False, user_context: str = "") -> dict[str, int]:
     """(Re)score every scorable job × variant whose JD/model changed since last time.
 
     Returns {jobs_scored: N, score_rows_written: N}. Idempotent: unchanged pairs are skipped.
+    `user_context` (the candidate's own context) is injected into every prompt + the hash.
     """
     variants = list_resume_variants()
     if not variants:
@@ -117,6 +123,7 @@ def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
         wrote = _score_job_row(
             job, variants, provider_model,
             existing_meta=meta_by_job.get(int(job["id"]), []), verbose=verbose,
+            user_context=user_context,
         )
         rows_written += wrote
         if wrote:
@@ -124,7 +131,7 @@ def score_all_pending(*, verbose: bool = False) -> dict[str, int]:
     return {"jobs_scored": jobs_scored, "score_rows_written": rows_written}
 
 
-def score_job(job_id: int) -> dict[str, int]:
+def score_job(job_id: int, *, user_context: str = "") -> dict[str, int]:
     """(Re)score a SINGLE job × variants — what the JOB_ENRICHED event handler calls."""
     variants = list_resume_variants()
     if not variants:
@@ -132,7 +139,7 @@ def score_job(job_id: int) -> dict[str, int]:
     job = repo.get_job(job_id)
     if job is None:
         return {"jobs_scored": 0, "score_rows_written": 0}
-    wrote = _score_job_row(job, variants, _provider_model())
+    wrote = _score_job_row(job, variants, _provider_model(), user_context=user_context)
     return {"jobs_scored": 1 if wrote else 0, "score_rows_written": wrote}
 
 
@@ -143,15 +150,16 @@ def _provider_model() -> str:
 
 def _score_job_row(
     job: Any, variants: Any, provider_model: str, *,
-    existing_meta: Any = None, verbose: bool = False,
+    existing_meta: Any = None, verbose: bool = False, user_context: str = "",
 ) -> int:
     """Score one job row against every variant (idempotent). Returns rows written.
 
     `existing_meta` lets a batch caller pass this job's score metadata (pre-fetched in one
-    query); a single-job caller leaves it None and it's fetched here.
+    query); a single-job caller leaves it None and it's fetched here. `user_context` is part of
+    the idempotency hash, so changing the user's context re-scores affected jobs.
     """
     jd_text, scored_against = _jd_for(job)
-    input_hash = _hash(jd_text)
+    input_hash = _hash(jd_text + user_context)
     meta_rows = existing_meta if existing_meta is not None else scores_meta_for_job(int(job["id"]))
     existing = {
         int(r["variant_id"]): (r["input_hash"], r["provider_model"]) for r in meta_rows
@@ -164,7 +172,7 @@ def _score_job_row(
             continue  # already scored against this exact JD + model → skip (idempotent)
         try:
             resume_json = json.loads(variant["parsed_json"])
-            result = score_one(resume_json, job, jd_text)
+            result = score_one(resume_json, job, jd_text, user_context)
             confidence = result.get("confidence")
             write_score(
                 job_id=int(job["id"]), variant_id=vid, fit_score=int(result["fit_score"]),

@@ -332,6 +332,26 @@ def list_answer_templates() -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def set_user_context(*, content: str, fmt: str) -> None:
+    """Store (or replace) the single user career-context blob."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO user_context (id, content, format, updated_at) VALUES (1, %s, %s, now()) "
+            "ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, "
+            "format = EXCLUDED.format, updated_at = now()",
+            (content, str(fmt)),
+        )
+
+
+def get_user_context() -> dict[str, Any] | None:
+    """Return the single user-context row, or None if unset."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, content, format, updated_at::text AS updated_at "
+            "FROM user_context WHERE id = 1"
+        ).fetchone()
+
+
 def save_learning(
     *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
 ) -> int:

@@ -93,6 +93,18 @@ def test_health_reports_degraded_when_db_down(client, monkeypatch):
     assert body["status"] == "degraded" and body["db_ok"] is False
 
 
+def test_context_set_and_get_round_trip(client):
+    empty = client.get("/api/context", headers=AUTH)
+    assert empty.status_code == 200 and empty.json()["content"] is None
+
+    posted = client.post("/api/context", headers=AUTH,
+                         json={"content": "# Me\nBackend engineer.", "format": "md"})
+    assert posted.status_code == 200 and posted.json()["ok"] is True
+
+    got = client.get("/api/context", headers=AUTH).json()
+    assert got["content"].startswith("# Me") and got["format"] == "md"
+
+
 def test_reap_stale_runs(tmp_db):
     rid = tmp_db.create_run(["naukri"])
     tmp_db.start_run(rid)

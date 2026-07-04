@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
   applyReview: "/api/apply/review",
   applications: "/api/applications",
   analytics: "/api/analytics",
+  context: "/api/context",
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -48,6 +49,7 @@ export const QUERY_KEYS = {
   runs: ["runs"] as const,
   profiles: ["profiles"] as const,
   analytics: ["analytics"] as const,
+  context: ["context"] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */

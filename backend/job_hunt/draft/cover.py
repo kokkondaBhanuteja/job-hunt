@@ -9,10 +9,12 @@ from job_hunt.llm.prompts import COVER_LETTER
 
 
 def generate_cover_letter(
-    *, jd_text: str, resume_json: dict[str, Any], company: str = "", role: str = ""
+    *, jd_text: str, resume_json: dict[str, Any], company: str = "", role: str = "",
+    user_context: str = "",
 ) -> str:
     """Return a cover-letter body for a job."""
     prompt = (
+        f"{user_context}"
         f"Write a cover letter for {role or 'this role'} at {company or 'this company'}.\n\n"
         "=== JOB DESCRIPTION ===\n"
         f"{jd_text[:4000]}\n\n"

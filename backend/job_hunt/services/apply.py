@@ -11,6 +11,7 @@ from typing import Any
 
 from job_hunt.apply.ats import detect_ats
 from job_hunt.apply.reviewer import review_application as _run_review
+from job_hunt.services.context import context_preamble
 from job_hunt.storage import repo
 
 
@@ -36,6 +37,7 @@ def review_application(
     variant_slug, resume_json = _best_variant_resume(job_id)
 
     verdict = _run_review(
-        jd_text=jd_text, resume_json=resume_json, cover_letter=cover_letter, answers=answers or {}
+        jd_text=jd_text, resume_json=resume_json, cover_letter=cover_letter,
+        answers=answers or {}, user_context=context_preamble(),
     )
     return {"job_id": job_id, "ats": str(ats), "variant": variant_slug, **verdict}

@@ -136,6 +136,12 @@ export interface Analytics {
   }[];
   llm_cost: { calls: number; cost: number; tokens: number };
 }
+// Mirrors backend dto.UserContext.
+export interface UserContext {
+  content: string | null;
+  format: string | null;
+  updated_at: string | null;
+}
 
 export const api = {
   health: () =>
@@ -163,4 +169,10 @@ export const api = {
       body: JSON.stringify({ job_id: id, cover_letter, answers: {} }),
     }),
   analytics: () => req<Analytics>(API_ENDPOINTS.analytics),
+  getContext: () => req<UserContext>(API_ENDPOINTS.context),
+  setContext: (b: { content: string; format: string }) =>
+    req<{ ok?: boolean; format?: string; length?: number }>(API_ENDPOINTS.context, {
+      method: "POST",
+      body: JSON.stringify(b),
+    }),
 };

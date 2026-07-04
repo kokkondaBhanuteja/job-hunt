@@ -268,6 +268,25 @@ def cmd_db(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_context(args: argparse.Namespace) -> int:
+    """Set the user career context from a file, or show the current one."""
+    if args.file:
+        content = Path(args.file).read_text(encoding="utf-8")
+        result = services.set_context(content, args.format)
+        if "error" in result:
+            print(f"!! {result['error']}")
+            return 1
+        print(f"context set ({result['format']}, {result['length']} chars)")
+        return 0
+    ctx = services.get_context()
+    if not ctx.get("content"):
+        print("(no context set — pass a .md/.json file to set one)")
+        return 0
+    print(f"# context ({ctx['format']}, updated {ctx['updated_at']})\n")
+    print(ctx["content"])
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -372,6 +391,11 @@ def build_parser() -> argparse.ArgumentParser:
     db = sub.add_parser("db", help="Run a quick raw SQL SELECT against jobhunt.db")
     db.add_argument("sql")
     db.set_defaults(func=cmd_db)
+
+    cx = sub.add_parser("context", help="Set/show the career context injected into AI prompts")
+    cx.add_argument("file", nargs="?", help="path to a .md/.json context file (omit to show)")
+    cx.add_argument("--format", choices=["md", "json"], default="md")
+    cx.set_defaults(func=cmd_context)
 
     return p
 

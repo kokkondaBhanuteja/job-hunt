@@ -90,6 +90,9 @@ count_runs_today = _impl.count_runs_today
 reap_stale_runs = _impl.reap_stale_runs
 
 # search profiles
+set_user_context = _impl.set_user_context
+get_user_context = _impl.get_user_context
+
 create_search_profile = _impl.create_search_profile
 list_search_profiles = _impl.list_search_profiles
 list_active_search_profiles = _impl.list_active_search_profiles

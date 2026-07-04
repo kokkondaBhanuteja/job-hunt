@@ -16,6 +16,7 @@ from typing import Any
 from job_hunt.enrich.service import Fetcher, enrich_job
 from job_hunt.enums import EventType
 from job_hunt.scoring.match import score_job
+from job_hunt.services.context import context_preamble
 from job_hunt.storage import repo
 
 
@@ -28,10 +29,15 @@ def _job_id(event: dict[str, Any]) -> int | None:
     return payload.get("job_id")
 
 
+def _score_job_with_context(job_id: int) -> Any:
+    """Default auto-scorer — injects the user's context so auto-scored jobs reflect them too."""
+    return score_job(job_id, user_context=context_preamble())
+
+
 def build_handlers(
     *,
     enrich_fetchers: dict[str, Fetcher],
-    score_job_fn: Callable[[int], Any] = score_job,
+    score_job_fn: Callable[[int], Any] = _score_job_with_context,
 ) -> dict[str, Callable[[dict[str, Any]], None]]:
     def on_discovered(event: dict[str, Any]) -> None:
         job_id = _job_id(event)

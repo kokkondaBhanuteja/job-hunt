@@ -12,9 +12,10 @@ from job_hunt.llm import chat
 from job_hunt.llm.prompts import RESUME_TAILOR
 
 
-def tailor_resume(*, jd_text: str, resume_json: dict[str, Any]) -> str:
+def tailor_resume(*, jd_text: str, resume_json: dict[str, Any], user_context: str = "") -> str:
     """Return a JD-tailored resume in Markdown."""
     prompt = (
+        f"{user_context}"
         "Tailor this resume for the job below.\n\n"
         "=== JOB DESCRIPTION ===\n"
         f"{jd_text[:5000]}\n\n"

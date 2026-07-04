@@ -103,7 +103,8 @@ For a given `source`, resolve deterministically:
 1. `applicant.<key>` → the `applicant_profile` store (§5).
 2. `resume.<key>` → the best-matching résumé variant's parsed JSON.
 3. `context` → the User Context blob (last resort free-text).
-4. `draft.cover` → the saved cover-letter draft for this job (generate on demand if missing).
+4. `draft.cover` → the saved cover-letter draft for this job, **only if one already exists**
+   (fill never auto-generates a cover letter — see §11).
 5. `file.resume_variant` → the résumé file path for the best variant.
 
 No value found → field is skipped and added to `unfilled` (surfaced to you, never invented).
@@ -188,5 +189,6 @@ submit. No new infrastructure — it's the outbox/worker you already have.
 - **Getting ATS jobs into the pipeline** — v1 value depends on running
   `hunt discover greenhouse --keyword <company>` for boards you care about. Worth confirming
   you'll seed a few company slugs.
-- **Open:** do you want the cover letter auto-attached by default, or only when you've already
-  generated/approved one for that job?
+- **Decided:** the cover letter is attached **only when a draft already exists** for that job
+  (created via the normal drafting flow). Fill never auto-generates one — keeps fills fast and
+  predictable, and avoids a surprise LLM call mid-fill.

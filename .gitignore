@@ -13,6 +13,9 @@ wheels/
 .env.local
 .env
 
+# graphify knowledge-graph output (generated)
+graphify-out/
+
 # Generated runtime data — keep dir, ignore contents
 backend/data/jobhunt.db
 backend/data/jobhunt.db-journal

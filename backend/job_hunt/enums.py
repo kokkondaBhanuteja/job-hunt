@@ -95,6 +95,7 @@ class LLMProvider(StrEnum):
     OLLAMA = "ollama"
     OPENAI = "openai"
     GEMINI = "gemini"
+    GROQ = "groq"
     STUB = "stub"
 
 

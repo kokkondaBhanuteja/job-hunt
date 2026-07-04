@@ -15,7 +15,9 @@ applications beat 300 generic ones. Every automation saves time, improves qualit
 decision **while you keep control of what matters** (review before submit).
 
 Runs on your machine. Local LLM (Ollama) by default = **$0**; any task can be pointed at an
-API key instead.
+API key instead. **Groq** (free tier, LPU hardware) is a zero-cost cloud option for heavy
+tasks — set `GROQ_API_KEY` and route drafting/structuring there; the client rotates across
+keys on rate-limit and falls back to local Ollama automatically.
 
 ---
 

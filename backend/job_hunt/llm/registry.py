@@ -2,7 +2,7 @@
 whether a given task runs locally (Ollama) or against an API key.
 
 Per task (e.g. 'scoring'), read:
-    LLM_SCORING_PROVIDER   ollama | openai | gemini | stub   (default: ollama)
+    LLM_SCORING_PROVIDER   ollama | openai | gemini | groq | stub  (default: ollama)
     LLM_SCORING_MODEL      provider-specific model name
 
 Back-compat: if LLM_<TASK>_MODEL is unset, fall back to the legacy
@@ -42,6 +42,11 @@ _COST_PER_1K: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.00015, 0.0006),
     "gpt-4o": (0.0025, 0.01),
     "gemini-1.5-flash": (0.000075, 0.0003),
+    # Groq free-tier models: $0 so cost() returns 0.0 with no warning.
+    "llama-3.3-70b-versatile": (0.0, 0.0),
+    "llama-3.1-8b-instant": (0.0, 0.0),
+    "llama-3.1-70b-versatile": (0.0, 0.0),
+    "mixtral-8x7b-32768": (0.0, 0.0),
 }
 
 
@@ -77,6 +82,14 @@ def _provider_for(kind: str) -> LLMProvider:
             name=ProviderKind.OPENAI,
             base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
             api_key=os.getenv("OPENAI_API_KEY"),
+        )
+    if pk is ProviderKind.GROQ:
+        raw = os.getenv("GROQ_API_KEYS") or os.getenv("GROQ_API_KEY") or ""
+        keys = [k.strip() for k in raw.split(",") if k.strip()]
+        return OpenAICompatProvider(
+            name=ProviderKind.GROQ,
+            base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+            api_keys=keys,
         )
     # pk is ProviderKind.GEMINI
     return OpenAICompatProvider(

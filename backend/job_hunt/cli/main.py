@@ -287,6 +287,31 @@ def cmd_context(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_apply_fill(args: argparse.Namespace) -> int:
+    """Open a job's ATS form, auto-fill it, and stop at the review screen."""
+    result = services.prepare_form_fill(args.job_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"[{result['ats']}] filled {len(result['filled'])} field(s); "
+          f"{len(result['unfilled'])} need you: {result['unfilled']}")
+    print(f"review & submit: {result['review_url']}")
+    return 0
+
+
+def cmd_applicant(args: argparse.Namespace) -> int:
+    """Set an applicant-profile field (--set key=value ...) or show the current profile."""
+    if args.set:
+        fields = dict(pair.split("=", 1) for pair in args.set)
+        result = services.set_applicant(fields)
+        print(result.get("error") or f"set {result['fields']} field(s)")
+        return 1 if "error" in result else 0
+    for k, v in services.get_applicant().items():
+        if v is not None:
+            print(f"{k}: {v}")
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -396,6 +421,14 @@ def build_parser() -> argparse.ArgumentParser:
     cx.add_argument("file", nargs="?", help="path to a .md/.json context file (omit to show)")
     cx.add_argument("--format", choices=["md", "json"], default="md")
     cx.set_defaults(func=cmd_context)
+
+    af = sub.add_parser("apply-fill", help="Auto-fill a job's ATS form (stops at review)")
+    af.add_argument("job_id", type=int)
+    af.set_defaults(func=cmd_apply_fill)
+
+    ap = sub.add_parser("applicant", help="Set/show standing application answers")
+    ap.add_argument("--set", nargs="*", metavar="key=value", help="fields to set")
+    ap.set_defaults(func=cmd_applicant)
 
     return p
 

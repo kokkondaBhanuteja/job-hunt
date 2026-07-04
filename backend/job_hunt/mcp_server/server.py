@@ -100,6 +100,12 @@ def log_application(
     return services.log_application(job_id, variant_slug, cover_letter, status=status)
 
 
+@mcp.tool()
+def fill_application(job_id: int) -> dict:
+    """Open a job's ATS form and auto-fill it from stored data, stopping before submit."""
+    return services.prepare_form_fill(job_id)
+
+
 # ---------- Run ----------
 
 

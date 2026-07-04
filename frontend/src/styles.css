@@ -161,3 +161,23 @@ label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; fo
 .kv div { display: flex; gap: 8px; }
 .kv dt { color: var(--muted); min-width: 120px; text-transform: capitalize; }
 .kv dd { margin: 0; }
+
+/* email action bar (inside the detail panel) */
+.email-action-bar { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.label-form { display: flex; flex-direction: column; gap: 8px; }
+
+/* confirm modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 18, 22, 0.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 24px; width: 480px; max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px); overflow-y: auto;
+}
+.modal-title { font-size: 16px; margin: 0 0 8px; }
+.modal-reply-body { width: 100%; min-height: 120px; resize: vertical; margin-bottom: 12px; }
+.modal-actions { margin-top: 16px; justify-content: flex-end; }

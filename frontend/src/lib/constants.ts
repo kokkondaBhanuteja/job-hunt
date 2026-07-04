@@ -103,6 +103,14 @@ export const JOB_STATE = {
 } as const;
 export type JobStateValue = (typeof JOB_STATE)[keyof typeof JOB_STATE];
 
+/** Mirror of backend EmailActionKind — the action verbs the email pipeline supports. */
+export const EMAIL_ACTION_KIND = {
+  DRAFT_REPLY: "draft_reply",
+  APPLY_LABEL: "apply_label",
+  ARCHIVE: "archive",
+} as const;
+export type EmailActionKindValue = (typeof EMAIL_ACTION_KIND)[keyof typeof EMAIL_ACTION_KIND];
+
 /** Mirror of job_hunt/enums.py::EmailCategory — the triage buckets for the Inbox. */
 export const EMAIL_CATEGORY = {
   RECRUITER_OUTREACH: "recruiter_outreach",

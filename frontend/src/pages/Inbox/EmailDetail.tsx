@@ -3,6 +3,7 @@ import { ErrorView } from "../../components/ErrorView";
 import { LoadingView } from "../../components/LoadingView";
 import { api } from "../../lib/api";
 import { QUERY_KEYS, ROUTES } from "../../lib/constants";
+import { EmailActions } from "./EmailActions";
 
 interface Props {
   id: number;
@@ -56,6 +57,7 @@ export function EmailDetail({ id, onClose }: Props) {
             ))}
           </dl>
         )}
+        <EmailActions email={e} />
       </div>
     </aside>
   );

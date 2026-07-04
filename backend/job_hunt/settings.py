@@ -15,7 +15,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from job_hunt.enums import LLMProvider
 
 _HHMM = re.compile(r"^\d{1,2}:\d{2}$")
-_TASKS = ("scoring", "drafting", "tailoring")
+_TASKS = ("scoring", "drafting", "tailoring", "email_structure")
 _LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
 
 
@@ -76,6 +76,19 @@ class Settings(BaseModel):
         except ValueError:
             raise ValueError(f"WORKER_DAILY_CAP must be an integer, got '{cap_raw}'") from None
         providers = {t: os.getenv(f"LLM_{t.upper()}_PROVIDER") for t in _TASKS}
+
+        # Validate EMAIL_* credentials: all-or-none constraint
+        email_host = os.getenv("EMAIL_IMAP_HOST")
+        email_address = os.getenv("EMAIL_ADDRESS")
+        email_password = os.getenv("EMAIL_APP_PASSWORD")
+        email_vars = [email_host, email_address, email_password]
+        email_set_count = sum(1 for v in email_vars if v)
+        if email_set_count > 0 and email_set_count < 3:
+            raise ValueError(
+                "EMAIL_* config incomplete: set all of EMAIL_IMAP_HOST, EMAIL_ADDRESS, "
+                "EMAIL_APP_PASSWORD or none"
+            )
+
         return cls(
             db_backend=os.getenv("DB_BACKEND", "sqlite"),
             database_url=os.getenv("DATABASE_URL"),

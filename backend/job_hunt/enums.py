@@ -57,6 +57,36 @@ class LLMTask(StrEnum):
     SCORING = "scoring"
     DRAFTING = "drafting"
     TAILORING = "tailoring"
+    EMAIL_STRUCTURE = "email_structure"
+
+
+class EmailCategory(StrEnum):
+    """Category classification of an inbound email — determines triage and suggested actions."""
+
+    RECRUITER_OUTREACH = "recruiter_outreach"
+    INTERVIEW_INVITE = "interview_invite"
+    REJECTION = "rejection"
+    APPLICATION_CONFIRMATION = "application_confirmation"
+    OTHER = "other"
+
+
+class EmailActionState(StrEnum):
+    """Lifecycle state of a suggested action on an email."""
+
+    NONE = "none"
+    PROPOSED = "proposed"
+    CONFIRMED = "confirmed"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    DISMISSED = "dismissed"
+
+
+class EmailActionKind(StrEnum):
+    """Kind of action suggested or taken on an email."""
+
+    DRAFT_REPLY = "draft_reply"
+    APPLY_LABEL = "apply_label"
+    ARCHIVE = "archive"
 
 
 class LLMProvider(StrEnum):

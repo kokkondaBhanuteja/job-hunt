@@ -106,6 +106,61 @@ def fill_application(job_id: int) -> dict:
     return services.prepare_form_fill(job_id)
 
 
+# ---------- Email Triage ----------
+
+
+@mcp.tool()
+def email_sync() -> dict[str, Any]:
+    """Sync inbox from IMAP and structure pending emails with the LLM.
+
+    Returns:
+        {fetched: int, new: int, structured: int, linked: int} or {error: str}
+    """
+    result = services.sync_inbox()
+    if "error" in result:
+        return result
+    struct = services.structure_pending()
+    if "error" in struct:
+        return struct
+    return {
+        "fetched": result["fetched"],
+        "new": result["new"],
+        "structured": struct["structured"],
+        "linked": struct["linked"],
+    }
+
+
+@mcp.tool()
+def email_list(category: str = "", action_state: str = "") -> list[dict[str, Any]]:
+    """List emails from the inbox with optional filtering.
+
+    Args:
+        category: filter by category (e.g., "offer", "rejection", "other") — empty = no filter
+        action_state: filter by action_state — empty = no filter
+
+    Returns:
+        list of email dicts (id, category, from_addr, subject, received_at, etc.)
+    """
+    return services.list_inbox(
+        category=category if category else None,
+        action_state=action_state if action_state else None,
+        limit=100,
+    )
+
+
+@mcp.tool()
+def email_get(email_id: int) -> dict[str, Any]:
+    """Get a single email by ID with full details and links.
+
+    Args:
+        email_id: the email ID to fetch
+
+    Returns:
+        full email dict or {error: str} if not found
+    """
+    return services.get_email(email_id)
+
+
 # ---------- Run ----------
 
 

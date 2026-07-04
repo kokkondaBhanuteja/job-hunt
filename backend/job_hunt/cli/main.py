@@ -312,6 +312,53 @@ def cmd_applicant(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_email_sync(args: argparse.Namespace) -> int:
+    """Sync inbox from IMAP and structure pending emails with the LLM."""
+    result = services.sync_inbox(mailbox=args.mailbox, limit=args.limit)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    sync_result = result
+    struct = services.structure_pending(limit=args.structure_limit)
+    if "error" in struct:
+        print(f"!! {struct['error']}")
+        return 1
+    print(
+        f"fetched={sync_result['fetched']} new={sync_result['new']} "
+        f"structured={struct['structured']}"
+    )
+    return 0
+
+
+def cmd_email_list(args: argparse.Namespace) -> int:
+    """List emails from the inbox with optional filtering."""
+    rows = services.list_inbox(
+        category=args.category if args.category else None,
+        action_state=args.state if args.state else None,
+        limit=args.limit,
+    )
+    if not rows:
+        print("(no emails)")
+        return 0
+    for r in rows:
+        email_id = r.get("id", "?")
+        category = r.get("category", "?")
+        from_addr = r.get("from_addr", "?")
+        subject = r.get("subject", "?")
+        print(f"[{email_id:>4}] {category:<10} {from_addr:<30} {subject}")
+    return 0
+
+
+def cmd_email_show(args: argparse.Namespace) -> int:
+    """Show a single email by ID."""
+    result = services.get_email(args.email_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -429,6 +476,30 @@ def build_parser() -> argparse.ArgumentParser:
     ap = sub.add_parser("applicant", help="Set/show standing application answers")
     ap.add_argument("--set", nargs="*", metavar="key=value", help="fields to set")
     ap.set_defaults(func=cmd_applicant)
+
+    em = sub.add_parser("email", help="Email triage and inbox management")
+    em_sub = em.add_subparsers(dest="email_command", required=True)
+
+    es = em_sub.add_parser("sync", help="Sync inbox from IMAP and structure emails")
+    es.add_argument("--mailbox", default="INBOX", help="mailbox to sync (default: INBOX)")
+    es.add_argument("--limit", type=int, default=200, help="max emails to fetch (default: 200)")
+    es.add_argument(
+        "--structure-limit",
+        type=int,
+        default=50,
+        help="max emails to structure (default: 50)",
+    )
+    es.set_defaults(func=cmd_email_sync)
+
+    el = em_sub.add_parser("list", help="List emails with optional filtering")
+    el.add_argument("--category", help="filter by category (e.g., offer, rejection, other)")
+    el.add_argument("--state", help="filter by action_state")
+    el.add_argument("--limit", type=int, default=100, help="max rows to return (default: 100)")
+    el.set_defaults(func=cmd_email_list)
+
+    esh = em_sub.add_parser("show", help="Show a single email by ID")
+    esh.add_argument("email_id", type=int, help="email ID to display")
+    esh.set_defaults(func=cmd_email_show)
 
     return p
 

@@ -85,3 +85,23 @@ def test_send_daily_report_uses_notifier(tmp_db):
 
     assert services.send_daily_report(_Fake()) is True
     assert "Job-Hunt daily report" in sent[0]
+
+
+def test_send_test_notification_uses_configured_channel(monkeypatch):
+    sent: list[str] = []
+
+    class _Fake:
+        name = "telegram"
+
+        def send(self, text: str) -> bool:
+            sent.append(text)
+            return True
+
+    monkeypatch.setattr(base, "get_notifier", lambda: _Fake())
+    assert services.send_test_notification() == {"channel": "telegram", "sent": True}
+    assert sent and "wired" in sent[0]
+
+
+def test_send_test_notification_none_channel(monkeypatch):
+    monkeypatch.delenv("NOTIFY_CHANNEL", raising=False)
+    assert services.send_test_notification() == {"channel": "none", "sent": False}

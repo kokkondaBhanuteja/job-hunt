@@ -12,6 +12,7 @@ from job_hunt.services.analytics import (
     daily_report_text,
     dashboard,
     send_daily_report,
+    send_test_notification,
     variant_performance,
 )
 from job_hunt.services.answers import add_answer_template, list_answer_templates, suggest_answer
@@ -66,6 +67,7 @@ __all__ = [
     "variant_performance",
     "daily_report_text",
     "send_daily_report",
+    "send_test_notification",
     "learn_from_rejection",
     "embed_jobs",
     "semantic_match",

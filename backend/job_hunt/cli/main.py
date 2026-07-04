@@ -252,6 +252,21 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_notify_test(_: argparse.Namespace) -> int:
+    """Send a test message through the configured notification channel."""
+    result = services.send_test_notification()
+    channel = result["channel"]
+    if channel == "none":
+        print("NOTIFY_CHANNEL is 'none' — set it to 'telegram' plus TELEGRAM_BOT_TOKEN "
+              "and TELEGRAM_CHAT_ID in backend/.env.local, then retry.")
+        return 1
+    if result["sent"]:
+        print(f"sent via {channel} ✓ — check your chat")
+        return 0
+    print(f"send failed via {channel} — verify the token / chat id are correct")
+    return 1
+
+
 def cmd_serve_mcp(_: argparse.Namespace) -> int:
     """Start the MCP server over stdio. Use this in your MCP host's config."""
     from job_hunt.mcp_server.server import main as mcp_main
@@ -471,6 +486,9 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("report", help="Print (and optionally send) the daily report")
     rp.add_argument("--send", action="store_true", help="Send to the configured channel")
     rp.set_defaults(func=cmd_report)
+
+    nt = sub.add_parser("notify-test", help="Send a test message via the configured channel")
+    nt.set_defaults(func=cmd_notify_test)
 
     wk = sub.add_parser("worker", help="Start the background worker (APScheduler)")
     wk.set_defaults(func=cmd_worker)

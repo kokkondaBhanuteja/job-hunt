@@ -68,3 +68,12 @@ def send_daily_report(notifier: Any = None) -> bool:
     from job_hunt.notify.report import send_report
 
     return send_report(daily_report_text(), notifier)
+
+
+def send_test_notification() -> dict[str, Any]:
+    """Send a one-off test message via the configured channel. Returns {channel, sent}."""
+    from job_hunt.notify.base import get_notifier
+
+    notifier = get_notifier()
+    sent = notifier.send("✅ Job-hunt notifications are wired — updates will land here.")
+    return {"channel": notifier.name, "sent": sent}

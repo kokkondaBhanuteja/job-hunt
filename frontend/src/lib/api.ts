@@ -1,7 +1,7 @@
 // Typed client for the job-hunt FastAPI. Base URL + bearer token live in
 // localStorage (set on the Settings page).
 
-import { API_ENDPOINTS, DEFAULT_API_BASE, ROUTES, STORAGE_KEYS } from "./constants";
+import { API_ENDPOINTS, DEFAULT_API_BASE, ROUTES, STORAGE_KEYS, type MessageKind } from "./constants";
 
 export function getApiBase(): string {
   return localStorage.getItem(STORAGE_KEYS.apiBase) || DEFAULT_API_BASE;
@@ -194,6 +194,14 @@ export interface EmailDetail {
   structured_at: string | null;
   created_at: string | null;
 }
+// Mirrors backend dto.RoleBrief.
+export interface RoleBrief {
+  summary: string | null;
+  key_skills: string[];
+  interview_topics: string[];
+  questions_to_ask: string[];
+  fit_notes: string | null;
+}
 // Mirrors backend dto.EmailActionProposal.
 export interface EmailActionProposal {
   action_id: number;
@@ -239,6 +247,10 @@ export const api = {
     req<{ ok?: boolean }>(API_ENDPOINTS.applicant, { method: "POST", body: JSON.stringify(b) }),
   fillJob: (id: number) =>
     req<{ started: boolean }>(API_ENDPOINTS.jobFill(id), { method: "POST" }),
+  draftMessage: (id: number, kind: MessageKind) =>
+    req<CoverResult>(API_ENDPOINTS.jobDraft(id), { method: "POST", body: JSON.stringify({ kind }) }),
+  jobBrief: (id: number) =>
+    req<RoleBrief>(API_ENDPOINTS.jobBrief(id), { method: "POST" }),
   emails: (params: { category?: string; state?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.category) qs.set("category", params.category);

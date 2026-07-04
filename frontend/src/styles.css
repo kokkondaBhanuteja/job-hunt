@@ -130,6 +130,15 @@ label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; fo
 .issue.warning { border-left-color: var(--warn); }
 .issue.nit { border-left-color: var(--muted); }
 
+/* brief panel (role-prep brief) */
+.brief-panel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 8px; }
+.brief-summary { margin: 0 0 10px; font-size: 13px; color: var(--text); }
+.brief-fit-notes { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.brief-section { margin-bottom: 10px; }
+.brief-section-title { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.brief-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.brief-list li { font-size: 13px; color: var(--text); }
+
 /* analytics */
 .two-col { display: flex; gap: 16px; flex-wrap: wrap; }
 .two-col .card-block { flex: 1; min-width: 260px; }

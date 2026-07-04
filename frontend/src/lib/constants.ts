@@ -47,6 +47,8 @@ export const API_ENDPOINTS = {
   emailPropose: (id: number) => `/api/emails/${id}/propose`,
   emailAction: (id: number) => `/api/emails/${id}/action`,
   emailDismiss: (id: number) => `/api/emails/${id}/dismiss`,
+  jobDraft: (id: number) => `/api/jobs/${id}/draft`,
+  jobBrief: (id: number) => `/api/jobs/${id}/brief`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -85,6 +87,16 @@ export const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0
 
 /** How often the Runs table re-polls (ms). */
 export const RUNS_POLL_MS = 4000;
+
+/** Message-draft kinds supported by POST /api/jobs/{id}/draft. */
+export const MESSAGE_KINDS = ["thank_you", "follow_up", "negotiation"] as const;
+export type MessageKind = (typeof MESSAGE_KINDS)[number];
+/** Display labels for each MESSAGE_KIND (user-visible). */
+export const MESSAGE_KIND_LABELS: Record<string, string> = {
+  thank_you: "Thank-you",
+  follow_up: "Follow-up",
+  negotiation: "Negotiation",
+};
 
 /** Mirror of job_hunt/enums.py::JobState — the vocabulary the backend uses. */
 export const JOB_STATE = {

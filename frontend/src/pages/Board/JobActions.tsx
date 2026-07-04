@@ -14,6 +14,8 @@ export function JobActions({ jobId }: { jobId: number }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.drafts(jobId) }),
   });
   const review = useMutation({ mutationFn: () => api.review(jobId, cover.data?.body ?? "") });
+  // fillJob returns {started: true} and opens a browser server-side — no fill summary.
+  const fill = useMutation({ mutationFn: () => api.fillJob(jobId) });
 
   return (
     <div className="actions-block">
@@ -28,10 +30,16 @@ export function JobActions({ jobId }: { jobId: number }) {
         <button onClick={() => review.mutate()} disabled={review.isPending}>
           {review.isPending ? "Reviewing…" : "AI review"}
         </button>
+        <button onClick={() => fill.mutate()} disabled={fill.isPending}>
+          {fill.isPending ? "Launching…" : "Auto-fill form"}
+        </button>
       </div>
 
-      {(tailor.error || cover.error || review.error) && (
-        <ErrorView error={tailor.error || cover.error || review.error} />
+      {(tailor.error || cover.error || review.error || fill.error) && (
+        <ErrorView error={tailor.error || cover.error || review.error || fill.error} />
+      )}
+      {fill.isSuccess && (
+        <div className="ok-msg">Opening browser — review &amp; submit there.</div>
       )}
       {tailor.data && (
         <details className="draft-box">

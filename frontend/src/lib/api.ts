@@ -142,6 +142,27 @@ export interface UserContext {
   format: string | null;
   updated_at: string | null;
 }
+// Mirrors backend dto.Applicant.
+export interface Applicant {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  work_authorization: string | null;
+  needs_sponsorship: boolean | null;
+  willing_to_relocate: boolean | null;
+  notice_period: string | null;
+  expected_ctc: string | null;
+  current_ctc: string | null;
+  years_experience: string | null;
+  referral_source: string | null;
+  extra: string | null;
+  updated_at: string | null;
+}
 
 export const api = {
   health: () =>
@@ -175,4 +196,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(b),
     }),
+  getApplicant: () => req<Applicant>(API_ENDPOINTS.applicant),
+  setApplicant: (b: Partial<Applicant>) =>
+    req<{ ok?: boolean }>(API_ENDPOINTS.applicant, { method: "POST", body: JSON.stringify(b) }),
+  fillJob: (id: number) =>
+    req<{ started: boolean }>(API_ENDPOINTS.jobFill(id), { method: "POST" }),
 };

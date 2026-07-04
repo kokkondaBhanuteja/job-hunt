@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorView } from "../components/ErrorView";
 import { api, getApiBase, getToken, setConfig } from "../lib/api";
 import { DEFAULT_API_BASE, QUERY_KEYS } from "../lib/constants";
+import { ApplicantPanel } from "./ApplicantPanel";
 import { ContextPanel } from "./ContextPanel";
 
 export function Settings() {
@@ -80,6 +81,8 @@ export function Settings() {
       </section>
 
       <ContextPanel />
+
+      <ApplicantPanel />
 
       <section className="card-block">
         <h2>Search profiles</h2>

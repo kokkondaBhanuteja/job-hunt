@@ -835,3 +835,166 @@ def set_search_profile_enabled(profile_id: int, enabled: bool) -> None:
             "UPDATE search_profiles SET enabled = %s WHERE id = %s",
             (bool(enabled), int(profile_id)),
         )
+
+
+# ---------- email triage ----------
+
+_EMAIL_COLS = (
+    "id, mailbox, uid, message_id, thread_id, from_addr, from_name, subject, "
+    "received_at::text AS received_at, snippet, body_text, category, "
+    "extracted::text AS extracted, company_id, job_id, application_id, "
+    "action_state, structured_at::text AS structured_at, "
+    "created_at::text AS created_at"
+)
+
+
+def upsert_email_message(
+    *,
+    mailbox: str,
+    uid: int,
+    message_id: str | None,
+    thread_id: str | None,
+    from_addr: str | None,
+    from_name: str | None,
+    subject: str | None,
+    received_at: str | None,
+    snippet: str | None,
+    body_text: str | None,
+) -> int:
+    """Insert an email (dedup by message_id or mailbox+uid). Return the row id."""
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO email_messages (
+                mailbox, uid, message_id, thread_id, from_addr, from_name,
+                subject, received_at, snippet, body_text
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            (mailbox, uid, message_id, thread_id, from_addr, from_name,
+             subject, received_at, snippet, body_text),
+        )
+        # ON CONFLICT DO NOTHING returns no row — SELECT to get the id.
+        if message_id is not None:
+            row = conn.execute(
+                "SELECT id FROM email_messages WHERE message_id = %s", (message_id,)
+            ).fetchone()
+            if row is None:  # edge case: conflict was on (mailbox, uid) with different message_id
+                row = conn.execute(
+                    "SELECT id FROM email_messages WHERE mailbox = %s AND uid = %s",
+                    (mailbox, uid),
+                ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT id FROM email_messages WHERE mailbox = %s AND uid = %s",
+                (mailbox, uid),
+            ).fetchone()
+        return int(row["id"])
+
+
+def set_email_structured(
+    email_id: int,
+    *,
+    category: str | None,
+    extracted: dict[str, Any],
+    structured_at: str,
+) -> None:
+    """Store LLM extraction results on an email message."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE email_messages SET category = %s, extracted = %s, structured_at = %s "
+            "WHERE id = %s",
+            (category, Jsonb(extracted), structured_at, int(email_id)),
+        )
+
+
+def set_email_links(
+    email_id: int,
+    *,
+    company_id: int | None,
+    job_id: int | None,
+    application_id: int | None,
+) -> None:
+    """Set the FK links from an email to company/job/application rows."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE email_messages SET company_id = %s, job_id = %s, application_id = %s "
+            "WHERE id = %s",
+            (company_id, job_id, application_id, int(email_id)),
+        )
+
+
+def set_email_action_state(email_id: int, state: str) -> None:
+    """Advance the action lifecycle state of an email."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE email_messages SET action_state = %s WHERE id = %s",
+            (state, int(email_id)),
+        )
+
+
+def get_email_message(email_id: int) -> dict[str, Any] | None:
+    """Return one email_messages row by id, or None."""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_EMAIL_COLS} FROM email_messages WHERE id = %s",
+            (int(email_id),),
+        ).fetchone()
+
+
+def list_email_messages(
+    *,
+    category: str | None = None,
+    action_state: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Return email messages filtered by optional category and/or action_state."""
+    conditions: list[str] = []
+    params: list[Any] = []
+    if category is not None:
+        conditions.append("category = %s")
+        params.append(category)
+    if action_state is not None:
+        conditions.append("action_state = %s")
+        params.append(action_state)
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    params.append(limit)
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_EMAIL_COLS} FROM email_messages {where} ORDER BY id DESC LIMIT %s",
+            params,
+        ).fetchall()
+
+
+def get_sync_state(mailbox: str) -> dict[str, Any] | None:
+    """Return the sync cursor row for a mailbox, or None if never synced."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT mailbox, uidvalidity, last_uid, updated_at::text AS updated_at "
+            "FROM email_sync_state WHERE mailbox = %s",
+            (mailbox,),
+        ).fetchone()
+
+
+def set_sync_state(*, mailbox: str, uidvalidity: int | None, last_uid: int) -> None:
+    """Upsert the IMAP sync cursor for a mailbox."""
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO email_sync_state (mailbox, uidvalidity, last_uid, updated_at)
+            VALUES (%s, %s, %s, now())
+            ON CONFLICT (mailbox) DO UPDATE SET
+              uidvalidity = EXCLUDED.uidvalidity,
+              last_uid    = EXCLUDED.last_uid,
+              updated_at  = now()
+            """,
+            (mailbox, uidvalidity, last_uid),
+        )
+
+
+def get_application_by_job(job_id: int) -> dict[str, Any] | None:
+    """Return the application row (id, stage) for a job, or None if not applied."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, stage FROM applications WHERE job_id = %s", (int(job_id),)
+        ).fetchone()

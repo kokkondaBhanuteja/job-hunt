@@ -102,3 +102,14 @@ list_search_profiles = _impl.list_search_profiles
 list_active_search_profiles = _impl.list_active_search_profiles
 get_search_profile = _impl.get_search_profile
 set_search_profile_enabled = _impl.set_search_profile_enabled
+
+# email triage
+upsert_email_message = _impl.upsert_email_message
+set_email_structured = _impl.set_email_structured
+set_email_links = _impl.set_email_links
+set_email_action_state = _impl.set_email_action_state
+get_email_message = _impl.get_email_message
+list_email_messages = _impl.list_email_messages
+get_sync_state = _impl.get_sync_state
+set_sync_state = _impl.set_sync_state
+get_application_by_job = _impl.get_application_by_job

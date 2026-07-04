@@ -192,3 +192,13 @@ class EmailActionProposal(BaseModel):
     kind: str
     payload: dict[str, Any] | None = None
     state: str
+
+
+class RoleBrief(BaseModel):
+    """Structured interview-prep brief for a job."""
+
+    summary: str | None = None
+    key_skills: list[str] = []
+    interview_topics: list[str] = []
+    questions_to_ask: list[str] = []
+    fit_notes: str | None = None

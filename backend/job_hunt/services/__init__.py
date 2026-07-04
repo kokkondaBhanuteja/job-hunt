@@ -19,6 +19,7 @@ from job_hunt.services.answers import add_answer_template, list_answer_templates
 from job_hunt.services.applicant import get_applicant, set_applicant
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.apply import review_application
+from job_hunt.services.brief import brief_for_job
 from job_hunt.services.companies import company_history, get_company
 from job_hunt.services.context import get_context, set_context
 from job_hunt.services.crm import add_contact, list_contacts
@@ -54,6 +55,7 @@ from job_hunt.services.scoring import score_pending
 from job_hunt.services.semantic import embed_jobs, semantic_match
 
 __all__ = [
+    "brief_for_job",
     "discover",
     "discover_naukri",
     "enrich_pending_jobs",

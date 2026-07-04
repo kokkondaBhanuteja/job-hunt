@@ -134,6 +134,16 @@ def cmd_cover(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_brief(args: argparse.Namespace) -> int:
+    """Generate an interview-prep brief for a job."""
+    result = services.brief_for_job(args.job_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Generate a thank-you, follow-up, or negotiation message for a job."""
     result = services.draft_message_for_job(args.job_id, args.kind)
@@ -462,6 +472,10 @@ def build_parser() -> argparse.ArgumentParser:
     cv = sub.add_parser("cover", help="Generate a cover letter for a job")
     cv.add_argument("job_id", type=int)
     cv.set_defaults(func=cmd_cover)
+
+    brf = sub.add_parser("brief", help="Generate an interview-prep brief for a job")
+    brf.add_argument("job_id", type=int)
+    brf.set_defaults(func=cmd_brief)
 
     dr = sub.add_parser("draft", help="Generate a thank-you, follow-up, or negotiation message")
     dr.add_argument("kind", choices=["thank_you", "follow_up", "negotiation"])

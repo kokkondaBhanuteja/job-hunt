@@ -327,6 +327,34 @@ REJECTION_GAP = Prompt(
 )
 
 
+# ---------- interview-prep brief (job + company context → structured brief) ----------
+
+ROLE_BRIEF_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["summary"],
+    "properties": {
+        "summary": {"type": "string"},
+        "key_skills": {"type": "array", "items": {"type": "string"}},
+        "interview_topics": {"type": "array", "items": {"type": "string"}},
+        "questions_to_ask": {"type": "array", "items": {"type": "string"}},
+        "fit_notes": {"type": "string"},
+    },
+}
+
+ROLE_BRIEF = Prompt(
+    name="role_brief",
+    version=1,
+    system=(
+        "You are an interview-preparation analyst. Given a job description and company context, "
+        "produce a focused brief: summarize the role's core responsibilities, list the skills the "
+        "candidate should emphasize, predict the most likely interview topics, suggest smart "
+        "questions the candidate should ask the interviewer, and give an honest assessment of fit. "
+        "Output JSON only."
+    ),
+    schema=ROLE_BRIEF_SCHEMA,
+)
+
+
 # ---------- email triage (inbound email → structured fields) ----------
 
 EMAIL_STRUCTURE_SCHEMA: dict[str, Any] = {

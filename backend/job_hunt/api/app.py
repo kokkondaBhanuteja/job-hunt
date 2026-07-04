@@ -263,6 +263,12 @@ def cover(job_id: int) -> dict[str, Any]:
     return _unwrap(services.draft_cover_for_job(job_id))
 
 
+@api.post("/jobs/{job_id}/brief", response_model=dto.RoleBrief)
+def brief(job_id: int) -> dict[str, Any]:
+    """Generate a structured interview-prep brief for a job."""
+    return _unwrap(services.brief_for_job(job_id))
+
+
 @api.get("/jobs/{job_id}/drafts")
 def drafts(job_id: int) -> list[dict[str, Any]]:
     return services.list_drafts(job_id)

@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from random import uniform
-from typing import AsyncIterator
 
 from playwright.async_api import BrowserContext, async_playwright
 from playwright_stealth import Stealth

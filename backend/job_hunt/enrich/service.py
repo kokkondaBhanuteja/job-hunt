@@ -7,7 +7,8 @@ which emits JOB_ENRICHED — the event that (once handlers are wired) triggers r
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from job_hunt.enums import JobState
 from job_hunt.states import transition_job

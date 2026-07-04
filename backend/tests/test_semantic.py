@@ -10,7 +10,6 @@ import pytest
 from job_hunt.embed import EMBED_DIM, embed_text
 from job_hunt.storage import pg
 
-
 # ---------- embedder (pure) ----------
 
 

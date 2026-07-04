@@ -6,7 +6,7 @@ import pytest
 from job_hunt import states
 from job_hunt.enums import EventType, JobState, RunStatus
 from job_hunt.events import bus
-from job_hunt.states import InvalidTransition
+from job_hunt.states import InvalidTransitionError
 from job_hunt.storage import repo
 
 
@@ -44,7 +44,7 @@ def test_valid_transition_updates_state_audits_and_emits(tmp_db):
 
 def test_invalid_transition_raises(tmp_db):
     jid = _job(tmp_db)
-    with pytest.raises(InvalidTransition):
+    with pytest.raises(InvalidTransitionError):
         states.transition_job(jid, JobState.OFFER)  # discovered → offer is illegal
 
 

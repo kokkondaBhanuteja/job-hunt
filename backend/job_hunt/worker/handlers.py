@@ -10,7 +10,8 @@ browser or an LLM. `default_handlers` wires the real Naukri fetcher + scorer.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from job_hunt.enrich.service import Fetcher, enrich_job
 from job_hunt.enums import EventType

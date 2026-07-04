@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from job_hunt.enums import EventType
 from job_hunt.events import bus
-from job_hunt.storage import repo
 
 
 def _emit(ev_type: EventType, **payload) -> None:

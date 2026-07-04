@@ -20,10 +20,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from job_hunt.enums import (
     CLOSED_STATES,
@@ -285,7 +286,7 @@ CREATE INDEX IF NOT EXISTS idx_llm_calls_task ON llm_calls(task);
 
 def now_iso() -> str:
     """UTC ISO-8601 timestamp — used for all `*_at` columns."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def describe() -> str:
@@ -1025,7 +1026,7 @@ def count_runs_today() -> int:
 def reap_stale_runs(max_age_s: int = 3600) -> int:
     """Mark 'running' runs whose heartbeat is older than max_age_s as failed (crash recovery).
     Returns the number reaped."""
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     cutoff = (now_utc - timedelta(seconds=max_age_s)).isoformat(timespec="seconds")
     with connect() as conn:
         cur = conn.execute(

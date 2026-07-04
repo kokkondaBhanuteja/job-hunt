@@ -7,7 +7,8 @@ major domain transitions plus a few infra signals.
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from job_hunt.enums import EventClass, EventType
 from job_hunt.logging_config import get_logger

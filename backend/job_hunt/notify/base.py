@@ -7,7 +7,8 @@ The HTTP transport is injectable so senders are unit-testable without network.
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import httpx
 

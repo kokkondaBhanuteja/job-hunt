@@ -50,7 +50,7 @@ STATE_EVENT: dict[JobState, EventType] = {
 }
 
 
-class InvalidTransition(ValueError):
+class InvalidTransitionError(ValueError):
     """Raised when a state change isn't allowed by the machine."""
 
 
@@ -82,7 +82,7 @@ def transition_job(
     """
     current = JobState(repo.get_job_state(job_id))
     if not force and not can_transition(current, to_state):
-        raise InvalidTransition(f"job {job_id}: {current} → {to_state} not allowed")
+        raise InvalidTransitionError(f"job {job_id}: {current} → {to_state} not allowed")
 
     event = STATE_EVENT.get(to_state)
     repo.apply_transition(

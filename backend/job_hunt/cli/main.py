@@ -18,12 +18,12 @@ from pathlib import Path
 
 from job_hunt import services
 from job_hunt.llm import chat  # AI Gateway entrypoint
+
 # Ollama-provider liveness (selfcheck)
 from job_hunt.llm.providers.ollama import installed_models, is_alive
 from job_hunt.llm.registry import resolve as resolve_llm
 from job_hunt.sources.login import login_sync
 from job_hunt.storage import repo
-
 
 VAULT_DIR = Path(__file__).resolve().parents[2] / "data" / "resumes"
 

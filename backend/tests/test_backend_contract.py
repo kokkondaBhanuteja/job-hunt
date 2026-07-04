@@ -111,7 +111,9 @@ def test_state_check_matches_enum_parity(backend):
     for state in JobState:
         backend.set_job_state(jid, state)  # must not raise on either backend
         assert backend.get_job_state(jid) == str(state)
-    with pytest.raises(Exception):
+    # noqa target: the CHECK-violation type differs per backend (sqlite3.IntegrityError vs
+    # psycopg.errors.CheckViolation), so a broad Exception is the correct cross-backend assert.
+    with pytest.raises(Exception):  # noqa: B017
         backend.set_job_state(jid, "definitely-not-a-state")
 
 
@@ -129,7 +131,9 @@ def test_pg_raw_select_readonly_blocks_piggyback():
         pytest.skip("Postgres not reachable")
     pg.init_db()
     before = pg.raw_select("SELECT count(*) AS c FROM jobs")[0]["c"]
-    with pytest.raises(Exception):
+    # psycopg raises one of several error types for a read-only-tx violation / multi-statement;
+    # a broad Exception is the right assert here.
+    with pytest.raises(Exception):  # noqa: B017
         pg.raw_select("SELECT 1; DELETE FROM jobs")
     after = pg.raw_select("SELECT count(*) AS c FROM jobs")[0]["c"]
     assert before == after  # nothing deleted

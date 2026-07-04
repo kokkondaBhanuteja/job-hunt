@@ -14,6 +14,11 @@ import json
 import os
 
 from job_hunt.enums import LLMProvider as ProviderKind
+from job_hunt.enums import LLMTask
+from job_hunt.llm.base import LLMError, LLMProvider
+from job_hunt.llm.providers.ollama import OllamaProvider
+from job_hunt.llm.providers.openai_compat import OpenAICompatProvider
+from job_hunt.llm.providers.stub import StubProvider
 from job_hunt.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -22,11 +27,6 @@ logger = get_logger(__name__)
 def _is_free(model: str) -> bool:
     """Local/stub models cost nothing — an Ollama tag ('qwen2.5:7b') or the test stub."""
     return ":" in model or model.lower() == "stub"
-from job_hunt.enums import LLMTask
-from job_hunt.llm.base import LLMError, LLMProvider
-from job_hunt.llm.providers.openai_compat import OpenAICompatProvider
-from job_hunt.llm.providers.ollama import OllamaProvider
-from job_hunt.llm.providers.stub import StubProvider
 
 # Legacy defaults (preserve v0 behavior when LLM_* envs are unset).
 SCORING_MODEL = os.getenv("OLLAMA_SCORING_MODEL", "qwen2.5:7b")

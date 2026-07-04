@@ -15,7 +15,6 @@ from job_hunt.services.analytics import (
 )
 from job_hunt.services.answers import add_answer_template, list_answer_templates, suggest_answer
 from job_hunt.services.applications import advance_stage, log_application
-from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.apply import review_application
 from job_hunt.services.companies import company_history, get_company
 from job_hunt.services.crm import add_contact, list_contacts
@@ -27,6 +26,7 @@ from job_hunt.services.drafting import (
     tailor_for_job,
 )
 from job_hunt.services.enrichment import enrich_pending_jobs
+from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import parse_resume_vault
 from job_hunt.services.review import (
@@ -35,9 +35,9 @@ from job_hunt.services.review import (
     list_resume_vault,
     list_top_matches,
 )
-from job_hunt.services.semantic import embed_jobs, semantic_match
 from job_hunt.services.runs import get_run, list_runs, request_cancel, run_discovery
 from job_hunt.services.scoring import score_pending
+from job_hunt.services.semantic import embed_jobs, semantic_match
 
 __all__ = [
     "discover",

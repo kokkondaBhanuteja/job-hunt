@@ -5,8 +5,8 @@ handler registry through the real event bus.
 """
 from __future__ import annotations
 
-from job_hunt.events import bus
 from job_hunt.enums import JobState
+from job_hunt.events import bus
 from job_hunt.states import mark_discovered
 from job_hunt.storage import repo
 from job_hunt.worker.handlers import build_handlers

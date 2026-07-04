@@ -69,7 +69,7 @@ class Settings(BaseModel):
         return v
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         cap_raw = os.getenv("WORKER_DAILY_CAP", "30")
         try:
             cap = int(cap_raw)

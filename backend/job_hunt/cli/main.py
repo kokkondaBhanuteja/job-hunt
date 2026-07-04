@@ -134,6 +134,17 @@ def cmd_cover(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_draft(args: argparse.Namespace) -> int:
+    """Generate a thank-you, follow-up, or negotiation message for a job."""
+    result = services.draft_message_for_job(args.job_id, args.kind)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"{args.kind} draft #{result['draft_id']} for job {args.job_id}:\n")
+    print(result["body"])
+    return 0
+
+
 def cmd_score(args: argparse.Namespace) -> int:
     try:
         summary = services.score_pending(verbose=args.verbose)
@@ -451,6 +462,11 @@ def build_parser() -> argparse.ArgumentParser:
     cv = sub.add_parser("cover", help="Generate a cover letter for a job")
     cv.add_argument("job_id", type=int)
     cv.set_defaults(func=cmd_cover)
+
+    dr = sub.add_parser("draft", help="Generate a thank-you, follow-up, or negotiation message")
+    dr.add_argument("kind", choices=["thank_you", "follow_up", "negotiation"])
+    dr.add_argument("job_id", type=int)
+    dr.set_defaults(func=cmd_draft)
 
     s = sub.add_parser("score", help="LLM-score every pending job × every variant")
     s.add_argument("--verbose", action="store_true")

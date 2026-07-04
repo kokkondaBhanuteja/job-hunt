@@ -112,6 +112,9 @@ class DraftKind(StrEnum):
 
     COVER = "cover"
     OUTREACH = "outreach"
+    THANK_YOU = "thank_you"
+    FOLLOW_UP = "follow_up"
+    NEGOTIATION = "negotiation"
 
 
 class ContextFormat(StrEnum):

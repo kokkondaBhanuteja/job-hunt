@@ -129,6 +129,11 @@ class ApplicantIn(BaseModel):
     referral_source: str | None = None
 
 
+class DraftIn(BaseModel):
+    kind: str
+    email_id: int | None = None
+
+
 class ProposeIn(BaseModel):
     kind: str
     label: str | None = None
@@ -261,6 +266,12 @@ def cover(job_id: int) -> dict[str, Any]:
 @api.get("/jobs/{job_id}/drafts")
 def drafts(job_id: int) -> list[dict[str, Any]]:
     return services.list_drafts(job_id)
+
+
+@api.post("/jobs/{job_id}/draft")
+def draft_message(job_id: int, body: DraftIn) -> dict[str, Any]:
+    """Generate a thank-you, follow-up, or negotiation message for a job."""
+    return _unwrap(services.draft_message_for_job(job_id, body.kind, email_id=body.email_id))
 
 
 @api.post("/jobs/{job_id}/outreach")

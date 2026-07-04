@@ -10,12 +10,20 @@ import json
 from typing import Any
 
 from job_hunt.draft.cover import generate_cover_letter
+from job_hunt.draft.messages import generate_message
 from job_hunt.draft.outreach import generate_outreach
 from job_hunt.enums import DraftKind, JobState
+from job_hunt.logging_config import get_logger
 from job_hunt.resume.tailor import tailor_resume
 from job_hunt.services.context import context_preamble
 from job_hunt.states import advance_if_legal
 from job_hunt.storage import repo
+
+logger = get_logger(__name__)
+
+_MESSAGE_KINDS: frozenset[DraftKind] = frozenset({
+    DraftKind.THANK_YOU, DraftKind.FOLLOW_UP, DraftKind.NEGOTIATION,
+})
 
 
 def _job_and_variant(job_id: int) -> tuple[dict[str, Any] | None, Any, dict[str, Any]]:
@@ -76,6 +84,49 @@ def draft_outreach_for_job(job_id: int, contact_name: str = "") -> dict[str, Any
     draft_id = repo.save_draft(job_id=job_id, kind=DraftKind.OUTREACH, body=body)
     advance_if_legal(job_id, JobState.DRAFTED, reason="outreach drafted")
     return {"job_id": job_id, "draft_id": draft_id, "kind": str(DraftKind.OUTREACH), "body": body}
+
+
+def draft_message_for_job(
+    job_id: int, kind: str, *, email_id: int | None = None,
+) -> dict[str, Any]:
+    """Generate + store a thank-you, follow-up, or negotiation message for a job."""
+    try:
+        dk = DraftKind(kind)
+    except ValueError:
+        return {"error": f"unknown kind {kind!r}"}
+    if dk not in _MESSAGE_KINDS:
+        return {"error": f"kind {kind!r} is not a message-draft type (use thank_you, follow_up, or negotiation)"}
+
+    repo.init_db()
+    job, _variant, resume_json = _job_and_variant(job_id)
+    if job is None:
+        return {"error": f"no job with id={job_id}"}
+
+    thread_summary = ""
+    if email_id is not None:
+        email_row = repo.get_email_message(email_id)
+        if email_row is None:
+            return {"error": f"no email with id={email_id}"}
+        raw = email_row["extracted"]
+        if raw:
+            try:
+                thread_summary = json.dumps(json.loads(raw))
+            except (TypeError, ValueError):
+                logger.warning("email %d extracted field is not valid JSON — skipping", email_id)
+
+    jd_text = job["description_full"] or job["description"] or ""
+    body = generate_message(
+        kind,
+        jd_text=jd_text,
+        resume_json=resume_json,
+        company=job["company"],
+        role=job["title"],
+        user_context=context_preamble(),
+        thread_summary=thread_summary,
+    )
+    draft_id = repo.save_draft(job_id=job_id, kind=dk, body=body)
+    advance_if_legal(job_id, JobState.DRAFTED, reason=f"{kind} message drafted")
+    return {"draft_id": draft_id, "kind": str(dk), "body": body}
 
 
 def list_drafts(job_id: int) -> list[dict[str, Any]]:

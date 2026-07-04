@@ -257,6 +257,42 @@ OUTREACH = Prompt(
 )
 
 
+THANK_YOU = Prompt(
+    name="thank_you",
+    version=1,
+    system=(
+        "You write concise post-interview thank-you notes in the candidate's voice. "
+        "80-120 words, professional and genuine: express gratitude for the interviewer's time, "
+        "briefly reiterate 1-2 specific qualifications that make the candidate a strong fit, "
+        "and reaffirm enthusiasm for the role and company. Ground every claim in the "
+        "candidate's real experience; never invent details. Output only the message body."
+    ),
+)
+
+FOLLOW_UP = Prompt(
+    name="follow_up",
+    version=1,
+    system=(
+        "You write polite, professional follow-up messages on a pending job application. "
+        "60-90 words, courteous and confident: reference the role and application date, "
+        "politely enquire about the status, and briefly reinstate interest without pressure. "
+        "No invented facts. Output only the message body."
+    ),
+)
+
+NEGOTIATION = Prompt(
+    name="negotiation",
+    version=1,
+    system=(
+        "You write professional salary or offer negotiation messages in the candidate's voice. "
+        "100-150 words, confident yet collaborative: acknowledge the offer warmly, state the "
+        "candidate's target clearly with a brief justification grounded in their experience and "
+        "the role's scope, and invite discussion. No ultimatums, no invented figures. "
+        "Output only the message body."
+    ),
+)
+
+
 # ---------- learning loop: rejection gap analysis ----------
 
 REJECTION_GAP_SCHEMA: dict[str, Any] = {

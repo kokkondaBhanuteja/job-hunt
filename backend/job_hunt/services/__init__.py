@@ -25,6 +25,7 @@ from job_hunt.services.crm import add_contact, list_contacts
 from job_hunt.services.discovery import discover, discover_naukri
 from job_hunt.services.drafting import (
     draft_cover_for_job,
+    draft_message_for_job,
     draft_outreach_for_job,
     list_drafts,
     tailor_for_job,
@@ -78,6 +79,7 @@ __all__ = [
     "tailor_for_job",
     "draft_cover_for_job",
     "draft_outreach_for_job",
+    "draft_message_for_job",
     "list_drafts",
     "add_contact",
     "list_contacts",

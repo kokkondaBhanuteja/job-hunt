@@ -171,6 +171,13 @@ Every declined rule is a *deferral*, not a rejection. When a "Revisit at N" trig
 - Public function docstring coverage drops below **60%** → make rule 3
   mandatory across storage too.
 
+**Triggered — action pending (as of the email-triage build):**
+- `services/` is at **19 files** (≥ 15) → introduce `services/<domain>/` subfolders
+  (e.g. group `email_triage` + `applicant` + `apply` under an `outreach`/`email` domain).
+- `services/email_triage.py` is **552 lines** — over the rule-9 400-line soft limit → split
+  the v2 action pipeline (propose/confirm/dismiss) into its own module.
+- `api/app.py` is **439 lines** — watch the 500-line split line as endpoints grow.
+
 ---
 
 ## Where things go
@@ -188,6 +195,7 @@ Every declined rule is a *deferral*, not a rejection. When a "Revisit at N" trig
 | A background job handler | `job_hunt/worker/handlers.py` |
 | A source plugin | `job_hunt/plugins/<name>.py` + `register()` in that file |
 | An LLM provider | `job_hunt/llm/providers/<name>.py` |
+| An email / IMAP reader function | `job_hunt/email/reader.py` (stdlib `imaplib` / `email` only — no new deps) |
 | An enum value | `job_hunt/enums.py` (mirror in frontend if it's a state) |
 | A state machine transition | `job_hunt/states.py::ALLOWED_TRANSITIONS` |
 | An event type | `job_hunt/enums.py::EventType` + emit site |

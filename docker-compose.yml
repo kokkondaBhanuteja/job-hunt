@@ -21,5 +21,66 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: jobhunt-api
+    # Run migrations before the server starts (init_db is idempotent).
+    # YAML list form avoids folded-scalar ambiguity with &&.
+    command:
+      - sh
+      - -c
+      - "python -c 'from job_hunt.storage import repo; repo.init_db()' && hunt serve-api --host 0.0.0.0 --port 8000"
+    environment:
+      DB_BACKEND: postgres
+      DATABASE_URL: postgresql://jobhunt:jobhunt@db:5432/jobhunt
+      OLLAMA_URL: http://host.docker.internal:11434
+    env_file:
+      - path: backend/.env.local
+        required: false
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - jobhunt_data:/app/backend/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: jobhunt-worker
+    command: hunt worker
+    environment:
+      DB_BACKEND: postgres
+      DATABASE_URL: postgresql://jobhunt:jobhunt@db:5432/jobhunt
+      OLLAMA_URL: http://host.docker.internal:11434
+    env_file:
+      - path: backend/.env.local
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - jobhunt_data:/app/backend/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ""
+    container_name: jobhunt-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
 volumes:
   jobhunt_pgdata:
+  jobhunt_data:

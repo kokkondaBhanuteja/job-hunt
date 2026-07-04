@@ -77,8 +77,11 @@ export const STORAGE_KEYS = {
   apiToken: "apiToken",
 } as const;
 
-/** Default API base URL when localStorage is empty. */
-export const DEFAULT_API_BASE = "http://127.0.0.1:8000";
+/** Default API base URL when localStorage is empty.
+ * VITE_API_BASE is injected at build time: the Docker build passes "" so all
+ * API calls are relative (nginx proxies /api/* to the backend container).
+ * In dev the var is unset → undefined ?? fallback → the usual 127.0.0.1:8000. */
+export const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 
 /** How often the Runs table re-polls (ms). */
 export const RUNS_POLL_MS = 4000;

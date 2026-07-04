@@ -28,7 +28,15 @@ from job_hunt.services.drafting import (
     list_drafts,
     tailor_for_job,
 )
-from job_hunt.services.email_triage import get_email, list_inbox, structure_pending, sync_inbox
+from job_hunt.services.email_triage import (
+    confirm_action,
+    dismiss_action,
+    get_email,
+    list_inbox,
+    propose_action,
+    structure_pending,
+    sync_inbox,
+)
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
@@ -90,4 +98,7 @@ __all__ = [
     "structure_pending",
     "list_inbox",
     "get_email",
+    "propose_action",
+    "confirm_action",
+    "dismiss_action",
 ]

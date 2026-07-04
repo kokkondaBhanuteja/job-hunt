@@ -200,6 +200,29 @@ CREATE TABLE IF NOT EXISTS user_context (
     updated_at TEXT NOT NULL
 );
 
+-- Standing application answers a résumé does not carry (single active row).
+CREATE TABLE IF NOT EXISTS applicant_profile (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    first_name          TEXT,
+    last_name           TEXT,
+    email               TEXT,
+    phone               TEXT,
+    location            TEXT,
+    linkedin_url        TEXT,
+    github_url          TEXT,
+    portfolio_url       TEXT,
+    work_authorization  TEXT,
+    needs_sponsorship   INTEGER,
+    willing_to_relocate INTEGER,
+    notice_period       TEXT,
+    expected_ctc        TEXT,
+    current_ctc         TEXT,
+    years_experience    TEXT,
+    referral_source     TEXT,
+    extra               TEXT,          -- JSON: {{question_pattern: answer}}
+    updated_at          TEXT NOT NULL
+);
+
 -- What outcomes taught us (feeds future tailoring / variant preference).
 CREATE TABLE IF NOT EXISTS learnings (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -705,6 +728,34 @@ def get_user_context() -> sqlite3.Row | None:
     """Return the single user-context row, or None if unset."""
     with connect() as conn:
         return conn.execute("SELECT * FROM user_context WHERE id = 1").fetchone()
+
+
+_APPLICANT_COLS = (
+    "first_name", "last_name", "email", "phone", "location", "linkedin_url",
+    "github_url", "portfolio_url", "work_authorization", "needs_sponsorship",
+    "willing_to_relocate", "notice_period", "expected_ctc", "current_ctc",
+    "years_experience", "referral_source", "extra",
+)
+
+
+def set_applicant_profile(*, fields: dict[str, Any]) -> None:
+    """Upsert the single applicant-profile row (only known columns are written)."""
+    cols = [c for c in _APPLICANT_COLS if c in fields]
+    assignments = ", ".join(f"{c} = excluded.{c}" for c in cols)
+    placeholders = ", ".join("?" for _ in cols)
+    with connect() as conn:
+        conn.execute(
+            f"INSERT INTO applicant_profile (id, {', '.join(cols)}, updated_at) "
+            f"VALUES (1, {placeholders}, ?) "
+            f"ON CONFLICT(id) DO UPDATE SET {assignments}, updated_at = excluded.updated_at",
+            (*[fields[c] for c in cols], now_iso()),
+        )
+
+
+def get_applicant_profile() -> sqlite3.Row | None:
+    """Return the single applicant-profile row, or None if unset."""
+    with connect() as conn:
+        return conn.execute("SELECT * FROM applicant_profile WHERE id = 1").fetchone()
 
 
 def save_learning(

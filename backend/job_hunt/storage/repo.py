@@ -93,6 +93,10 @@ reap_stale_runs = _impl.reap_stale_runs
 set_user_context = _impl.set_user_context
 get_user_context = _impl.get_user_context
 
+# applicant profile
+set_applicant_profile = _impl.set_applicant_profile
+get_applicant_profile = _impl.get_applicant_profile
+
 create_search_profile = _impl.create_search_profile
 list_search_profiles = _impl.list_search_profiles
 list_active_search_profiles = _impl.list_active_search_profiles

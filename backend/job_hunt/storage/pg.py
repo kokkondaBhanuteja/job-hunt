@@ -352,6 +352,37 @@ def get_user_context() -> dict[str, Any] | None:
         ).fetchone()
 
 
+_APPLICANT_COLS = (
+    "first_name", "last_name", "email", "phone", "location", "linkedin_url",
+    "github_url", "portfolio_url", "work_authorization", "needs_sponsorship",
+    "willing_to_relocate", "notice_period", "expected_ctc", "current_ctc",
+    "years_experience", "referral_source", "extra",
+)
+
+
+def set_applicant_profile(*, fields: dict[str, Any]) -> None:
+    """Upsert the single applicant-profile row (only known columns are written)."""
+    cols = [c for c in _APPLICANT_COLS if c in fields]
+    assignments = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols)
+    placeholders = ", ".join("%s" for _ in cols)
+    with connect() as conn:
+        conn.execute(
+            f"INSERT INTO applicant_profile (id, {', '.join(cols)}, updated_at) "
+            f"VALUES (1, {placeholders}, now()) "
+            f"ON CONFLICT (id) DO UPDATE SET {assignments}, updated_at = now()",
+            tuple(fields[c] for c in cols),
+        )
+
+
+def get_applicant_profile() -> dict[str, Any] | None:
+    """Return the single applicant-profile row, or None if unset."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT *, extra::text AS extra, updated_at::text AS updated_at "
+            "FROM applicant_profile WHERE id = 1"
+        ).fetchone()
+
+
 def save_learning(
     *, job_id: int, variant_id: int | None, kind: str, payload: dict[str, Any]
 ) -> int:

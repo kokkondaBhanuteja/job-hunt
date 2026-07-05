@@ -38,6 +38,7 @@ from job_hunt.enums import (
     EventType,
     JobState,
     JobStatus,
+    PostStatus,
     ReplyType,
     RunStatus,
     sql_in_list,
@@ -372,6 +373,18 @@ CREATE TABLE IF NOT EXISTS email_actions (
     executed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_email_actions_email_id ON email_actions(email_id);
+
+-- AI-drafted tech post drafts for LinkedIn/X — never auto-posted.
+CREATE TABLE IF NOT EXISTS content_posts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic       TEXT,
+    source_url  TEXT,
+    body        TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT '{PostStatus.DRAFT}'
+                    CHECK (status IN ({sql_in_list(PostStatus)})),
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status);
 """
 
 
@@ -1455,4 +1468,49 @@ def set_email_action_result(
         conn.execute(
             "UPDATE email_actions SET state = ?, executed_at = ? WHERE id = ?",
             (state, executed_at, int(action_id)),
+        )
+
+
+# ---------- content posts ----------
+
+
+def create_post(*, topic: str | None, source_url: str | None, body: str) -> int:
+    """Insert a new content post draft and return its id."""
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO content_posts (topic, source_url, body, created_at) VALUES (?, ?, ?, ?)",
+            (topic, source_url, body, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def get_post(post_id: int) -> dict[str, Any] | None:
+    """Return one content_posts row by id, or None."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM content_posts WHERE id = ?", (int(post_id),)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_posts(*, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    """Return content posts ordered newest-first, optionally filtered by status."""
+    with connect() as conn:
+        if status is not None:
+            rows = conn.execute(
+                "SELECT * FROM content_posts WHERE status = ? ORDER BY id DESC LIMIT ?",
+                (status, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM content_posts ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_post_status(post_id: int, status: str) -> None:
+    """Update the status column of a content_posts row."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE content_posts SET status = ? WHERE id = ?", (status, int(post_id))
         )

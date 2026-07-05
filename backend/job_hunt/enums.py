@@ -89,6 +89,14 @@ class EmailActionKind(StrEnum):
     ARCHIVE = "archive"
 
 
+class PostStatus(StrEnum):
+    """Lifecycle status of an AI-drafted tech post — never auto-posted."""
+
+    DRAFT = "draft"
+    POSTED = "posted"
+    DISMISSED = "dismissed"
+
+
 class LLMProvider(StrEnum):
     """Supported LLM backends."""
 

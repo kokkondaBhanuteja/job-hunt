@@ -207,3 +207,14 @@ class RoleBrief(BaseModel):
     interview_topics: list[str] = []
     questions_to_ask: list[str] = []
     fit_notes: str | None = None
+
+
+class Post(BaseModel):
+    """A content post draft — never auto-posted; always reviewed before posting."""
+
+    id: int
+    topic: str | None = None
+    source_url: str | None = None
+    body: str
+    status: str
+    created_at: str

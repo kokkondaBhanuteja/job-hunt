@@ -216,6 +216,35 @@ def company(name: str) -> dict[str, Any]:
     return services.company_history(name)
 
 
+# ---------- Content Post Drafts ----------
+
+
+@mcp.tool()
+def generate_post(topic: str = "") -> dict[str, Any]:
+    """Draft a new tech post grounded in a current trending topic (read/generate only — never posts).
+
+    Args:
+        topic: specific topic to write about (leave blank to auto-pick from HN / dev.to)
+
+    Returns:
+        {post_id, topic, source_url, body} or {error: str}
+    """
+    return services.generate_post(topic=topic if topic else None)
+
+
+@mcp.tool()
+def list_posts(status: str = "") -> list[dict[str, Any]]:
+    """List stored post drafts, optionally filtered by status.
+
+    Args:
+        status: filter by 'draft', 'posted', or 'dismissed' — leave blank for all
+
+    Returns:
+        list of {id, topic, source_url, body, status, created_at}
+    """
+    return services.list_posts(status=status if status else None)
+
+
 # ---------- Run ----------
 
 

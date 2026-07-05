@@ -21,6 +21,12 @@ from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.apply import review_application
 from job_hunt.services.brief import brief_for_job
 from job_hunt.services.companies import company_history, get_company
+from job_hunt.services.content import (
+    generate_and_notify_post,
+    generate_post,
+    list_posts,
+    set_post_status,
+)
 from job_hunt.services.context import get_context, set_context
 from job_hunt.services.crm import add_contact, list_contacts
 from job_hunt.services.discovery import discover, discover_naukri
@@ -110,4 +116,8 @@ __all__ = [
     "propose_action",
     "confirm_action",
     "dismiss_action",
+    "generate_post",
+    "list_posts",
+    "set_post_status",
+    "generate_and_notify_post",
 ]

@@ -45,6 +45,11 @@ def build_scheduler() -> BlockingScheduler:
     from job_hunt.services.analytics import send_daily_report
 
     sched.add_job(send_daily_report, "cron", hour=20, minute=0, id="daily_report")
+
+    # Tri-daily content post draft (never auto-posts — just notifies the user).
+    from job_hunt.services.content import generate_and_notify_post
+
+    sched.add_job(generate_and_notify_post, "interval", days=3, id="content_post")
     return sched
 
 

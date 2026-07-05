@@ -122,3 +122,9 @@ create_email_action = _impl.create_email_action
 get_email_action = _impl.get_email_action
 get_latest_action_for_email = _impl.get_latest_action_for_email
 set_email_action_result = _impl.set_email_action_result
+
+# content posts
+create_post = _impl.create_post
+get_post = _impl.get_post
+list_posts = _impl.list_posts
+set_post_status = _impl.set_post_status

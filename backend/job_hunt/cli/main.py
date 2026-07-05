@@ -437,6 +437,32 @@ def cmd_email_dismiss(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_post(args: argparse.Namespace) -> int:
+    """Draft a new tech post grounded in a current trending topic."""
+    result = services.generate_post(topic=args.topic if args.topic else None)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"[post_id={result['post_id']}] topic: {result['topic']}")
+    print(f"source: {result.get('source_url') or '(none)'}\n")
+    print(result["body"])
+    return 0
+
+
+def cmd_posts(args: argparse.Namespace) -> int:
+    """List stored post drafts."""
+    rows = services.list_posts(status=args.status if args.status else None)
+    if not rows:
+        print("(no posts)")
+        return 0
+    for r in rows:
+        post_id = r.get("id", "?")
+        status = r.get("status", "?")
+        topic = r.get("topic") or "(no topic)"
+        print(f"[{post_id:>4}] {status:<10} {topic}")
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -546,6 +572,14 @@ def build_parser() -> argparse.ArgumentParser:
     sa.add_argument("--host", default="127.0.0.1")
     sa.add_argument("--port", type=int, default=8000)
     sa.set_defaults(func=cmd_serve_api)
+
+    pt = sub.add_parser("post", help="Draft a new tech post grounded in a current trending topic")
+    pt.add_argument("--topic", default=None, help="specific topic (omit to auto-pick from HN/dev.to)")
+    pt.set_defaults(func=cmd_post)
+
+    pts = sub.add_parser("posts", help="List stored post drafts")
+    pts.add_argument("--status", default=None, help="filter by status (draft/posted/dismissed)")
+    pts.set_defaults(func=cmd_posts)
 
     mc = sub.add_parser("serve-mcp", help="Start the MCP server (stdio)")
     mc.set_defaults(func=cmd_serve_mcp)

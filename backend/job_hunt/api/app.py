@@ -150,6 +150,14 @@ class EmailActionIn(BaseModel):
     label: str | None = None
 
 
+class PostIn(BaseModel):
+    topic: str | None = None
+
+
+class PostStatusIn(BaseModel):
+    status: str
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -467,6 +475,24 @@ def _safe_fill(job_id: int) -> None:
         services.prepare_form_fill(job_id)
     except Exception:  # noqa: BLE001 — background task; log and swallow
         logger.exception("form-fill failed for job %s", job_id)
+
+
+@api.get("/posts", response_model=list[dto.Post])
+def list_posts(status: str | None = None) -> list[dict[str, Any]]:
+    """Return stored post drafts, optionally filtered by status."""
+    return services.list_posts(status=status)
+
+
+@api.post("/posts", response_model=dto.Post, status_code=201)
+def create_post(body: PostIn) -> dict[str, Any]:
+    """Generate a new AI post draft grounded in a current tech topic."""
+    return _unwrap(services.generate_post(topic=body.topic))
+
+
+@api.patch("/posts/{post_id}", response_model=dto.Post)
+def update_post_status(post_id: int, body: PostStatusIn) -> dict[str, Any]:
+    """Transition a post draft to a new status (draft → posted | dismissed)."""
+    return _unwrap(services.set_post_status(post_id, body.status))
 
 
 app.include_router(api)

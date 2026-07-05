@@ -487,3 +487,19 @@ SCREENING_ANSWER = Prompt(
     ),
     schema=_SCREENING_ANSWER_SCHEMA,
 )
+
+
+# ---------- content post drafting (LinkedIn / X — prose, no schema) ----------
+
+POST_DRAFT = Prompt(
+    name="post_draft",
+    version=1,
+    system=(
+        "You write SHORT (~120-180 words), opinionated, FIRST-PERSON LinkedIn/X posts in the "
+        "candidate's authentic voice. Tie the given current tech topic to the candidate's ACTUAL "
+        "work and expertise from their context. Take a clear, specific angle or hot-take — NOT a "
+        "summary, NOT a listicle. Sound human and direct, like something a real engineer would "
+        "post. No hashtag spam (1-3 max, only when they add real signal). "
+        "NEVER produce a generic template. Output only the post body — no preamble, no labels."
+    ),
+)

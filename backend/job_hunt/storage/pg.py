@@ -1094,3 +1094,51 @@ def set_email_action_result(
             "UPDATE email_actions SET state = %s, executed_at = %s WHERE id = %s",
             (state, executed_at, int(action_id)),
         )
+
+
+# ---------- content posts ----------
+
+
+def create_post(*, topic: str | None, source_url: str | None, body: str) -> int:
+    """Insert a new content post draft and return its id."""
+    with connect() as conn:
+        row = conn.execute(
+            "INSERT INTO content_posts (topic, source_url, body, created_at) "
+            "VALUES (%s, %s, %s, now()::text) RETURNING id",
+            (topic, source_url, body),
+        ).fetchone()
+        return int(row["id"])
+
+
+def get_post(post_id: int) -> dict[str, Any] | None:
+    """Return one content_posts row by id, or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, topic, source_url, body, status, created_at "
+            "FROM content_posts WHERE id = %s",
+            (int(post_id),),
+        ).fetchone()
+
+
+def list_posts(*, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    """Return content posts ordered newest-first, optionally filtered by status."""
+    with connect() as conn:
+        if status is not None:
+            return conn.execute(
+                "SELECT id, topic, source_url, body, status, created_at "
+                "FROM content_posts WHERE status = %s ORDER BY id DESC LIMIT %s",
+                (status, limit),
+            ).fetchall()
+        return conn.execute(
+            "SELECT id, topic, source_url, body, status, created_at "
+            "FROM content_posts ORDER BY id DESC LIMIT %s",
+            (limit,),
+        ).fetchall()
+
+
+def set_post_status(post_id: int, status: str) -> None:
+    """Update the status column of a content_posts row."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE content_posts SET status = %s WHERE id = %s", (status, int(post_id))
+        )

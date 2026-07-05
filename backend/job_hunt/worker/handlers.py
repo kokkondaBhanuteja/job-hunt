@@ -102,14 +102,16 @@ def on_scored(event: dict[str, Any]) -> None:
         title: str = job.get("title") or ""
         company: str = job.get("company") or ""
         apply_url: str = job.get("apply_url") or ""
-        get_notifier().send(
-            f"\U0001f514 New match: {title} @ {company} — score {fit_score}\n{apply_url}"
-        )
+        # Write the dedup marker BEFORE sending — a partially-failed send can't
+        # trigger a duplicate alert on the next dispatch.
         repo.save_learning(
             job_id=job_id,
             variant_id=None,
             kind=LearningKind.ALERT,
             payload={"fit_score": fit_score, "title": title, "company": company},
+        )
+        get_notifier().send(
+            f"\U0001f514 New match: {title} @ {company} — score {fit_score}\n{apply_url}"
         )
     except Exception:
         logger.exception("on_scored: unhandled error for event %s", event.get("id"))

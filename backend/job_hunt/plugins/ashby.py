@@ -38,7 +38,12 @@ class AshbySource:
         found = 0
         new = 0
         jobs: list[dict[str, Any]] = []
-        for row in _fetch(token):
+        try:
+            raw_jobs = _fetch(token)
+        except Exception:  # noqa: BLE001
+            logger.warning("ashby: board fetch failed for token %r", token, exc_info=True)
+            return {"found": 0, "new": 0, "jobs": []}
+        for row in raw_jobs:
             try:
                 title = row.get("title")
                 if not title:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 
 from job_hunt import services
 from job_hunt.resume import parser as resume_parser
@@ -138,3 +139,52 @@ def test_list_variants_includes_has_body(tmp_db, monkeypatch):
     assert slugs["acme-be"]["has_body"] is True
     assert slugs["acme-be"]["company"] == "Acme"
     assert slugs["generic"]["has_body"] is False
+
+
+def test_migration_makes_source_path_nullable(tmp_path, monkeypatch):
+    """C1 regression: pre-0024 DB (source_path NOT NULL) is rebuilt by init_db().
+
+    Simulates an existing install: creates the old schema, runs init_db() to apply
+    the SQLite migration, then asserts that upsert_variant_from_text (which writes
+    source_path=NULL) succeeds and that the existing file-backed row survives intact.
+    """
+    from job_hunt.storage import db
+
+    path = tmp_path / "old.db"
+    monkeypatch.setattr(db, "DB_PATH", path)
+
+    # Simulate a pre-0024 DB: source_path NOT NULL, no company/body columns.
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE resume_variants (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug        TEXT UNIQUE NOT NULL,
+                source_path TEXT NOT NULL,
+                parsed_json TEXT NOT NULL,
+                tags        TEXT NOT NULL,
+                updated_at  TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO resume_variants (slug, source_path, parsed_json, tags, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("file-variant", "/some/file.tex", '{"headline":"Old"}', '["python"]',
+             "2024-01-01T00:00:00"),
+        )
+
+    # Run migration — must make source_path nullable without losing the existing row.
+    db.init_db(path)
+
+    # Text-variant save must now succeed (would raise IntegrityError on un-migrated DB).
+    monkeypatch.setattr(resume_parser, "chat_json", lambda *a, **kw: _CANNED_PARSED)
+    result = services.save_variant_from_text("acme-be", company="Acme", body=_BODY)
+    assert "error" not in result, f"Expected success, got: {result}"
+    assert result["slug"] == "acme-be"
+
+    # Existing file-backed row must still be present and correct.
+    row = db.get_resume_variant_by_slug("file-variant")
+    assert row is not None
+    assert row["source_path"] == "/some/file.tex"
+    assert row["slug"] == "file-variant"

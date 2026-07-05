@@ -27,6 +27,7 @@ def save_variant_from_text(
 
     Returns {"slug", "id", "company"} on success, {"error": …} on failure.
     """
+    repo.init_db()
     if not body or not body.strip():
         return {"error": "body must not be empty"}
     parsed = parse_resume_text(body)

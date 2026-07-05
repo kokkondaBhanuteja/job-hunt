@@ -470,14 +470,60 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "events", "dead_at", "TEXT")
     _ensure_column(conn, "llm_calls", "prompt_name", "TEXT")
     _ensure_column(conn, "llm_calls", "prompt_version", "INTEGER")
+    # Add company/body BEFORE the nullable rebuild so the INSERT-SELECT can reference them.
     _ensure_column(conn, "resume_variants", "company", "TEXT")
     _ensure_column(conn, "resume_variants", "body", "TEXT")
+    # C1: DROP NOT NULL from resume_variants.source_path on pre-0024 SQLite DBs.
+    _make_source_path_nullable(conn)
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, ddl: str) -> None:
     cols = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if cols and col not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+
+
+def _make_source_path_nullable(conn: sqlite3.Connection) -> None:
+    """SQLite 12-step rebuild to remove NOT NULL from resume_variants.source_path.
+
+    On a DB created before migration 0024, source_path was TEXT NOT NULL.
+    SQLite does not support ALTER COLUMN, so a full table rebuild is required.
+    Must run AFTER _ensure_column has added company/body to the pre-0024 table.
+    """
+    rows = conn.execute("PRAGMA table_info(resume_variants)").fetchall()
+    if not rows:
+        return  # table does not exist yet; SCHEMA will create it correctly
+    # row layout from PRAGMA table_info: (cid, name, type, notnull, dflt_value, pk)
+    source_not_null = any(row[1] == "source_path" and row[3] == 1 for row in rows)
+    if not source_not_null:
+        return  # already nullable — nothing to do
+    # 12-step SQLite table rebuild
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute(
+        """
+        CREATE TABLE resume_variants_new (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug        TEXT UNIQUE NOT NULL,
+            source_path TEXT,
+            parsed_json TEXT NOT NULL,
+            tags        TEXT NOT NULL,
+            company     TEXT,
+            body        TEXT,
+            updated_at  TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO resume_variants_new
+               (id, slug, source_path, parsed_json, tags, company, body, updated_at)
+        SELECT  id, slug, source_path, parsed_json, tags, company, body, updated_at
+        FROM resume_variants
+        """
+    )
+    conn.execute("DROP TABLE resume_variants")
+    conn.execute("ALTER TABLE resume_variants_new RENAME TO resume_variants")
+    conn.execute("PRAGMA foreign_keys = ON")
 
 
 @contextmanager

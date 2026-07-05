@@ -1213,3 +1213,49 @@ def set_post_status(post_id: int, status: str) -> None:
         conn.execute(
             "UPDATE content_posts SET status = %s WHERE id = %s", (status, int(post_id))
         )
+
+
+# ---------- company watchlist ----------
+
+_WATCH_COLS = "id, company, ats, board_token, enabled, created_at::text AS created_at"
+
+
+def add_watch(*, company: str, ats: str, board_token: str) -> int:
+    """Insert a company watchlist entry and return its id."""
+    with connect() as conn:
+        return conn.execute(
+            "INSERT INTO company_watchlist (company, ats, board_token) "
+            "VALUES (%s, %s, %s) RETURNING id",
+            (company, ats, board_token),
+        ).fetchone()["id"]
+
+
+def list_watch() -> list[dict[str, Any]]:
+    """Return all company_watchlist rows ordered by id."""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_WATCH_COLS} FROM company_watchlist ORDER BY id"
+        ).fetchall()
+
+
+def list_active_watch() -> list[dict[str, Any]]:
+    """Return enabled company_watchlist rows ordered by id."""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT {_WATCH_COLS} FROM company_watchlist WHERE enabled = TRUE ORDER BY id"
+        ).fetchall()
+
+
+def set_watch_enabled(watch_id: int, enabled: bool) -> None:
+    """Enable or disable a company_watchlist entry."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE company_watchlist SET enabled = %s WHERE id = %s",
+            (bool(enabled), int(watch_id)),
+        )
+
+
+def remove_watch(watch_id: int) -> None:
+    """Delete a company_watchlist entry by id."""
+    with connect() as conn:
+        conn.execute("DELETE FROM company_watchlist WHERE id = %s", (int(watch_id),))

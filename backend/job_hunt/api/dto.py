@@ -299,3 +299,14 @@ class NextAction(BaseModel):
 
     action: str
     reason: str
+
+
+class WatchEntry(BaseModel):
+    """A company ATS watchlist entry."""
+
+    id: int
+    company: str
+    ats: str
+    board_token: str
+    enabled: bool
+    created_at: str | None = None

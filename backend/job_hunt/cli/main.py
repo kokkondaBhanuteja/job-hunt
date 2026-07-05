@@ -533,6 +533,35 @@ def cmd_posts(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_watch_add(args: argparse.Namespace) -> int:
+    """Add a company to the ATS watchlist."""
+    result = services.add_watch_company(args.company, args.ats, args.board_token)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"added watchlist entry #{result['id']}: {args.company} ({args.ats} token={args.board_token})")
+    return 0
+
+
+def cmd_watch_list(_: argparse.Namespace) -> int:
+    """List all company ATS watchlist entries."""
+    rows = services.list_watch()
+    if not rows:
+        print("(no watchlist entries — add one with `hunt watch add`)")
+        return 0
+    for r in rows:
+        flag = "on " if r["enabled"] else "off"
+        print(f"  [{r['id']:>3}] {flag} {r['company']:<25} {r['ats']:<15} token={r['board_token']}")
+    return 0
+
+
+def cmd_watch_rm(args: argparse.Namespace) -> int:
+    """Remove a company from the ATS watchlist by ID."""
+    services.remove_watch(args.id)
+    print(f"removed watchlist entry #{args.id}")
+    return 0
+
+
 # ---------- argparse wiring ----------
 
 
@@ -675,6 +704,22 @@ def build_parser() -> argparse.ArgumentParser:
     pts = sub.add_parser("posts", help="List stored post drafts")
     pts.add_argument("--status", default=None, help="filter by status (draft/posted/dismissed)")
     pts.set_defaults(func=cmd_posts)
+
+    # hunt watch <add|list|rm>
+    sp_watch = sub.add_parser("watch", help="manage the company ATS watchlist")
+    sp_watch_sub = sp_watch.add_subparsers(dest="watch_cmd", required=True)
+
+    sp_watch_add = sp_watch_sub.add_parser("add", help="add a company to the watchlist")
+    sp_watch_add.add_argument("company", help="company name, e.g. Stripe")
+    sp_watch_add.add_argument("ats", help="ATS platform, e.g. greenhouse")
+    sp_watch_add.add_argument("board_token", help="board token / slug, e.g. stripe")
+    sp_watch_add.set_defaults(func=cmd_watch_add)
+
+    sp_watch_sub.add_parser("list", help="list watchlist entries").set_defaults(func=cmd_watch_list)
+
+    sp_watch_rm = sp_watch_sub.add_parser("rm", help="remove a watchlist entry")
+    sp_watch_rm.add_argument("id", type=int, help="watchlist entry id")
+    sp_watch_rm.set_defaults(func=cmd_watch_rm)
 
     mc = sub.add_parser("serve-mcp", help="Start the MCP server (stdio)")
     mc.set_defaults(func=cmd_serve_mcp)

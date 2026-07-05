@@ -29,6 +29,7 @@ from typing import Any
 from job_hunt.enums import (
     CLOSED_STATES,
     ApplicationStage,
+    ATSPlatform,
     ContextFormat,
     DraftKind,
     EmailActionKind,
@@ -391,6 +392,16 @@ CREATE TABLE IF NOT EXISTS apply_policy (
     id         INTEGER PRIMARY KEY CHECK (id = 1),   -- singleton: one active policy
     policy     TEXT NOT NULL,                        -- JSON dict
     updated_at TEXT NOT NULL
+);
+
+-- Company watchlist: companies whose ATS boards to poll automatically.
+CREATE TABLE IF NOT EXISTS company_watchlist (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    company     TEXT NOT NULL,
+    ats         TEXT NOT NULL CHECK (ats IN ({sql_in_list(ATSPlatform)})),
+    board_token TEXT NOT NULL,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL
 );
 """
 
@@ -1574,3 +1585,52 @@ def set_post_status(post_id: int, status: str) -> None:
         conn.execute(
             "UPDATE content_posts SET status = ? WHERE id = ?", (status, int(post_id))
         )
+
+
+# ---------- company watchlist ----------
+
+
+def add_watch(*, company: str, ats: str, board_token: str) -> int:
+    """Insert a company watchlist entry and return its id."""
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO company_watchlist (company, ats, board_token, enabled, created_at) "
+            "VALUES (?, ?, ?, 1, ?)",
+            (company, ats, board_token, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def _watch_row(row: Any) -> dict[str, Any]:
+    d = dict(row)
+    d["enabled"] = bool(d["enabled"])
+    return d
+
+
+def list_watch() -> list[dict[str, Any]]:
+    """Return all company_watchlist rows ordered by id."""
+    with connect() as conn:
+        return [_watch_row(r) for r in conn.execute(
+            "SELECT * FROM company_watchlist ORDER BY id").fetchall()]
+
+
+def list_active_watch() -> list[dict[str, Any]]:
+    """Return enabled company_watchlist rows ordered by id."""
+    with connect() as conn:
+        return [_watch_row(r) for r in conn.execute(
+            "SELECT * FROM company_watchlist WHERE enabled = 1 ORDER BY id").fetchall()]
+
+
+def set_watch_enabled(watch_id: int, enabled: bool) -> None:
+    """Enable or disable a company_watchlist entry."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE company_watchlist SET enabled = ? WHERE id = ?",
+            (1 if enabled else 0, int(watch_id)),
+        )
+
+
+def remove_watch(watch_id: int) -> None:
+    """Delete a company_watchlist entry by id."""
+    with connect() as conn:
+        conn.execute("DELETE FROM company_watchlist WHERE id = ?", (int(watch_id),))

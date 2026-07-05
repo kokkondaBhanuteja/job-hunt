@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from job_hunt.plugins import (
     adzuna,  # noqa: F401 — registers AdzunaSource
+    ashby,  # noqa: F401 — registers AshbySource
     greenhouse,  # noqa: F401 — registers GreenhouseSource
     jobspresso,  # noqa: F401 — registers JobspressoSource
     lever,  # noqa: F401 — registers LeverSource
@@ -10,6 +11,7 @@ from job_hunt.plugins import (
     remoteok,  # noqa: F401 — registers RemoteOKSource
     remotive,  # noqa: F401 — registers RemotiveSource
     weworkremotely,  # noqa: F401 — registers WeWorkRemotelySource
+    workable,  # noqa: F401 — registers WorkableSource
     workingnomads,  # noqa: F401 — registers WorkingNomadsSource
 )
 from job_hunt.plugins.base import Source, available_sources, get_source, register

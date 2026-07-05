@@ -300,6 +300,20 @@ def company(name: str) -> dict[str, Any]:
     return services.company_history(name)
 
 
+# ---------- Watchlist ----------
+
+
+@mcp.tool()
+def list_watchlist() -> list[dict[str, Any]]:
+    """Return all company watchlist entries (company, ats, board_token, enabled).
+
+    Returns:
+        List of watchlist dicts.
+    """
+    init_db()
+    return services.list_watch()
+
+
 # ---------- Content Post Drafts ----------
 
 

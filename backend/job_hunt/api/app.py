@@ -158,6 +158,12 @@ class PostStatusIn(BaseModel):
     status: str
 
 
+class WatchIn(BaseModel):
+    company: str
+    ats: str
+    board_token: str
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -529,6 +535,40 @@ def create_post(body: PostIn) -> dict[str, Any]:
 def update_post_status(post_id: int, body: PostStatusIn) -> dict[str, Any]:
     """Transition a post draft to a new status (draft → posted | dismissed)."""
     return _unwrap(services.set_post_status(post_id, body.status))
+
+
+@api.get("/watchlist", response_model=list[dto.WatchEntry])
+def list_watchlist() -> list[dict[str, Any]]:
+    """Return all company watchlist entries."""
+    return services.list_watch()
+
+
+@api.post("/watchlist", response_model=dto.WatchEntry, status_code=201)
+def create_watch(body: WatchIn) -> dict[str, Any]:
+    """Add a company to the watchlist."""
+    result = _unwrap(services.add_watch_company(body.company, body.ats, body.board_token))
+    # Re-fetch the full row so the response contains real enabled/created_at values.
+    rows = [r for r in services.list_watch() if r["id"] == result["id"]]
+    if not rows:
+        raise HTTPException(status_code=500, detail="watch entry created but not found on re-fetch")
+    return rows[0]
+
+
+@api.delete("/watchlist/{watch_id}")
+def delete_watch(watch_id: int) -> dict[str, Any]:
+    """Remove a company from the watchlist."""
+    return _unwrap(services.remove_watch(watch_id))
+
+
+@api.patch("/watchlist/{watch_id}", response_model=dto.WatchEntry)
+def patch_watch(watch_id: int, body: EnabledIn) -> dict[str, Any]:
+    """Enable or disable a watchlist entry."""
+    _unwrap(services.set_watch_enabled(watch_id, body.enabled))
+    # Re-fetch the updated row so the response model is populated.
+    rows = [r for r in services.list_watch() if r["id"] == watch_id]
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"no watchlist entry with id {watch_id}")
+    return rows[0]
 
 
 app.include_router(api)

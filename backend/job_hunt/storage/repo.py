@@ -134,3 +134,10 @@ create_post = _impl.create_post
 get_post = _impl.get_post
 list_posts = _impl.list_posts
 set_post_status = _impl.set_post_status
+
+# company watchlist
+add_watch = _impl.add_watch
+list_watch = _impl.list_watch
+list_active_watch = _impl.list_active_watch
+set_watch_enabled = _impl.set_watch_enabled
+remove_watch = _impl.remove_watch

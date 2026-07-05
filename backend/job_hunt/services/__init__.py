@@ -66,6 +66,18 @@ from job_hunt.services.runs import get_run, list_runs, request_cancel, run_disco
 from job_hunt.services.scoring import score_pending
 from job_hunt.services.search_prefs import get_search_prefs, set_search_prefs
 from job_hunt.services.semantic import embed_jobs, semantic_match, similar_successful
+from job_hunt.services.watchlist import (
+    add_company as add_watch_company,
+)
+from job_hunt.services.watchlist import (
+    list_watch,
+)
+from job_hunt.services.watchlist import (
+    remove as remove_watch,
+)
+from job_hunt.services.watchlist import (
+    set_enabled as set_watch_enabled,
+)
 
 __all__ = [
     "brief_for_job",
@@ -135,4 +147,8 @@ __all__ = [
     "refresh_reminder",
     "get_policy",
     "list_ready_to_apply",
+    "add_watch_company",
+    "list_watch",
+    "set_watch_enabled",
+    "remove_watch",
 ]

@@ -119,6 +119,28 @@ def run_api_sources() -> None:
         total_found,
         total_new,
     )
+    run_watchlist()
+
+
+def run_watchlist() -> None:
+    """Poll ATS boards for every enabled watchlist entry.
+
+    Calls discover() for each active watch row. Unregistered or failing sources
+    are logged and skipped — the loop always continues.
+    """
+    repo.init_db()
+    watches = repo.list_active_watch()
+    for watch in watches:
+        try:
+            discover(watch["ats"], keyword=watch["board_token"], location="")
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "watchlist discover failed for %s (%s token=%s) — skipping",
+                watch.get("company"),
+                watch.get("ats"),
+                watch.get("board_token"),
+                exc_info=True,
+            )
 
 
 def dispatch_events_once(handlers: dict[str, Any] | None = None) -> int:

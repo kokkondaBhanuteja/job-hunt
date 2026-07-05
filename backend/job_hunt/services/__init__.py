@@ -37,12 +37,14 @@ from job_hunt.services.drafting import (
     list_drafts,
     tailor_for_job,
 )
-from job_hunt.services.email_triage import (
+from job_hunt.services.email_actions import (
     confirm_action,
     dismiss_action,
+    propose_action,
+)
+from job_hunt.services.email_triage import (
     get_email,
     list_inbox,
-    propose_action,
     structure_pending,
     sync_inbox,
 )

@@ -136,6 +136,15 @@ export interface Analytics {
   }[];
   llm_cost: { calls: number; cost: number; tokens: number };
 }
+// Mirrors backend dto.Post.
+export interface Post {
+  id: number;
+  topic: string | null;
+  source_url: string | null;
+  body: string;
+  status: string;
+  created_at: string;
+}
 // Mirrors backend dto.SearchPrefs.
 export interface SearchPrefs {
   content: string | null;
@@ -288,5 +297,16 @@ export const api = {
     req<{ ok?: boolean; profiles_created?: number }>(API_ENDPOINTS.searchPrefs, {
       method: "POST",
       body: JSON.stringify({ content }),
+    }),
+  posts: () => req<Post[]>(API_ENDPOINTS.posts),
+  generatePost: (topic?: string) =>
+    req<Post>(API_ENDPOINTS.posts, {
+      method: "POST",
+      body: JSON.stringify(topic !== undefined ? { topic } : {}),
+    }),
+  setPostStatus: (id: number, status: string) =>
+    req<Post | { ok: boolean }>(API_ENDPOINTS.postStatus(id), {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
     }),
 };

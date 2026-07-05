@@ -8,6 +8,7 @@ export const ROUTES = {
   runs: "/runs",
   analytics: "/analytics",
   settings: "/settings",
+  content: "/content",
   jobDetail: (id: number | string) => `/board/${id}`,
 } as const;
 
@@ -18,6 +19,7 @@ export const SCREEN = {
   runs: "runs",
   analytics: "analytics",
   settings: "settings",
+  content: "content",
 } as const;
 export type Screen = (typeof SCREEN)[keyof typeof SCREEN];
 
@@ -50,6 +52,8 @@ export const API_ENDPOINTS = {
   jobDraft: (id: number) => `/api/jobs/${id}/draft`,
   jobBrief: (id: number) => `/api/jobs/${id}/brief`,
   searchPrefs: "/api/search-prefs",
+  posts: "/api/posts",
+  postStatus: (id: number) => `/api/posts/${id}`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -67,6 +71,7 @@ export const QUERY_KEYS = {
   emails: ["emails"] as const,
   email: (id: number) => ["email", id] as const,
   searchPrefs: ["searchPrefs"] as const,
+  posts: ["posts"] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */

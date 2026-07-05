@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
   jobDraft: (id: number) => `/api/jobs/${id}/draft`,
   jobBrief: (id: number) => `/api/jobs/${id}/brief`,
   searchPrefs: "/api/search-prefs",
+  applyPolicy: "/api/apply-policy",
   posts: "/api/posts",
   postStatus: (id: number) => `/api/posts/${id}`,
 } as const;
@@ -71,6 +72,7 @@ export const QUERY_KEYS = {
   emails: ["emails"] as const,
   email: (id: number) => ["email", id] as const,
   searchPrefs: ["searchPrefs"] as const,
+  applyPolicy: ["applyPolicy"] as const,
   posts: ["posts"] as const,
 } as const;
 

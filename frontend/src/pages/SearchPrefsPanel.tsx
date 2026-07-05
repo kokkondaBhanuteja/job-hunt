@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorView } from "../components/ErrorView";
+import { LoadingView } from "../components/LoadingView";
 import { api, getToken } from "../lib/api";
 import { QUERY_KEYS } from "../lib/constants";
+import { ApplyPolicyView } from "./ApplyPolicyView";
 
-/** Settings section: paste Markdown search preferences → parsed into search profiles. */
+/** Settings section: paste/upload Markdown search preferences → parsed into search profiles + apply policy. */
 export function SearchPrefsPanel() {
   const qc = useQueryClient();
   const prefs = useQuery({
     queryKey: QUERY_KEYS.searchPrefs,
     queryFn: api.getSearchPrefs,
+    enabled: !!getToken(),
+  });
+  const policy = useQuery({
+    queryKey: QUERY_KEYS.applyPolicy,
+    queryFn: api.applyPolicy,
     enabled: !!getToken(),
   });
   const [content, setContent] = useState("");
@@ -28,11 +35,28 @@ export function SearchPrefsPanel() {
     onSuccess: (data) => {
       setDirty(false);
       setProfilesCreated(data.profiles_created ?? null);
-      // Invalidate both searchPrefs (updated content) and profiles (new rows added).
+      // Invalidate searchPrefs (updated content), profiles (new rows), and applyPolicy (re-parsed from new prefs).
       qc.invalidateQueries({ queryKey: QUERY_KEYS.searchPrefs });
       qc.invalidateQueries({ queryKey: QUERY_KEYS.profiles });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.applyPolicy });
     },
   });
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    // File upload is equivalent to paste: populate textarea so the user can review before saving.
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text === "string") {
+        setContent(text);
+        setDirty(true);
+        setProfilesCreated(null);
+      }
+    };
+    reader.readAsText(file);
+  }
 
   return (
     <section className="card-block">
@@ -42,6 +66,13 @@ export function SearchPrefsPanel() {
         profiles below.
       </p>
       {prefs.isError && <ErrorView error={prefs.error} />}
+      <label htmlFor="search-prefs-file">Upload .md or .txt</label>
+      <input
+        id="search-prefs-file"
+        type="file"
+        accept=".md,.txt"
+        onChange={handleFileChange}
+      />
       <textarea
         id="search-prefs-input"
         className="context-input"
@@ -68,6 +99,10 @@ export function SearchPrefsPanel() {
       {prefs.data?.updated_at && (
         <div className="mono small">last updated {prefs.data.updated_at}</div>
       )}
+      <h3>Apply policy</h3>
+      {policy.isLoading && <LoadingView />}
+      {policy.isError && <ErrorView error={policy.error} />}
+      {policy.data && <ApplyPolicyView policy={policy.data} />}
     </section>
   );
 }

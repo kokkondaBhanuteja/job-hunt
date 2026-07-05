@@ -145,6 +145,14 @@ export interface Post {
   status: string;
   created_at: string;
 }
+// Mirrors backend dto.ApplyPolicy.
+export interface ApplyPolicy {
+  min_fit_score: number;
+  must_have: string[];
+  avoid: string[];
+  seniority: string;
+  remote_only: boolean;
+}
 // Mirrors backend dto.SearchPrefs.
 export interface SearchPrefs {
   content: string | null;
@@ -292,6 +300,7 @@ export const api = {
       API_ENDPOINTS.emailDismiss(id),
       { method: "POST" },
     ),
+  applyPolicy: () => req<ApplyPolicy>(API_ENDPOINTS.applyPolicy),
   getSearchPrefs: () => req<SearchPrefs>(API_ENDPOINTS.searchPrefs),
   setSearchPrefs: (content: string) =>
     req<{ ok?: boolean; profiles_created?: number }>(API_ENDPOINTS.searchPrefs, {

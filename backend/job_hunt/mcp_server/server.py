@@ -79,6 +79,20 @@ def list_resume_vault() -> list[dict[str, Any]]:
     return services.list_resume_vault()
 
 
+@mcp.tool()
+def ready_to_apply(limit: int = 50) -> list[dict[str, Any]]:
+    """List jobs that pass the apply policy — for human review only.
+
+    Applies the stored apply-policy filter (min score, must-have / avoid keywords,
+    seniority, remote-only). Returns candidates for the human to review before
+    deciding to apply. This tool NEVER submits an application.
+
+    Args:
+        limit: maximum rows to return (default 50)
+    """
+    return services.list_ready_to_apply(limit=limit)
+
+
 # ---------- Application logging ----------
 
 

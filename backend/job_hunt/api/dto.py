@@ -218,3 +218,13 @@ class Post(BaseModel):
     body: str
     status: str
     created_at: str
+
+
+class ApplyPolicy(BaseModel):
+    """Apply-policy criteria: filters which scored jobs surface as ready-to-apply."""
+
+    min_fit_score: int
+    must_have: list[str]
+    avoid: list[str]
+    seniority: str
+    remote_only: bool

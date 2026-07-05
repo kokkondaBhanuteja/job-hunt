@@ -45,6 +45,10 @@ def set_search_prefs(content: str) -> dict[str, Any]:
             pages=int(p.get("pages") or 1),
         )
     logger.info("search_prefs: created %d profile(s) from prefs", len(profiles))
+    policy = result.get("apply_policy")
+    if policy:
+        repo.set_apply_policy(policy)
+        logger.info("search_prefs: apply_policy stored")
     return {"ok": True, "profiles_created": len(profiles)}
 
 

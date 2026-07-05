@@ -385,6 +385,13 @@ CREATE TABLE IF NOT EXISTS content_posts (
     created_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status);
+
+-- Apply-policy singleton: filters which scored jobs surface as ready-to-apply candidates.
+CREATE TABLE IF NOT EXISTS apply_policy (
+    id         INTEGER PRIMARY KEY CHECK (id = 1),   -- singleton: one active policy
+    policy     TEXT NOT NULL,                        -- JSON dict
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -817,6 +824,26 @@ def get_search_prefs() -> sqlite3.Row | None:
     """Return the single search-prefs row, or None if unset."""
     with connect() as conn:
         return conn.execute("SELECT * FROM search_prefs WHERE id = 1").fetchone()
+
+
+def set_apply_policy(policy: dict) -> None:
+    """Store (or replace) the single apply-policy blob."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO apply_policy (id, policy, updated_at) VALUES (1, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET policy = excluded.policy, "
+            "updated_at = excluded.updated_at",
+            (json.dumps(policy), now_iso()),
+        )
+
+
+def get_apply_policy() -> dict | None:
+    """Return the stored apply policy as a dict, or None if unset."""
+    with connect() as conn:
+        row = conn.execute("SELECT policy FROM apply_policy WHERE id = 1").fetchone()
+    if row is None:
+        return None
+    return json.loads(row["policy"])
 
 
 _APPLICANT_COLS = (

@@ -346,6 +346,18 @@ def set_search_prefs(body: SearchPrefsIn) -> dict[str, Any]:
     return _unwrap(services.set_search_prefs(body.content))
 
 
+@api.get("/apply-policy", response_model=dto.ApplyPolicy)
+def get_apply_policy() -> dict[str, Any]:
+    """Return the stored apply-policy criteria (or safe defaults if unset)."""
+    return services.get_policy()
+
+
+@api.get("/ready-to-apply", response_model=list[dto.TopMatch])
+def ready_to_apply(limit: int = 50) -> list[dict[str, Any]]:
+    """Return scored jobs that pass the apply policy — for human review only."""
+    return services.list_ready_to_apply(limit=limit)
+
+
 @api.get("/applicant", response_model=dto.Applicant)
 def get_applicant() -> dict[str, Any]:
     """Return the stored applicant personal-details profile."""

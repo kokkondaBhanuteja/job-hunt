@@ -179,6 +179,17 @@ def cmd_top(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ready(args: argparse.Namespace) -> int:
+    """Show jobs that pass the apply policy — for human review, never auto-applies."""
+    rows = services.list_ready_to_apply(limit=args.limit)
+    if not rows:
+        print("no jobs match your apply policy")
+        return 0
+    for r in rows:
+        print(f"  {r['job_id']} · {r['best_score']} · {r['title']} · {r['company']}")
+    return 0
+
+
 def cmd_profiles(_: argparse.Namespace) -> int:
     rows = services.list_profiles()
     if not rows:
@@ -551,6 +562,12 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--min-score", type=int, default=70)
     t.add_argument("--limit", type=int, default=10)
     t.set_defaults(func=cmd_top)
+
+    rd = sub.add_parser(
+        "ready", help="Show jobs passing the apply policy (human reviews, never auto-applies)"
+    )
+    rd.add_argument("--limit", type=int, default=50)
+    rd.set_defaults(func=cmd_ready)
 
     sub.add_parser("profiles", help="List saved search profiles").set_defaults(func=cmd_profiles)
 

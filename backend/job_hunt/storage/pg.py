@@ -380,6 +380,25 @@ def get_search_prefs() -> dict[str, Any] | None:
         ).fetchone()
 
 
+def set_apply_policy(policy: dict) -> None:
+    """Store (or replace) the single apply-policy singleton."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO apply_policy (id, policy, updated_at) VALUES (1, %s, now()) "
+            "ON CONFLICT (id) DO UPDATE SET policy = EXCLUDED.policy, updated_at = now()",
+            (Jsonb(policy),),
+        )
+
+
+def get_apply_policy() -> dict[str, Any] | None:
+    """Return the stored apply policy as a dict, or None if unset."""
+    with connect() as conn:
+        row = conn.execute("SELECT policy FROM apply_policy WHERE id = 1").fetchone()
+    if row is None:
+        return None
+    return row["policy"]  # psycopg3 auto-deserialises JSONB → dict
+
+
 _APPLICANT_COLS = (
     "first_name", "last_name", "email", "phone", "location", "linkedin_url",
     "github_url", "portfolio_url", "work_authorization", "needs_sponsorship",

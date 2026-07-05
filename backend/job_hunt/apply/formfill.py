@@ -12,6 +12,7 @@ import json
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from job_hunt.apply.answerer import draft_answers
 from job_hunt.apply.ats import detect_ats
 from job_hunt.apply.formfill_profiles import load_profile, validate_profile
 from job_hunt.browser import managed_context
@@ -122,6 +123,7 @@ def _gather_data(job: Any) -> dict[str, Any]:
         "context": context_preamble() or None,
         "draft": {"cover": cover},
         "file": {"resume_variant": resume_path},
+        "jd": job["description_full"] or job["description"] or "",
     }
 
 
@@ -167,12 +169,80 @@ async def _fill_page_async(
     return {"filled": filled, "unfilled": unfilled}
 
 
+async def _discover_questions(page: Any) -> list[dict[str, Any]]:
+    """Best-effort DOM scrape for unfilled visible text fields and their label text."""
+    try:
+        return await page.evaluate(
+            """() => {
+                const results = [];
+                const els = [...document.querySelectorAll('textarea, input[type="text"]')];
+                for (const el of els) {
+                    if (el.value && el.value.trim()) continue;
+                    const st = window.getComputedStyle(el);
+                    if (st.display === 'none' || st.visibility === 'hidden') continue;
+                    if (!el.offsetParent) continue;
+                    let label = '';
+                    if (el.id) {
+                        const lbl = document.querySelector('label[for="' + el.id + '"]');
+                        if (lbl) label = lbl.textContent.trim();
+                    }
+                    if (!label) {
+                        let p = el.parentElement;
+                        while (p && p.tagName !== 'LABEL') p = p.parentElement;
+                        if (p) label = p.textContent.trim();
+                    }
+                    if (!label) {
+                        label = el.getAttribute('aria-label')
+                            || el.getAttribute('placeholder')
+                            || el.name
+                            || '';
+                    }
+                    if (!label) continue;
+                    let selector = '';
+                    if (el.id) {
+                        selector = '#' + CSS.escape(el.id);
+                    } else if (el.name) {
+                        selector = el.tagName.toLowerCase() + '[name="' + el.name + '"]';
+                    } else {
+                        const all = [...document.querySelectorAll(el.tagName.toLowerCase())];
+                        selector = el.tagName.toLowerCase() + ':nth-of-type(' + (all.indexOf(el) + 1) + ')';
+                    }
+                    results.push({ question: label, selector: selector, kind: 'text' });
+                }
+                return results;
+            }"""
+        )
+    except Exception:  # noqa: BLE001 — defensive; a broken ATS page must not abort the fill
+        logger.debug("_discover_questions failed; skipping screening-question fill", exc_info=True)
+        return []
+
+
 async def _fill_via_browser(url: str, profile: dict[str, Any], data: dict[str, Any], ats: str) -> dict[str, Any]:
     """Open `url` in a headful Chromium context, fill the form, block until the human closes the tab."""
     async with managed_context("formfill", headless=False) as ctx:
         page = await ctx.new_page()
         await page.goto(url, wait_until="domcontentloaded")
         summary = await _fill_page_async(page, profile, data)
+
+        # Discover and fill any remaining screening questions via LLM
+        try:
+            found = await _discover_questions(page)
+            if found:
+                answers = draft_answers(
+                    [q["question"] for q in found],
+                    jd_text=data.get("jd") or "",
+                    resume_json=data.get("resume") or {},
+                    applicant=data.get("applicant") or {},
+                    context=data.get("context") or "",
+                )
+                for item in found:
+                    answer = answers.get(item["question"])
+                    if answer:
+                        await page.fill(item["selector"], answer)
+                logger.info("screening questions filled: %d answered", len(answers))
+        except Exception:  # noqa: BLE001 — never break the fill or auto-submit on error
+            logger.warning("screening-question fill failed; proceeding to review", exc_info=True)
+
         logger.info("form filled — review in the browser, submit, then close the tab")
         await page.wait_for_event("close", timeout=0)  # block until the human closes the tab
         return {"ats": ats, "review_url": url, **summary}

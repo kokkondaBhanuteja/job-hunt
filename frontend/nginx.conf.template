@@ -9,7 +9,8 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # SPA fallback: unknown paths serve index.html so the hash router handles them
+    # SPA fallback: unknown paths serve index.html so the client router handles them
+    # (clean URLs — /board, /board/42, /settings, …).
     location / {
         try_files $uri /index.html;
     }

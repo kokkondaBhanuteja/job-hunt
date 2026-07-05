@@ -1,18 +1,26 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { EmailActionProposal } from "../../lib/api";
-import { api } from "../../lib/api";
-import { EMAIL_ACTION_KIND, QUERY_KEYS } from "../../lib/constants";
-import { ErrorView } from "../../components/ErrorView";
+import type { EmailActionProposal } from "@/lib/api";
+import { api } from "@/lib/api";
+import { EMAIL_ACTION_KIND, QUERY_KEYS } from "@/lib/constants";
+import { ErrorView } from "@/components/ErrorView";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   emailId: number;
   proposal: EmailActionProposal;
-  /** Passed through to confirmAction for apply_label; sourced from EmailActions state. */
   label?: string;
   onClose: () => void;
 }
 
-// Static descriptions shown to the user before they confirm — purely informational.
 const ACTION_DESCRIPTIONS: Record<string, string> = {
   [EMAIL_ACTION_KIND.DRAFT_REPLY]:
     "A draft will be saved to your Gmail Drafts — nothing is sent.",
@@ -52,48 +60,41 @@ export function ConfirmModal({ emailId, proposal, label, onClose }: Props) {
       : null;
 
   return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-modal-title"
-    >
-      <div className="modal">
-        <h2 id="confirm-modal-title" className="modal-title">
-          Confirm: {proposal.kind.replace(/_/g, " ")}
-        </h2>
-        <p className="muted">{ACTION_DESCRIPTIONS[proposal.kind] ?? ""}</p>
+    <Dialog open onOpenChange={(open) => !open && !confirmMutation.isPending && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="capitalize">
+            Confirm: {proposal.kind.replace(/_/g, " ")}
+          </DialogTitle>
+          <DialogDescription>{ACTION_DESCRIPTIONS[proposal.kind] ?? ""}</DialogDescription>
+        </DialogHeader>
 
         {replyBody !== null && (
-          <textarea
-            className="modal-reply-body"
+          <Textarea
             readOnly
             value={replyBody}
             aria-label="Proposed reply body"
+            className="min-h-[160px]"
           />
         )}
 
         {displayLabel && (
-          <div className="banner">
+          <div className="rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm">
             Label: <strong>{displayLabel}</strong>
           </div>
         )}
 
         {confirmMutation.isError && <ErrorView error={confirmMutation.error} />}
 
-        <div className="btn-row modal-actions">
-          <button
-            className="primary"
-            onClick={() => confirmMutation.mutate()}
-            disabled={confirmMutation.isPending}
-          >
-            {confirmMutation.isPending ? "Confirming…" : "Confirm"}
-          </button>
-          <button onClick={onClose} disabled={confirmMutation.isPending}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={confirmMutation.isPending}>
             Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
+            {confirmMutation.isPending ? "Confirming…" : "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

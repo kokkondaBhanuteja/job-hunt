@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ErrorView } from "../components/ErrorView";
-import { LoadingView } from "../components/LoadingView";
-import { api, getToken } from "../lib/api";
-import { QUERY_KEYS } from "../lib/constants";
+import { ErrorView } from "@/components/ErrorView";
+import { LoadingView } from "@/components/LoadingView";
+import { api } from "@/lib/api";
+import { QUERY_KEYS } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ApplyPolicyView } from "./ApplyPolicyView";
 
 /** Settings section: paste/upload Markdown search preferences → parsed into search profiles + apply policy. */
@@ -12,18 +17,16 @@ export function SearchPrefsPanel() {
   const prefs = useQuery({
     queryKey: QUERY_KEYS.searchPrefs,
     queryFn: api.getSearchPrefs,
-    enabled: !!getToken(),
   });
   const policy = useQuery({
     queryKey: QUERY_KEYS.applyPolicy,
     queryFn: api.applyPolicy,
-    enabled: !!getToken(),
   });
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [profilesCreated, setProfilesCreated] = useState<number | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
-  // Pre-fill from stored prefs once, until the user edits.
   useEffect(() => {
     if (prefs.data && !dirty) {
       setContent(prefs.data.content ?? "");
@@ -42,67 +45,102 @@ export function SearchPrefsPanel() {
     },
   });
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function handleFileChange(ev: ChangeEvent<HTMLInputElement>) {
+    const input = ev.target;
+    const file = input.files?.[0];
+    // Reset the input value so re-selecting the same file re-fires change.
+    input.value = "";
     if (!file) return;
+    setFileError(null);
     const reader = new FileReader();
-    // File upload is equivalent to paste: populate textarea so the user can review before saving.
-    reader.onload = (ev) => {
-      const text = ev.target?.result;
+    reader.onload = (e) => {
+      const text = e.target?.result;
       if (typeof text === "string") {
         setContent(text);
         setDirty(true);
         setProfilesCreated(null);
+      } else {
+        setFileError(`Couldn’t read ${file.name} — the file didn’t decode as text.`);
       }
     };
+    reader.onerror = () =>
+      setFileError(`Couldn’t read ${file.name}. Check the file still exists and is readable.`);
+    reader.onabort = () => setFileError(`Reading ${file.name} was cancelled.`);
     reader.readAsText(file);
   }
 
   return (
-    <section className="card-block">
-      <h2>Search preferences</h2>
-      <p className="muted small">
-        Describe what roles/skills and locations to search for — I&apos;ll turn it into search
-        profiles below.
-      </p>
-      {prefs.isError && <ErrorView error={prefs.error} />}
-      <label htmlFor="search-prefs-file">Upload .md or .txt</label>
-      <input
-        id="search-prefs-file"
-        type="file"
-        accept=".md,.txt"
-        onChange={handleFileChange}
-      />
-      <textarea
-        id="search-prefs-input"
-        className="context-input"
-        rows={10}
-        placeholder={"# What I'm looking for\n\nBackend engineer roles (Node/NestJS, Python) in Berlin or remote…"}
-        value={content}
-        onChange={(e) => {
-          setContent(e.target.value);
-          setDirty(true);
-          setProfilesCreated(null);
-        }}
-      />
-      <button
-        className="primary"
-        disabled={!content.trim() || save.isPending}
-        onClick={() => save.mutate()}
-      >
-        {save.isPending ? "Parsing…" : !dirty && save.isSuccess ? "Saved ✓" : "Parse & save"}
-      </button>
-      {save.isError && <ErrorView error={save.error} />}
-      {profilesCreated !== null && !save.isError && (
-        <div className="mono small">created {profilesCreated} profile{profilesCreated !== 1 ? "s" : ""}</div>
-      )}
-      {prefs.data?.updated_at && (
-        <div className="mono small">last updated {prefs.data.updated_at}</div>
-      )}
-      <h3>Apply policy</h3>
-      {policy.isLoading && <LoadingView />}
-      {policy.isError && <ErrorView error={policy.error} />}
-      {policy.data && <ApplyPolicyView policy={policy.data} />}
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Search preferences</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Describe what roles/skills and locations to search for — I&apos;ll turn it into search
+          profiles below.
+        </p>
+        {prefs.isError && <ErrorView error={prefs.error} />}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="search-prefs-file">Upload .md or .txt</Label>
+          <Input
+            id="search-prefs-file"
+            type="file"
+            accept=".md,.txt"
+            onChange={handleFileChange}
+          />
+          {fileError && (
+            <p role="alert" className="text-xs text-destructive">
+              {fileError}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="search-prefs-input" className="sr-only">
+            Search preferences
+          </Label>
+          <Textarea
+            id="search-prefs-input"
+            rows={10}
+            className="font-mono text-xs"
+            placeholder={"# What I'm looking for\n\nBackend engineer roles (Node/NestJS, Python) in Berlin or remote…"}
+            value={content}
+            onChange={(e) => {
+              setContent(e.target.value);
+              setDirty(true);
+              setProfilesCreated(null);
+            }}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={!content.trim() || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? "Parsing…" : !dirty && save.isSuccess ? "Saved ✓" : "Parse & save"}
+          </Button>
+          {profilesCreated !== null && !save.isError && (
+            <span className="font-mono text-xs text-muted-foreground">
+              created {profilesCreated} profile{profilesCreated !== 1 ? "s" : ""}
+            </span>
+          )}
+          {prefs.data?.updated_at && (
+            <span className="font-mono text-xs text-muted-foreground">
+              last updated {prefs.data.updated_at}
+            </span>
+          )}
+        </div>
+
+        {save.isError && <ErrorView error={save.error} />}
+
+        <div className="space-y-2 pt-3 border-t border-border/60">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Apply policy
+          </h3>
+          {policy.isLoading && <LoadingView rows={2} />}
+          {policy.isError && <ErrorView error={policy.error} />}
+          {policy.data && <ApplyPolicyView policy={policy.data} />}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

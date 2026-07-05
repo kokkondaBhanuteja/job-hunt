@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { EmailDetail, EmailActionProposal } from "../../lib/api";
-import { api } from "../../lib/api";
-import { EMAIL_ACTION_KIND, QUERY_KEYS } from "../../lib/constants";
-import { ErrorView } from "../../components/ErrorView";
+import type { EmailDetail, EmailActionProposal } from "@/lib/api";
+import { api } from "@/lib/api";
+import { EMAIL_ACTION_KIND, QUERY_KEYS } from "@/lib/constants";
+import { ErrorView } from "@/components/ErrorView";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface Props {
@@ -58,60 +61,73 @@ export function EmailActions({ email }: Props) {
   const proposeBusy = proposeMutation.isPending;
 
   return (
-    <div className="email-action-bar">
+    <div className="space-y-3 border-t border-border pt-4">
       {proposeMutation.isError && <ErrorView error={proposeMutation.error} />}
       {dismissMutation.isError && <ErrorView error={dismissMutation.error} />}
 
       {collectingLabel ? (
-        <form className="label-form" onSubmit={handleLabelSubmit}>
-          <label htmlFor="action-label-input">Label name</label>
-          <input
-            id="action-label-input"
-            value={labelValue}
-            onChange={(ev) => setLabelValue(ev.target.value)}
-            placeholder="e.g. Follow-up"
-          />
-          <div className="btn-row">
-            <button type="submit" className="primary" disabled={proposeBusy}>
+        <form className="space-y-2" onSubmit={handleLabelSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="action-label-input">Label name</Label>
+            <Input
+              id="action-label-input"
+              value={labelValue}
+              onChange={(ev) => setLabelValue(ev.target.value)}
+              placeholder="e.g. Follow-up"
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={proposeBusy}>
               {proposeBusy ? "Proposing…" : "Propose label"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant="outline"
               onClick={() => {
                 setCollectingLabel(false);
                 setLabelValue("");
               }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
-        <div className="btn-row">
-          <button
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => handleActionClick(EMAIL_ACTION_KIND.DRAFT_REPLY)}
             disabled={proposeBusy}
           >
             Draft reply
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => handleActionClick(EMAIL_ACTION_KIND.APPLY_LABEL)}
             disabled={proposeBusy}
           >
             Apply label
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => handleActionClick(EMAIL_ACTION_KIND.ARCHIVE)}
             disabled={proposeBusy}
           >
             Archive
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
             onClick={() => dismissMutation.mutate()}
             disabled={dismissMutation.isPending}
           >
             {dismissMutation.isPending ? "Dismissing…" : "Dismiss"}
-          </button>
+          </Button>
         </div>
       )}
 

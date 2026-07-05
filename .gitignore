@@ -33,5 +33,8 @@ backend/data/resumes/*.tex
 backend/data/resumes/*.docx
 !backend/data/resumes/.gitkeep
 
+# Node dependencies (should only live under frontend/)
+node_modules/
+
 # OS
 .DS_Store

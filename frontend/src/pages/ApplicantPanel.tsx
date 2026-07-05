@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ErrorView } from "../components/ErrorView";
-import { api, getToken, type Applicant } from "../lib/api";
-import { QUERY_KEYS } from "../lib/constants";
+import { ErrorView } from "@/components/ErrorView";
+import { api, type Applicant } from "@/lib/api";
+import { QUERY_KEYS } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// String-only fields rendered in v1. Boolean fields (needs_sponsorship,
-// willing_to_relocate) are deferred to keep this file ≤150 lines.
 type StringField =
   | "first_name" | "last_name" | "email" | "phone" | "location"
   | "linkedin_url" | "github_url" | "portfolio_url" | "work_authorization"
@@ -35,12 +37,10 @@ export function ApplicantPanel() {
   const result = useQuery({
     queryKey: QUERY_KEYS.applicant,
     queryFn: api.getApplicant,
-    enabled: !!getToken(),
   });
   const [form, setForm] = useState<Partial<Applicant>>({});
   const [dirty, setDirty] = useState(false);
 
-  // Pre-fill from stored applicant data once, until the user edits.
   useEffect(() => {
     if (result.data && !dirty) setForm(result.data);
   }, [result.data, dirty]);
@@ -59,34 +59,40 @@ export function ApplicantPanel() {
   }
 
   return (
-    <section className="card-block">
-      <h2>Applicant profile</h2>
-      <p className="muted small">
-        Personal details used by Auto-fill to populate ATS forms. Sponsorship and
-        relocation toggles are coming in v2.
-      </p>
-      {result.isError && <ErrorView error={result.error} />}
-      {FIELDS.map(({ key, label }) => (
-        <label key={key}>
-          {label}
-          <input
-            id={key}
-            value={form[key] ?? ""}
-            onChange={(e) => handleChange(key, e.target.value)}
-          />
-        </label>
-      ))}
-      <button
-        className="primary"
-        disabled={save.isPending}
-        onClick={() => save.mutate()}
-      >
-        {save.isPending ? "Saving…" : !dirty && save.isSuccess ? "Saved ✓" : "Save profile"}
-      </button>
-      {save.isError && <ErrorView error={save.error} />}
-      {result.data?.updated_at && (
-        <div className="mono small">last updated {result.data.updated_at}</div>
-      )}
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Applicant profile</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Personal details used by Auto-fill to populate ATS forms. Sponsorship and
+          relocation toggles are coming in v2.
+        </p>
+        {result.isError && <ErrorView error={result.error} />}
+        <div className="grid gap-4 md:grid-cols-2">
+          {FIELDS.map(({ key, label }) => (
+            <div className="space-y-1.5" key={key}>
+              <Label htmlFor={key}>{label}</Label>
+              <Input
+                id={key}
+                value={form[key] ?? ""}
+                onChange={(e) => handleChange(key, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? "Saving…" : !dirty && save.isSuccess ? "Saved ✓" : "Save profile"}
+          </Button>
+          {result.data?.updated_at && (
+            <span className="font-mono text-xs text-muted-foreground">
+              last updated {result.data.updated_at}
+            </span>
+          )}
+        </div>
+        {save.isError && <ErrorView error={save.error} />}
+      </CardContent>
+    </Card>
   );
 }

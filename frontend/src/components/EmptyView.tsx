@@ -1,12 +1,17 @@
-// Shared empty-state message used by every data-loading view.
-// Children can be text or richer content (e.g. a call-to-action link).
-
 import type { ReactNode } from "react";
+import { Inbox } from "lucide-react";
 
 interface Props {
   children: ReactNode;
+  /** Override the default inbox icon (or hide with null). */
+  icon?: ReactNode | null;
 }
 
-export function EmptyView({ children }: Props) {
-  return <div className="muted">{children}</div>;
+export function EmptyView({ children, icon }: Props) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-6 py-10 text-center text-sm text-muted-foreground">
+      {icon === undefined ? <Inbox className="h-6 w-6 opacity-60" aria-hidden /> : icon}
+      <div>{children}</div>
+    </div>
+  );
 }

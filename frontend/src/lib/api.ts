@@ -2,6 +2,7 @@
 // localStorage (set on the Settings page).
 
 import { API_ENDPOINTS, DEFAULT_API_BASE, ROUTES, STORAGE_KEYS, type MessageKind } from "./constants";
+import { navigate } from "./router";
 
 export function getApiBase(): string {
   return localStorage.getItem(STORAGE_KEYS.apiBase) || DEFAULT_API_BASE;
@@ -25,11 +26,11 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   });
   if (res.status === 401) {
     // Centralized session-expiry handling: clear the bad token and bounce the
-    // user to Settings. Every caller sees a consistent error and doesn't need
-    // its own auth-failure branch.
+    // user to Settings via the client router. Every caller sees a consistent
+    // error and doesn't need its own auth-failure branch.
     localStorage.removeItem(STORAGE_KEYS.apiToken);
-    if (!window.location.hash.endsWith(ROUTES.settings)) {
-      window.location.hash = ROUTES.settings;
+    if (window.location.pathname !== ROUTES.settings) {
+      navigate(ROUTES.settings);
     }
     throw new Error("401: session expired — set your API token in Settings");
   }

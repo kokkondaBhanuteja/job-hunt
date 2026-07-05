@@ -82,11 +82,19 @@ export const SCORE_THRESHOLDS = {
   solid: 70,
 } as const;
 
-/** localStorage keys for connection config. */
+/** localStorage keys for connection config + UI prefs. */
 export const STORAGE_KEYS = {
   apiBase: "apiBase",
   apiToken: "apiToken",
+  theme: "theme",
 } as const;
+
+/** Theme values persisted to STORAGE_KEYS.theme. */
+export const THEME = {
+  light: "light",
+  dark: "dark",
+} as const;
+export type ThemeValue = (typeof THEME)[keyof typeof THEME];
 
 /** Default API base URL when localStorage is empty.
  * VITE_API_BASE is injected at build time: the Docker build passes "" so all

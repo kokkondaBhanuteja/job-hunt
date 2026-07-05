@@ -1,5 +1,7 @@
-import type { ApplyPolicy } from "../lib/api";
-import { EmptyView } from "../components/EmptyView";
+import type { ReactNode } from "react";
+import type { ApplyPolicy } from "@/lib/api";
+import { EmptyView } from "@/components/EmptyView";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   policy: ApplyPolicy;
@@ -12,48 +14,61 @@ export function ApplyPolicyView({ policy }: Props) {
 
   if (isEmpty) {
     return (
-      <EmptyView>No apply policy parsed yet — save preferences above to generate one.</EmptyView>
+      <EmptyView icon={null}>
+        No apply policy parsed yet — save preferences above to generate one.
+      </EmptyView>
     );
   }
 
   return (
-    <div>
-      <dl className="kv">
-        <div>
-          <dt>Min fit score</dt>
-          <dd>{policy.min_fit_score}</dd>
-        </div>
-        {policy.seniority && (
-          <div>
-            <dt>Seniority</dt>
-            <dd>{policy.seniority}</dd>
-          </div>
-        )}
-        <div>
-          <dt>Remote only</dt>
-          <dd>{policy.remote_only ? "Yes" : "No"}</dd>
-        </div>
+    <div className="space-y-3">
+      <dl className="divide-y divide-border rounded-md border border-border">
+        <PolicyRow label="Min fit score" value={String(policy.min_fit_score)} />
+        {policy.seniority && <PolicyRow label="Seniority" value={policy.seniority} />}
+        <PolicyRow label="Remote only" value={policy.remote_only ? "Yes" : "No"} />
       </dl>
+
       {policy.must_have.length > 0 && (
-        <div>
-          <h3>Must have</h3>
-          <div className="chips">
+        <PolicySection title="Must have">
+          <div className="flex flex-wrap gap-1.5">
             {policy.must_have.map((item) => (
-              <span key={item} className="chip">{item}</span>
+              <Badge key={item} variant="secondary" className="font-normal">
+                {item}
+              </Badge>
             ))}
           </div>
-        </div>
+        </PolicySection>
       )}
+
       {policy.avoid.length > 0 && (
-        <div>
-          <h3>Avoid</h3>
-          <ul className="brief-list">
+        <PolicySection title="Avoid">
+          <ul className="list-inside list-disc space-y-0.5 text-[13px] leading-relaxed">
             {policy.avoid.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </div>
+        </PolicySection>
       )}
+    </div>
+  );
+}
+
+function PolicyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[10rem,1fr] gap-3 px-3 py-2 text-xs">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function PolicySection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </p>
+      {children}
     </div>
   );
 }

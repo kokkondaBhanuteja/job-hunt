@@ -6,8 +6,9 @@
 > were asked to make, stop and ask the user — do not silently break the rule.
 
 Scope: everything under `frontend/src`. React 19 + Vite + TypeScript (strict) +
-TanStack Query. Plain CSS with CSS variables. Hash router. Single-user local tool
-served over `127.0.0.1`.
+TanStack Query. **Tailwind CSS + shadcn/ui** for styling and components. Client
+router (clean URLs, History API — see `src/lib/router.tsx`). Single-user local
+tool served over `127.0.0.1`.
 
 This doc is our tailored subset of the Tapza clinic frontend standards
 (`~/Downloads/engineering-standards.md`). We take the rules that scale down to a
@@ -22,13 +23,16 @@ Before you finalize any edit under `frontend/`:
 - [ ] No `any`. No `unknown` leaked out of a boundary.
 - [ ] No hardcoded route, endpoint, query key, magic number, or user-visible
       string literal — pull from `src/lib/constants.ts` (add there if missing).
-- [ ] Every new/changed `.tsx` file is ≤ 150 lines. Split by extracting child
-      components in the same file first, sibling files only when reused.
+- [ ] Every new/changed **app** `.tsx` file is ≤ 150 lines. Split by extracting
+      child components in the same file first, sibling files only when reused.
+      **Generated shadcn/ui primitives under `src/components/ui/` are exempt**
+      from this cap — they are vendored library code, not app code.
 - [ ] Related files (component, its test, its page-scoped sub-components, its
       SCSS if applicable) live in the **same folder**. A component's test is
       `Foo.tsx` + `Foo.test.ts`, not a top-level `__tests__/` folder.
-- [ ] Server state uses TanStack Query. URL state uses the hash router. Local UI
-      state uses `useState`. **No** Redux/Zustand/etc.
+- [ ] Server state uses TanStack Query. URL state uses the client router
+      (`src/lib/router.tsx`, History API — clean URLs, no `#`). Local UI state
+      uses `useState`. **No** Redux/Zustand/etc.
 - [ ] Data-loading views use `<LoadingView />`, `<ErrorView />`, `<EmptyView />`
       from `src/components/`. No ad-hoc `{isError && ...}` chains.
 - [ ] Query invalidations are precise — the smallest key set that could be
@@ -36,11 +40,18 @@ Before you finalize any edit under `frontend/`:
       the token changes.
 - [ ] Auth failures are NOT handled per-caller; the `req()` wrapper in
       `src/lib/api.ts` owns 401 handling.
-- [ ] Styling goes through `src/styles.css` and its `:root` CSS variables. No
-      CSS-in-JS, no CSS Modules, no SCSS, no Tailwind, no inline hex or raw
+- [ ] Styling uses **Tailwind utilities + shadcn/ui components** with the token
+      variables in `src/styles.css` (shadcn CSS-variable tokens, `.dark` class
+      strategy). Plain CSS is only allowed when Tailwind + shadcn genuinely
+      cannot express it — scoped, with a `/* why utilities weren't enough: … */`
+      comment. No CSS-in-JS, no CSS Modules, no SCSS, no inline hex or raw
       pixel values in components.
-- [ ] Interactive elements are native (`<button>`, `<a>`, `<input>`) with labels
-      tied to inputs (`htmlFor`) and visible focus. WCAG 2.1 AA is the floor.
+- [ ] Responsive is mandatory: no horizontal page scroll at 375 / 768 / 1024 /
+      1440px; use Tailwind breakpoints (`sm md lg`), not custom media queries;
+      touch targets ≥ 40px on coarse pointers.
+- [ ] Interactive elements are native or shadcn (`<Button>`, `<Input>`, native
+      `<a>`) with labels tied to inputs (`htmlFor` / shadcn `<Label>`) and
+      visible focus. WCAG 2.1 AA is the floor.
 - [ ] Any backend DTO field change is mirrored in `src/lib/api.ts` in the same PR,
       and vice versa.
 - [ ] Board `COLUMNS` in `src/pages/Board.tsx` is in sync with the `JOB_STATE`
@@ -73,9 +84,11 @@ If you cannot check every applicable box, do not claim the change is complete.
 
 ### Structure & size
 
-5. **Every `.tsx` ≤ 150 lines.** ~120 lines is the "look closer" signal. Split
-   by extracting child components into the *same file* first, sibling files
-   only when they're reused.
+5. **Every app `.tsx` ≤ 150 lines.** ~120 lines is the "look closer" signal.
+   Split by extracting child components into the *same file* first, sibling
+   files only when they're reused. **Generated shadcn/ui primitives under
+   `src/components/ui/` are exempt** — treat them as vendored library code
+   (edit sparingly, never restyle from scratch).
 6. **One responsibility per component.** If a component fetches, transforms,
    *and* renders three sub-views, it's really three components — split.
 7. **Small helpers stay local.** A helper used in one file lives in that file.
@@ -109,8 +122,12 @@ If you cannot check every applicable box, do not claim the change is complete.
 
 ### Data & state
 
-10. **Server state → TanStack Query. URL state → hash. Local UI → `useState`.**
-    That is the whole state-management story. No Redux, no Zustand, no Jotai.
+10. **Server state → TanStack Query. URL state → client router (clean URLs).
+    Local UI → `useState`.** That is the whole state-management story. No
+    Redux, no Zustand, no Jotai. Internal navigation uses the `<Link>` component
+    from `src/lib/router.tsx`; programmatic navigation uses `navigate()` from
+    the same module. Never write `<a href="/board">` directly for internal
+    links — that would trigger a full page reload.
 11. **Every data-loading view handles four states:** loading, error, empty, data.
     Use the shared `<LoadingView />`, `<ErrorView />`, `<EmptyView />` primitives
     from `src/components/`. Ad-hoc `{isError && ...}` chains are not allowed in
@@ -125,23 +142,57 @@ If you cannot check every applicable box, do not claim the change is complete.
 
 ### Style
 
-14. **One `styles.css`, semantic classes, CSS variables.** No CSS-in-JS, no CSS
-    Modules, no SCSS, no Tailwind. Palette/spacing come from `:root` variables.
-    Never inline a hex or a raw px in a component.
-15. **Accessibility baseline:** semantic HTML, labels tied to inputs (`htmlFor`),
-    keyboard-focusable interactive elements (native `<button>`, `<a>`, `<input>`),
-    visible focus rings, sufficient contrast. WCAG 2.1 AA is the floor.
+14. **Tailwind CSS + shadcn/ui is the app-wide standard.** Default to Tailwind
+    utility classes and shadcn components. Plain CSS is only allowed when
+    Tailwind + shadcn genuinely cannot express it (bespoke keyframe,
+    non-tokenizable gradient, a layout materially clearer as CSS) — scope it
+    and add a `/* why utilities weren't enough: … */` comment. **No CSS-in-JS,
+    no CSS Modules, no SCSS.** Never inline a hex or a raw px in a component.
+    `src/styles.css` holds only the Tailwind directives, the shadcn token
+    variables for `:root` (light) and `.dark`, and justified exceptions.
+15. **Theming uses shadcn CSS-variable tokens with the `.dark` class strategy**
+    on `<html>`. The token names (`--background`, `--foreground`, `--card`,
+    `--primary`, `--muted`, `--border`, `--destructive`, …) are the palette
+    contract — do not invent new color values in components. A small local
+    theme provider (persists to `localStorage`) toggles `.dark`; **do not add
+    `next-themes` or any other theming library.**
+16. **Responsive is mandatory** on every view: no horizontal page scroll at
+    375 / 768 / 1024 / 1440px; use Tailwind breakpoints (`sm md lg`), not
+    custom media queries. Tables get `overflow-x-auto` or become stacked cards
+    on small screens. Touch targets ≥ 40px on coarse pointers.
+17. **Accessibility baseline:** semantic HTML, labels tied to inputs (`htmlFor`
+    or shadcn `<Label>`), keyboard-focusable interactive elements (native
+    `<button>`, `<a>`, `<input>` or their shadcn wrappers), visible focus rings
+    (shadcn ships `:focus-visible` styles), sufficient contrast in both themes.
+    WCAG 2.1 AA is the floor.
+
+### Allowed dependencies (exhaustive)
+
+Runtime and dev deps outside `package.json` at the start of this migration
+require owner approval. The migration allow-list is:
+
+- `tailwindcss` (v4) + `@tailwindcss/vite`.
+- shadcn/ui components, **only** from this list:
+  `Button, Input, Textarea, Select, Switch, Checkbox, Label, Card, Tabs, Table,
+  Form, Skeleton, Sonner (toast), Dialog, Sheet, DropdownMenu, Tooltip, Badge,
+  Separator, ScrollArea, Alert`.
+- shadcn support deps: `class-variance-authority`, `clsx`, `tailwind-merge`,
+  `lucide-react`, `tw-animate-css`.
+- Forms: `react-hook-form` + `zod` + `@hookform/resolvers` (form state only).
+
+Anything not on this list — including additional shadcn components or a
+different icon set — needs owner sign-off before `npm install`.
 
 ### Process
 
-16. **Tests live alongside the code they cover.** Vitest is the runner. Utility
+18. **Tests live alongside the code they cover.** Vitest is the runner. Utility
     functions and non-trivial component logic are tested in the same PR.
     Trivial presentational components don't need tests. See rule 8 for
     co-location.
-17. **Comments explain *why*, never *what*.** If the *what* is unclear, rename
+19. **Comments explain *why*, never *what*.** If the *what* is unclear, rename
     or refactor first. Reserve comments for constraints, workarounds, and links
     to external context.
-18. **Every PR runs `npm run build` and `npx vitest run` locally.** `tsc -b`
+20. **Every PR runs `npm run build` and `npx vitest run` locally.** `tsc -b`
     catches type drift before reviewers do; vitest catches logic regressions.
 
 ---
@@ -157,7 +208,7 @@ We considered these from the Tapza doc and declined:
 | `rsrc/en/hi/te` localization | Single-user personal tool, English only. Localization is not planned. Add if the app ever becomes multi-user. |
 | react-bootstrap / SCSS / design-token files under `core/` | The whole frontend is ~150 lines of CSS. Bootstrap + SCSS would be a rewrite, not a standard. |
 | Separate `queries/` and `mutations/` folders | ~15 total React Query calls. Splitting them across folders makes navigation worse, not better. |
-| `layouts/` folder + React Router 7 + guards | Hash router is a documented, defended choice (`src/router.ts`). We have one layout (the topbar in `App.tsx`) — a folder for one file is ceremony. |
+| `layouts/` folder + React Router 7 + guards | Our client router (`src/lib/router.tsx`, ~90 LOC, History API + Link) is enough for 6 screens with one shared layout — the topbar in `App.tsx`. Adopt React Router when we need nested routes, loaders, or per-route guards. |
 | Pages must not import `services/` directly | The current `api.ts` *is* the service layer. Adding an intermediate hook layer for every endpoint is pure indirection at this scale. |
 
 Every declined rule is a *deferral*, not a rejection. When the trigger in the
@@ -191,8 +242,9 @@ Adopt the corresponding Tapza rule when:
 | A response type | `src/lib/api.ts` (mirror `dto.py`) |
 | A constant, route, endpoint, query key, threshold | `src/lib/constants.ts` |
 | A framework-agnostic utility (dates, formatters, parsers) | `src/lib/` |
-| A style rule | `src/styles.css` |
-| A CSS variable / palette entry | `src/styles.css :root` |
+| A style rule | Tailwind utility on the element (default); `src/styles.css` only if not expressible in utilities |
+| A shadcn theme token / palette entry | `src/styles.css :root` (light) and `.dark` block |
+| A generated shadcn primitive | `src/components/ui/<name>.tsx` (vendored — do not restyle) |
 | A React Query key | `QUERY_KEYS` in `src/lib/constants.ts` |
 | A future page-scoped SCSS file | that page's folder — same as its `.tsx` |
 | A page that outgrew `pages/*.tsx` (4+ files) | promote to `pages/<Page>/` |

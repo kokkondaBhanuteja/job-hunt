@@ -138,6 +138,7 @@ class LearningKind(StrEnum):
     REJECTION = "rejection"       # JD requirements the resume under-emphasized
     INTERVIEW = "interview"       # a variant that won an interview
     EXPLANATION = "explanation"   # score breakdown: matched/missing/suggestions
+    ALERT = "alert"               # dedup marker: instant-match alert already sent
 
 
 class ATSPlatform(StrEnum):
@@ -150,6 +151,7 @@ class ATSPlatform(StrEnum):
     SMARTRECRUITERS = "smartrecruiters"
     ICIMS = "icims"
     NAUKRI = "naukri"
+    WORKABLE = "workable"
     REMOTEOK = "remoteok"
     UNKNOWN = "unknown"
 

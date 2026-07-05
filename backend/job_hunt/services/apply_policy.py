@@ -33,6 +33,36 @@ def get_policy() -> dict[str, Any]:
     return stored
 
 
+def passes_policy(job: dict[str, Any], policy: dict[str, Any]) -> bool:
+    """Return True if job passes all must_have/avoid/remote_only/seniority checks in policy.
+
+    Does NOT check fit_score — the caller is responsible for the score gate.
+    The searchable text is built from title, company, location, description, description_full.
+    """
+    must_have: list[str] = [kw.lower() for kw in (policy.get("must_have") or [])]
+    avoid: list[str] = [kw.lower() for kw in (policy.get("avoid") or [])]
+    remote_only: bool = bool(policy.get("remote_only"))
+    seniority: str = (policy.get("seniority") or "").lower().strip()
+
+    text = " ".join([
+        job.get("title") or "",
+        job.get("company") or "",
+        job.get("location") or "",
+        job.get("description") or "",
+        job.get("description_full") or "",
+    ]).lower()
+
+    if must_have and not all(kw in text for kw in must_have):
+        return False
+    if any(kw in text for kw in avoid):
+        return False
+    if remote_only and "remote" not in text:
+        return False
+    if seniority and seniority not in text:
+        return False
+    return True
+
+
 def list_ready_to_apply(limit: int = 50) -> list[dict[str, Any]]:
     """Return scored jobs passing the apply policy — for human review only.
 
@@ -41,10 +71,6 @@ def list_ready_to_apply(limit: int = 50) -> list[dict[str, Any]]:
     """
     policy = get_policy()
     min_score: int = int(policy.get("min_fit_score") or 0)
-    must_have: list[str] = [kw.lower() for kw in (policy.get("must_have") or [])]
-    avoid: list[str] = [kw.lower() for kw in (policy.get("avoid") or [])]
-    remote_only: bool = bool(policy.get("remote_only"))
-    seniority: str = (policy.get("seniority") or "").lower().strip()
 
     matches = list_top_matches(min_score=min_score, limit=500)
     ready: list[dict[str, Any]] = []
@@ -52,20 +78,7 @@ def list_ready_to_apply(limit: int = 50) -> list[dict[str, Any]]:
         job = repo.get_job(match["job_id"])
         if job is None:
             continue
-        text = " ".join([
-            match.get("title") or "",
-            match.get("company") or "",
-            match.get("location") or "",
-            job["description"] or "",
-            job["description_full"] or "",
-        ]).lower()
-        if must_have and not all(kw in text for kw in must_have):
-            continue
-        if any(kw in text for kw in avoid):
-            continue
-        if remote_only and "remote" not in text:
-            continue
-        if seniority and seniority not in text:
+        if not passes_policy(dict(job), policy):
             continue
         ready.append(match)
         if len(ready) >= limit:

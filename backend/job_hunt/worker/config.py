@@ -14,6 +14,11 @@ DAILY_CAP = int(os.getenv("WORKER_DAILY_CAP", "30"))
 DISCOVERY_INTERVAL_MIN = int(os.getenv("WORKER_DISCOVERY_INTERVAL_MIN", "180"))
 DISPATCH_INTERVAL_SEC = int(os.getenv("WORKER_DISPATCH_INTERVAL_SEC", "30"))
 
+# Randomize each scheduled run by up to ±this fraction of its interval. Purpose: spread
+# load and avoid synchronized bursts hitting every source on the same tick (politeness +
+# smoother distribution) — NOT detection-evasion. Set 0 to disable.
+JITTER_FRAC = float(os.getenv("WORKER_JITTER_FRAC", "0.2"))
+
 # API source discovery (cheap httpx sources — no browser, no active-hours gate).
 API_DISCOVERY_INTERVAL_MIN = int(os.getenv("WORKER_API_DISCOVERY_INTERVAL_MIN", "20"))
 # remotive excluded from default: terms cap ≤4 calls/day, too slow for this loop.

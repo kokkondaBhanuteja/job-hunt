@@ -31,34 +31,47 @@ def _discovery_if_active() -> None:
         runner.run_all_active_profiles(headless=True)
 
 
+def _jit(interval_seconds: int) -> int:
+    """Max ±jitter (s) for a job = a fraction of its interval — spreads load, not evasion."""
+    return int(interval_seconds * config.JITTER_FRAC)
+
+
 def build_scheduler() -> BlockingScheduler:
     sched = BlockingScheduler(timezone=_TZ)
     sched.add_job(
         _discovery_if_active, "interval",
         minutes=config.DISCOVERY_INTERVAL_MIN, id="discovery", max_instances=1,
+        jitter=_jit(config.DISCOVERY_INTERVAL_MIN * 60),
     )
     sched.add_job(
         runner.dispatch_events_once, "interval",
         seconds=config.DISPATCH_INTERVAL_SEC, id="dispatch", max_instances=1,
+        jitter=_jit(config.DISPATCH_INTERVAL_SEC),
     )
     sched.add_job(
         runner.run_api_sources, "interval",
         minutes=config.API_DISCOVERY_INTERVAL_MIN, id="api_discovery", max_instances=1,
+        jitter=_jit(config.API_DISCOVERY_INTERVAL_MIN * 60),
     )
-    # Evening daily report (no-op unless NOTIFY_CHANNEL is configured).
+    # Evening daily report — jittered into a ~1h window rather than exactly on the minute.
     from job_hunt.services.analytics import send_daily_report
 
-    sched.add_job(send_daily_report, "cron", hour=20, minute=0, id="daily_report")
+    sched.add_job(send_daily_report, "cron", hour=20, minute=0, id="daily_report", jitter=3600)
 
     # Tri-daily content post draft (never auto-posts — just notifies the user).
     from job_hunt.services.content import generate_and_notify_post
 
-    sched.add_job(generate_and_notify_post, "interval", days=3, id="content_post")
+    sched.add_job(
+        generate_and_notify_post, "interval", days=3, id="content_post",
+        jitter=_jit(3 * 86400),
+    )
 
     # Weekly Naukri profile refresh reminder (draft-only — user pastes it manually).
     from job_hunt.services.naukri_refresh import refresh_reminder
 
-    sched.add_job(refresh_reminder, "cron", day_of_week="mon", hour=9, id="naukri_refresh")
+    sched.add_job(
+        refresh_reminder, "cron", day_of_week="mon", hour=9, id="naukri_refresh", jitter=7200,
+    )
     return sched
 
 

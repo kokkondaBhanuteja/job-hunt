@@ -10,7 +10,7 @@ help:  ## List available targets
 
 up: ensure-token  ## Build + start the whole stack (detached)
 	docker compose up --build -d
-	@echo "UI  -> http://localhost:8080  (no token to set — nginx injects it; leave API base blank)"
+	@echo "UI  -> http://localhost:8770  (no token to set — nginx injects it; leave API base blank)"
 	@echo "API -> http://localhost:8000"
 
 ensure-token:  ## Generate a shared API token into ./.env if one isn't set (auto-run by 'up')

@@ -84,7 +84,8 @@ services:
     environment:
       API_TOKEN: ${API_TOKEN:?run 'make up' first — it generates the shared API token}
     ports:
-      - "8080:80"
+      # 8770 (not 8080 — that series is used by other local projects)
+      - "8770:80"
     depends_on:
       - api
 

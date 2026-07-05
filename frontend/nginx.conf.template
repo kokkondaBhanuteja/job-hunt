@@ -1,7 +1,7 @@
 # Rendered at container start by the nginx image's envsubst (only ${API_TOKEN} is
 # substituted — nginx's own $host/$uri/$remote_addr are left untouched because they
 # are not defined env vars). The /api/ location injects the shared bearer token so the
-# browser never has to hold or paste it. Local single-user tool only — keep port 8080
+# browser never has to hold or paste it. Local single-user tool only — keep port 8770
 # on localhost; do not expose it publicly.
 server {
     listen 80;

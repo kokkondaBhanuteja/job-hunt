@@ -118,7 +118,7 @@ a short cadence and auto-advances `discovered → enriched → scored → …`.
 ```mermaid
 flowchart LR
     subgraph Docker["docker compose up  (one command)"]
-        FE["frontend (nginx :8080, proxies /api)"]
+        FE["frontend (nginx :8770, proxies /api)"]
         A["api (:8000)"]
         W["worker"]
         DB[("db — Postgres + pgvector")]

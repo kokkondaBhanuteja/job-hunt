@@ -54,12 +54,13 @@ discover ─▶ enrich (full JD) ─▶ score (idempotent, JD-aware) ─▶ tail
 ## Run it all with Docker
 
 ```bash
-# From the repo root — builds all images and starts db + api + worker + frontend
-docker compose up --build
+# From the repo root — generates a shared API token (into ./.env, gitignored),
+# builds all images, and starts db + api + worker + frontend
+make up
 ```
 
-- **UI:** http://localhost:8080 — open Settings and enter your `API_TOKEN` from `backend/.env.local`
-  (leave the "API base" field blank; nginx proxies `/api/*` to the backend automatically).
+- **UI:** http://localhost:8770 — nothing to configure: nginx injects the shared token, so
+  there's no token to paste (leave the "API base" field blank; it proxies `/api/*` automatically).
 - **API (direct):** http://localhost:8000 (also exposed for debugging/CLI tools).
 
 Two features are intentionally host-only (no GPU/browser passthrough in containers):

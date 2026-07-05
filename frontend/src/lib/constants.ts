@@ -59,6 +59,8 @@ export const API_ENDPOINTS = {
   skillGap: "/api/skill-gap",
   nextAction: (id: number) => `/api/jobs/${id}/next-action`,
   similarSuccessful: (id: number) => `/api/jobs/${id}/similar-successful`,
+  watchlist: "/api/watchlist",
+  watchEntry: (id: number) => `/api/watchlist/${id}`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -82,6 +84,7 @@ export const QUERY_KEYS = {
   skillGap: ["skillGap"] as const,
   nextAction: (id: number) => ["nextAction", id] as const,
   similar: (id: number) => ["similar", id] as const,
+  watchlist: ["watchlist"] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */
@@ -172,6 +175,13 @@ export const BOARD_COLUMN = {
   closed: "closed",
 } as const;
 export type BoardColumn = (typeof BOARD_COLUMN)[keyof typeof BOARD_COLUMN];
+
+/** Mirror of job_hunt/enums.py::ATSPlatform — accepted values for watchlist entries. */
+export const ATS_OPTIONS = [
+  "greenhouse", "lever", "workday", "ashby", "smartrecruiters",
+  "icims", "naukri", "workable", "remoteok", "unknown",
+] as const;
+export type ATSOption = (typeof ATS_OPTIONS)[number];
 
 /** Application funnel stages (order matters — drives the Analytics view). */
 export const FUNNEL_STAGES = [

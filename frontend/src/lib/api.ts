@@ -267,6 +267,15 @@ export interface ScoreExplanation {
   missing: { requirement: string; why_it_matters: string }[];
   suggestions: string[];
 }
+// Mirrors backend dto.WatchEntry.
+export interface WatchEntry {
+  id: number;
+  company: string;
+  ats: string;
+  board_token: string;
+  enabled: boolean;
+  created_at: string | null;
+}
 // Mirrors backend dto.SkillGap.
 export interface SkillGap {
   gaps: { skill: string; count: number }[];
@@ -384,4 +393,11 @@ export const api = {
   skillGap: () => req<SkillGap>(API_ENDPOINTS.skillGap),
   nextAction: (id: number) => req<NextAction>(API_ENDPOINTS.nextAction(id)),
   similarSuccessful: (id: number) => req<SimilarResult>(API_ENDPOINTS.similarSuccessful(id)),
+  watchlist: () => req<WatchEntry[]>(API_ENDPOINTS.watchlist),
+  addWatch: (b: { company: string; ats: string; board_token: string }) =>
+    req<WatchEntry>(API_ENDPOINTS.watchlist, { method: "POST", body: JSON.stringify(b) }),
+  removeWatch: (id: number) =>
+    req<{ ok: boolean }>(API_ENDPOINTS.watchEntry(id), { method: "DELETE" }),
+  setWatchEnabled: (id: number, enabled: boolean) =>
+    req<WatchEntry>(API_ENDPOINTS.watchEntry(id), { method: "PATCH", body: JSON.stringify({ enabled }) }),
 };

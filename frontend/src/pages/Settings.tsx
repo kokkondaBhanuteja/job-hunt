@@ -3,6 +3,7 @@ import { ConnectionPanel } from "./ConnectionPanel";
 import { ContextPanel } from "./ContextPanel";
 import { ProfilesPanel } from "./ProfilesPanel";
 import { SearchPrefsPanel } from "./SearchPrefsPanel";
+import { WatchlistPanel } from "./WatchlistPanel";
 
 export function Settings() {
   return (
@@ -13,6 +14,7 @@ export function Settings() {
       <ApplicantPanel />
       <SearchPrefsPanel />
       <ProfilesPanel />
+      <WatchlistPanel />
     </div>
   );
 }

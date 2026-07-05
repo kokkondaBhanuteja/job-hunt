@@ -144,6 +144,34 @@ def upsert_resume_variant(
         return int(row["id"])
 
 
+def upsert_variant_from_text(
+    *,
+    slug: str,
+    company: str,
+    body: str,
+    parsed: dict[str, Any],
+    tags: list[str],
+) -> int:
+    """Insert-or-update a text-authored résumé variant. Returns its row id."""
+    with connect() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO resume_variants (slug, company, body, parsed_json, tags, updated_at)
+            VALUES (%s, %s, %s, %s, %s, now())
+            ON CONFLICT (slug) DO UPDATE SET
+              company     = EXCLUDED.company,
+              body        = EXCLUDED.body,
+              parsed_json = EXCLUDED.parsed_json,
+              tags        = EXCLUDED.tags,
+              source_path = NULL,
+              updated_at  = EXCLUDED.updated_at
+            RETURNING id
+            """,
+            (slug, company or None, body, Jsonb(parsed), Jsonb(tags)),
+        ).fetchone()
+        return int(row["id"])
+
+
 def write_score(
     *, job_id: int, variant_id: int, fit_score: int, reasoning: str,
     confidence: int | None = None, scored_against: str | None = None,
@@ -228,6 +256,22 @@ def best_scored_variant(job_id: int) -> dict[str, Any] | None:
             WHERE s.job_id = %s ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
             """,
             (job_id,),
+        ).fetchone()
+
+
+def best_scored_variant_for_company(job_id: int, company: str) -> dict[str, Any] | None:
+    """The highest-scoring variant for a job whose company matches (case-insensitive), or None."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT rv.id, rv.slug, rv.source_path, rv.parsed_json::text AS parsed_json
+            FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
+            WHERE s.job_id = %s
+              AND rv.company IS NOT NULL
+              AND LOWER(rv.company) = LOWER(%s)
+            ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
+            """,
+            (job_id, company),
         ).fetchone()
 
 
@@ -580,10 +624,24 @@ def record_application(*, job_id: int, variant_id: int, cover_letter: str) -> No
 def list_resume_variants() -> list[dict[str, Any]]:
     with connect() as conn:
         return conn.execute(
-            "SELECT id, slug, source_path, parsed_json::text AS parsed_json, "
+            "SELECT id, slug, source_path, company, body, "
+            "parsed_json::text AS parsed_json, "
             "tags::text AS tags, updated_at::text AS updated_at "
             "FROM resume_variants ORDER BY slug"
         ).fetchall()
+
+
+def get_resume_variant_by_slug(slug: str) -> dict[str, Any] | None:
+    """Return the full resume_variants row for a slug, or None."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT id, slug, company, body, parsed_json::text AS parsed_json,
+                   tags::text AS tags, source_path, updated_at::text AS updated_at
+            FROM resume_variants WHERE slug = %s
+            """,
+            (slug,),
+        ).fetchone()
 
 
 def list_board_jobs(limit: int = 200) -> list[dict[str, Any]]:

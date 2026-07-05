@@ -164,6 +164,13 @@ class WatchIn(BaseModel):
     board_token: str
 
 
+class _VariantIn(BaseModel):
+    slug: str
+    company: str | None = None
+    body: str
+    tags: list[str] | None = None
+
+
 # ---------- app ----------
 
 app = FastAPI(title="job-hunt API", version="0.1.0")
@@ -219,6 +226,31 @@ def get_job(job_id: int) -> dict[str, Any]:
 @api.get("/resume-variants")
 def resume_variants() -> list[dict[str, Any]]:
     return services.list_resume_vault()
+
+
+@api.get("/variants", response_model=list[dto.VariantSummary])
+def list_variants() -> list[dict[str, Any]]:
+    """List all résumé variants (slug, company, tags, has_body)."""
+    return services.list_variants()
+
+
+@api.get("/variants/{slug}", response_model=dto.VariantDetail)
+def get_variant(slug: str) -> dict[str, Any]:
+    """Return a single variant's full detail."""
+    return _unwrap(services.get_variant(slug))
+
+
+@api.post("/variants", status_code=201)
+def create_variant(body: _VariantIn) -> dict[str, Any]:
+    """Parse + upsert a text-authored résumé variant."""
+    return _unwrap(
+        services.save_variant_from_text(
+            body.slug,
+            company=body.company or "",
+            body=body.body,
+            tags=body.tags,
+        )
+    )
 
 
 @api.get("/search-profiles", response_model=list[dto.Profile])

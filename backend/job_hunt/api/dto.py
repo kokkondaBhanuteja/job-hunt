@@ -310,3 +310,22 @@ class WatchEntry(BaseModel):
     board_token: str
     enabled: bool
     created_at: str | None = None
+
+
+class VariantSummary(BaseModel):
+    """List-row projection of a résumé variant."""
+
+    slug: str
+    company: str | None = None
+    tags: list[str] = []
+    has_body: bool
+
+
+class VariantDetail(BaseModel):
+    """Full résumé variant detail including raw body and parsed JSON."""
+
+    slug: str
+    company: str | None = None
+    body: str | None = None
+    tags: list[str] = []
+    parsed_json: dict[str, Any] | None = None

@@ -30,7 +30,10 @@ def _job_and_variant(job_id: int) -> tuple[dict[str, Any] | None, Any, dict[str,
     job = repo.get_job(job_id)
     if job is None:
         return None, None, {}
-    variant = repo.best_scored_variant(job_id)
+    company = (job["company"] or "") if job["company"] else ""
+    variant = (
+        repo.best_scored_variant_for_company(job_id, company) if company else None
+    ) or repo.best_scored_variant(job_id)
     resume_json = json.loads(variant["parsed_json"]) if variant else {}
     return job, variant, resume_json
 

@@ -55,7 +55,12 @@ from job_hunt.services.intelligence import explain_score, next_best_action, skil
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.naukri_refresh import draft_profile_refresh, refresh_reminder
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
-from job_hunt.services.resumes import parse_resume_vault
+from job_hunt.services.resumes import (
+    get_variant,
+    list_variants,
+    parse_resume_vault,
+    save_variant_from_text,
+)
 from job_hunt.services.review import (
     get_job,
     list_board,
@@ -151,4 +156,7 @@ __all__ = [
     "list_watch",
     "set_watch_enabled",
     "remove_watch",
+    "save_variant_from_text",
+    "get_variant",
+    "list_variants",
 ]

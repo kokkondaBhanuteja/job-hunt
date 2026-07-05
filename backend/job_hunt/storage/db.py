@@ -51,11 +51,13 @@ DB_PATH = Path(__file__).resolve().parents[2] / "data" / "jobhunt.db"
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS resume_variants (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug            TEXT UNIQUE NOT NULL,        -- e.g. 'backend-node'
-    source_path     TEXT NOT NULL,                -- path to the .tex file
-    parsed_json     TEXT NOT NULL,                -- structured resume as JSON
-    tags            TEXT NOT NULL,                -- JSON array of tags, e.g. ["nestjs","aws"]
-    updated_at      TEXT NOT NULL                 -- ISO8601 UTC
+    slug            TEXT UNIQUE NOT NULL,         -- e.g. 'backend-node'
+    source_path     TEXT,                          -- path to the .tex file (NULL for text variants)
+    parsed_json     TEXT NOT NULL,                 -- structured resume as JSON
+    tags            TEXT NOT NULL,                 -- JSON array of tags, e.g. ["nestjs","aws"]
+    company         TEXT,                          -- company this variant is tailored for (NULL = generic)
+    body            TEXT,                          -- raw tex/md body (NULL for file-backed variants)
+    updated_at      TEXT NOT NULL                  -- ISO8601 UTC
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
@@ -468,6 +470,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "events", "dead_at", "TEXT")
     _ensure_column(conn, "llm_calls", "prompt_name", "TEXT")
     _ensure_column(conn, "llm_calls", "prompt_version", "INTEGER")
+    _ensure_column(conn, "resume_variants", "company", "TEXT")
+    _ensure_column(conn, "resume_variants", "body", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, ddl: str) -> None:
@@ -524,6 +528,44 @@ def upsert_resume_variant(
             "SELECT id FROM resume_variants WHERE slug = ?", (slug,)
         ).fetchone()
         return int(row["id"])
+
+
+def upsert_variant_from_text(
+    *,
+    slug: str,
+    company: str,
+    body: str,
+    parsed: dict[str, Any],
+    tags: list[str],
+) -> int:
+    """Insert-or-update a text-authored résumé variant. Returns its row id."""
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO resume_variants (slug, company, body, parsed_json, tags, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(slug) DO UPDATE SET
+              company     = excluded.company,
+              body        = excluded.body,
+              parsed_json = excluded.parsed_json,
+              tags        = excluded.tags,
+              source_path = NULL,
+              updated_at  = excluded.updated_at
+            """,
+            (slug, company or None, body, _to_json(parsed), _to_json(tags), now_iso()),
+        )
+        row = conn.execute(
+            "SELECT id FROM resume_variants WHERE slug = ?", (slug,)
+        ).fetchone()
+        return int(row["id"])
+
+
+def get_resume_variant_by_slug(slug: str) -> sqlite3.Row | None:
+    """Return the full resume_variants row for a slug, or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM resume_variants WHERE slug = ?", (slug,)
+        ).fetchone()
 
 
 def insert_job_if_new(
@@ -694,6 +736,22 @@ def best_scored_variant(job_id: int) -> sqlite3.Row | None:
             WHERE s.job_id = ? ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
             """,
             (job_id,),
+        ).fetchone()
+
+
+def best_scored_variant_for_company(job_id: int, company: str) -> sqlite3.Row | None:
+    """The highest-scoring variant for a job whose company matches (case-insensitive), or None."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT rv.id, rv.slug, rv.source_path, rv.parsed_json
+            FROM scores s JOIN resume_variants rv ON rv.id = s.variant_id
+            WHERE s.job_id = ?
+              AND rv.company IS NOT NULL
+              AND LOWER(rv.company) = LOWER(?)
+            ORDER BY s.fit_score DESC, rv.id ASC LIMIT 1
+            """,
+            (job_id, company),
         ).fetchone()
 
 

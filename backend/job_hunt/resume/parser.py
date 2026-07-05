@@ -119,18 +119,8 @@ def extract_text(path: Path) -> str:
 # ---------- Public API ----------
 
 
-def parse_resume_file(path: Path) -> dict[str, Any]:
-    """Parse one resume file into the structured JSON schema."""
-    text = extract_text(path)
-    if not text:
-        raise ValueError(f"Empty text extracted from {path}")
-
-    prompt = (
-        f"Resume file: {path.name}\n"
-        f"Use the filename stem ('{path.stem}') as the `slug`.\n\n"
-        "--- RESUME TEXT BELOW ---\n"
-        f"{text}"
-    )
+def _llm_parse(prompt: str) -> dict[str, Any]:
+    """Call the LLM to parse a résumé prompt into structured JSON."""
     return chat_json(
         prompt,
         schema=RESUME_PARSE.schema,
@@ -140,6 +130,27 @@ def parse_resume_file(path: Path) -> dict[str, Any]:
         prompt_name=RESUME_PARSE.name,
         prompt_version=RESUME_PARSE.version,
     )
+
+
+def parse_resume_text(text: str) -> dict[str, Any]:
+    """Parse raw résumé text into the structured JSON schema via LLM."""
+    if not text:
+        raise ValueError("Empty text — cannot parse résumé")
+    return _llm_parse("--- RESUME TEXT BELOW ---\n" + text)
+
+
+def parse_resume_file(path: Path) -> dict[str, Any]:
+    """Parse one resume file into the structured JSON schema."""
+    text = extract_text(path)
+    if not text:
+        raise ValueError(f"Empty text extracted from {path}")
+    prompt = (
+        f"Resume file: {path.name}\n"
+        f"Use the filename stem ('{path.stem}') as the `slug`.\n\n"
+        "--- RESUME TEXT BELOW ---\n"
+        f"{text}"
+    )
+    return _llm_parse(prompt)
 
 
 def parse_and_store(path: Path) -> int:

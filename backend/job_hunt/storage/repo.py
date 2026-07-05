@@ -27,6 +27,8 @@ raw_select = _impl.raw_select
 
 insert_job_if_new = _impl.insert_job_if_new
 upsert_resume_variant = _impl.upsert_resume_variant
+upsert_variant_from_text = _impl.upsert_variant_from_text
+get_resume_variant_by_slug = _impl.get_resume_variant_by_slug
 write_score = _impl.write_score
 write_llm_call = _impl.write_llm_call
 record_application = _impl.record_application
@@ -45,6 +47,7 @@ set_job_enriched = _impl.set_job_enriched
 
 # drafting
 best_scored_variant = _impl.best_scored_variant
+best_scored_variant_for_company = _impl.best_scored_variant_for_company
 save_tailored_resume = _impl.save_tailored_resume
 get_tailored_resume = _impl.get_tailored_resume
 save_draft = _impl.save_draft

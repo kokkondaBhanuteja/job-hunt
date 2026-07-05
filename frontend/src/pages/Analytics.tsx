@@ -6,6 +6,7 @@ import { LoadingView } from "@/components/LoadingView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { FUNNEL_STAGES, QUERY_KEYS } from "@/lib/constants";
+import { SkillGapCard } from "./SkillGapCard";
 
 export function Analytics() {
   const q = useQuery({ queryKey: QUERY_KEYS.analytics, queryFn: api.analytics });
@@ -64,6 +65,8 @@ export function Analytics() {
           />
         </CardContent>
       </Card>
+
+      <SkillGapCard />
 
       <div className="grid gap-5 md:grid-cols-2">
         <Card>

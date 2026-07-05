@@ -1,25 +1,16 @@
-import { useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { EmptyView } from "@/components/EmptyView";
-import { ErrorView } from "@/components/ErrorView";
 import { LoadingView } from "@/components/LoadingView";
 import { SidePanel } from "@/components/SidePanel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { api, type JobDetail, type ScoreRow } from "@/lib/api";
 import { QUERY_KEYS } from "@/lib/constants";
 import { JobActions } from "./JobActions";
+import { LogApplicationForm } from "./LogApplicationForm";
+import { ScoreExplanationSection } from "./ScoreExplanation";
 import { ScoreBadge } from "./ScoreBadge";
 
 /** The slide-in job detail. Fixed overlay on mobile; inline side column on md+. */
@@ -37,6 +28,7 @@ export function JobPanel({ jobId, onClose }: { jobId: number; onClose: () => voi
           <JobHeader job={detail.data.job} />
           <Section title="Scores">
             <ScoreList scores={detail.data.scores} />
+            <ScoreExplanationSection jobId={jobId} />
           </Section>
           <Section title="Job description">
             <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-secondary/50 p-3 text-xs leading-relaxed text-foreground/90">
@@ -114,65 +106,3 @@ function ScoreList({ scores }: { scores: ScoreRow[] }) {
   );
 }
 
-function LogApplicationForm({ jobId, variantOptions }: { jobId: number; variantOptions: string[] }) {
-  const qc = useQueryClient();
-  const [variant, setVariant] = useState("");
-  const [cover, setCover] = useState("");
-  const active = variant || variantOptions[0] || "";
-
-  const apply = useMutation({
-    mutationFn: () =>
-      api.logApplication({ job_id: jobId, variant_slug: active, cover_letter: cover }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.board });
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.job(jobId) });
-    },
-  });
-
-  return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label htmlFor="log-variant">Variant</Label>
-        {variantOptions.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-            (no variant available)
-          </div>
-        ) : (
-          <Select value={active} onValueChange={setVariant}>
-            <SelectTrigger id="log-variant">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {variantOptions.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="log-cover">Cover letter / notes</Label>
-        <Textarea
-          id="log-cover"
-          placeholder="Cover letter / notes…"
-          value={cover}
-          onChange={(e) => setCover(e.target.value)}
-          rows={4}
-        />
-      </div>
-      <Button
-        disabled={!active || apply.isPending}
-        onClick={() => apply.mutate()}
-        className="w-full sm:w-auto"
-      >
-        {apply.isPending ? "Saving…" : "Mark applied"}
-      </Button>
-      {apply.isError && <ErrorView error={apply.error} />}
-      {apply.isSuccess && (
-        <div className="text-sm text-emerald-600 dark:text-emerald-400">Logged ✓</div>
-      )}
-    </div>
-  );
-}

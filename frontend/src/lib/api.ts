@@ -232,6 +232,19 @@ export interface EmailActionProposal {
   payload: Record<string, string | null | undefined> | null;
   state: string;
 }
+// Mirrors backend dto.ScoreExplanation.
+export interface ScoreExplanation {
+  job_id: number;
+  fit_score: number | null;
+  matched: { requirement: string; evidence: string }[];
+  missing: { requirement: string; why_it_matters: string }[];
+  suggestions: string[];
+}
+// Mirrors backend dto.SkillGap.
+export interface SkillGap {
+  gaps: { skill: string; count: number }[];
+  considered: number;
+}
 
 export const api = {
   health: () =>
@@ -319,4 +332,6 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  explain: (id: number) => req<ScoreExplanation>(API_ENDPOINTS.explain(id)),
+  skillGap: () => req<SkillGap>(API_ENDPOINTS.skillGap),
 };

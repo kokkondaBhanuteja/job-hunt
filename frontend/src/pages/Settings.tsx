@@ -10,11 +10,11 @@ import { SearchPrefsPanel } from "./SearchPrefsPanel";
 export function Settings() {
   const qc = useQueryClient();
   const [base, setBase] = useState(getApiBase());
-  const [token, setToken] = useState(getToken());
   const [saved, setSaved] = useState(false);
 
   const health = useQuery({ queryKey: QUERY_KEYS.health, queryFn: api.health, retry: false });
-  const profiles = useQuery({ queryKey: QUERY_KEYS.profiles, queryFn: api.profiles, enabled: !!getToken() });
+  // Auth is injected by the nginx proxy (Docker stack), so no browser token is required.
+  const profiles = useQuery({ queryKey: QUERY_KEYS.profiles, queryFn: api.profiles });
 
   const [pName, setPName] = useState("");
   const [pKeywords, setPKeywords] = useState("");
@@ -37,7 +37,7 @@ export function Settings() {
   });
 
   function save() {
-    setConfig(base.trim(), token.trim());
+    setConfig(base.trim(), getToken());
     setSaved(true);
     qc.invalidateQueries();
     setTimeout(() => setSaved(false), 1500);
@@ -53,10 +53,7 @@ export function Settings() {
           API base
           <input value={base} onChange={(e) => setBase(e.target.value)} placeholder={DEFAULT_API_BASE} />
         </label>
-        <label>
-          API token
-          <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="bearer token from `hunt serve-api`" type="password" />
-        </label>
+        <p className="muted small">Auth is injected automatically by the proxy — no token to set here.</p>
         <button className="primary" onClick={save}>
           {saved ? "Saved ✓" : "Save"}
         </button>

@@ -484,6 +484,30 @@ def semantic_jobs(embedding: list[float], limit: int = 10) -> list[dict[str, Any
         ).fetchall()
 
 
+def semantic_jobs_filtered(
+    job_id: int, states: list[str], limit: int = 5
+) -> list[dict[str, Any]]:
+    """Nearest jobs that have reached a given set of states, seeded from job_id's embedding.
+
+    Returns an empty list if job_id has no embedding.
+    """
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT embedding FROM jobs WHERE id = %s", (int(job_id),)
+        ).fetchone()
+    if row is None or row["embedding"] is None:
+        return []
+    vec = str(row["embedding"])
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, title, company, location, apply_url, state, "
+            "(embedding <=> %s::vector) AS distance FROM jobs "
+            "WHERE embedding IS NOT NULL AND id != %s AND state = ANY(%s) "
+            "ORDER BY embedding <=> %s::vector LIMIT %s",
+            (vec, int(job_id), states, vec, int(limit)),
+        ).fetchall()
+
+
 def list_learnings_for_job(job_id: int) -> list[dict[str, Any]]:
     with connect() as conn:
         return conn.execute(

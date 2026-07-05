@@ -64,6 +64,7 @@ set_job_embedding = _impl.set_job_embedding
 set_variant_embedding = _impl.set_variant_embedding
 jobs_missing_embedding = _impl.jobs_missing_embedding
 semantic_jobs = _impl.semantic_jobs
+semantic_jobs_filtered = _impl.semantic_jobs_filtered
 
 # state machine
 get_job_state = _impl.get_job_state

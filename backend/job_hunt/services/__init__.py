@@ -65,7 +65,7 @@ from job_hunt.services.review import (
 from job_hunt.services.runs import get_run, list_runs, request_cancel, run_discovery
 from job_hunt.services.scoring import score_pending
 from job_hunt.services.search_prefs import get_search_prefs, set_search_prefs
-from job_hunt.services.semantic import embed_jobs, semantic_match
+from job_hunt.services.semantic import embed_jobs, semantic_match, similar_successful
 
 __all__ = [
     "brief_for_job",
@@ -90,6 +90,7 @@ __all__ = [
     "skill_gap",
     "embed_jobs",
     "semantic_match",
+    "similar_successful",
     "add_answer_template",
     "list_answer_templates",
     "suggest_answer",

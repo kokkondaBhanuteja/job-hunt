@@ -409,6 +409,12 @@ def semantic(q: str, limit: int = 10) -> dict[str, Any]:
     return _unwrap(services.semantic_match(q, limit=limit))
 
 
+@api.get("/jobs/{job_id}/similar-successful")
+def similar_successful(job_id: int, limit: int = 5) -> dict[str, Any]:
+    """Return jobs similar to job_id that reached interview, HR, or offer stage."""
+    return _unwrap(services.similar_successful(job_id, limit=limit))
+
+
 @api.post("/jobs/{job_id}/learn-rejection")
 def learn_rejection(job_id: int) -> dict[str, Any]:
     return _unwrap(services.learn_from_rejection(job_id))

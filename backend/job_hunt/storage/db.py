@@ -924,6 +924,12 @@ def semantic_jobs(embedding: list[float], limit: int = 10) -> list[sqlite3.Row]:
     raise NotImplementedError(_SEMANTIC_MSG)
 
 
+def semantic_jobs_filtered(
+    job_id: int, states: list[str], limit: int = 5
+) -> list[sqlite3.Row]:
+    raise NotImplementedError(_SEMANTIC_MSG)
+
+
 def write_llm_call(
     *,
     task: str,

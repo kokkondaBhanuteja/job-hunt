@@ -261,6 +261,23 @@ def top_matches(min_score: int = 70, limit: int = 10) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
+def similar_successful(job_id: int, limit: int = 5) -> dict[str, Any]:
+    """Find jobs similar to job_id that previously reached interview, HR, or offer stage.
+
+    Requires the job to have an embedding — run `hunt embed` first if needed.
+    Returns a graceful error dict on SQLite or when the job has no embedding.
+
+    Args:
+        job_id: the job whose embedding seeds the similarity query
+        limit: maximum number of matches to return (default 5)
+
+    Returns:
+        {job_id, matches: [{job_id, title, company, distance, state}], count} or {error: str}
+    """
+    return services.similar_successful(job_id, limit=limit)
+
+
+@mcp.tool()
 def company(name: str) -> dict[str, Any]:
     """Get the company history and info."""
     return services.company_history(name)

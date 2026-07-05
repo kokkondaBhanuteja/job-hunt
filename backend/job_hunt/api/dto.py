@@ -228,3 +228,38 @@ class ApplyPolicy(BaseModel):
     avoid: list[str]
     seniority: str
     remote_only: bool
+
+
+# ---------- Career Intelligence Engine ----------
+
+
+class _MatchedReq(BaseModel):
+    requirement: str
+    evidence: str
+
+
+class _MissingReq(BaseModel):
+    requirement: str
+    why_it_matters: str
+
+
+class ScoreExplanation(BaseModel):
+    """Explainable breakdown of why a résumé scored the way it did for a job."""
+
+    job_id: int
+    fit_score: int | None = None
+    matched: list[_MatchedReq]
+    missing: list[_MissingReq]
+    suggestions: list[str]
+
+
+class _GapItem(BaseModel):
+    skill: str
+    count: int
+
+
+class SkillGap(BaseModel):
+    """Aggregated skill gaps ranked by frequency across all scored jobs."""
+
+    gaps: list[_GapItem]
+    considered: int

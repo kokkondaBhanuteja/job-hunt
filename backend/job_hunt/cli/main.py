@@ -144,6 +144,38 @@ def cmd_brief(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_explain(args: argparse.Namespace) -> int:
+    """Show which JD requirements the résumé meets/misses for a scored job."""
+    result = services.explain_score(args.job_id, force=args.force)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"Score explanation for job {args.job_id} (fit_score={result.get('fit_score')})\n")
+    print("MATCHED:")
+    for item in result.get("matched", []):
+        print(f"  + {item['requirement']}: {item['evidence']}")
+    print("\nMISSING:")
+    for item in result.get("missing", []):
+        print(f"  - {item['requirement']}: {item['why_it_matters']}")
+    print("\nSUGGESTIONS:")
+    for s in result.get("suggestions", []):
+        print(f"  * {s}")
+    return 0
+
+
+def cmd_skill_gap(args: argparse.Namespace) -> int:
+    """Show the most common skill gaps across all scored jobs."""
+    result = services.skill_gap(limit=args.limit)
+    gaps = result.get("gaps", [])
+    if not gaps:
+        print("(no skill-gap data yet — run `hunt explain` on some jobs first)")
+        return 0
+    print(f"Top skill gaps ({result['considered']} learnings considered):")
+    for g in gaps:
+        print(f"  {g['count']:>3}x  {g['skill']}")
+    return 0
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Generate a thank-you, follow-up, or negotiation message for a job."""
     result = services.draft_message_for_job(args.job_id, args.kind)
@@ -548,6 +580,15 @@ def build_parser() -> argparse.ArgumentParser:
     brf = sub.add_parser("brief", help="Generate an interview-prep brief for a job")
     brf.add_argument("job_id", type=int)
     brf.set_defaults(func=cmd_brief)
+
+    ex = sub.add_parser("explain", help="Explain why a job scored the way it did")
+    ex.add_argument("job_id", type=int)
+    ex.add_argument("--force", action="store_true", help="Re-run LLM even if cached")
+    ex.set_defaults(func=cmd_explain)
+
+    sg = sub.add_parser("skill-gap", help="Show most common skill gaps across all jobs")
+    sg.add_argument("--limit", type=int, default=20)
+    sg.set_defaults(func=cmd_skill_gap)
 
     dr = sub.add_parser("draft", help="Generate a thank-you, follow-up, or negotiation message")
     dr.add_argument("kind", choices=["thank_you", "follow_up", "negotiation"])

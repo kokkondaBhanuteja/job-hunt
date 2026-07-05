@@ -493,6 +493,15 @@ def list_learnings_for_job(job_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
+def list_learnings_by_kind(kind: str, limit: int = 500) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, kind, payload::text AS payload FROM learnings "
+            "WHERE kind = %s ORDER BY id DESC LIMIT %s",
+            (str(kind), limit),
+        ).fetchall()
+
+
 def write_llm_call(
     *, task: str, provider: str, model: str, prompt: str | None, response: str | None,
     prompt_tokens: int | None = None, completion_tokens: int | None = None,

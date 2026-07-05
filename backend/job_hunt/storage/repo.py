@@ -51,6 +51,7 @@ save_draft = _impl.save_draft
 list_drafts_for_job = _impl.list_drafts_for_job
 save_learning = _impl.save_learning
 list_learnings_for_job = _impl.list_learnings_for_job
+list_learnings_by_kind = _impl.list_learnings_by_kind
 save_answer_template = _impl.save_answer_template
 list_answer_templates = _impl.list_answer_templates
 save_contact = _impl.save_contact

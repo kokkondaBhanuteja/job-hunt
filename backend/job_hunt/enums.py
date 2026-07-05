@@ -135,8 +135,9 @@ class ContextFormat(StrEnum):
 class LearningKind(StrEnum):
     """What an outcome taught us, stored on `learnings`."""
 
-    REJECTION = "rejection"   # JD requirements the resume under-emphasized
-    INTERVIEW = "interview"   # a variant that won an interview
+    REJECTION = "rejection"       # JD requirements the resume under-emphasized
+    INTERVIEW = "interview"       # a variant that won an interview
+    EXPLANATION = "explanation"   # score breakdown: matched/missing/suggestions
 
 
 class ATSPlatform(StrEnum):

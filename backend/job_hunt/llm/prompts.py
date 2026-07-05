@@ -327,6 +327,59 @@ REJECTION_GAP = Prompt(
 )
 
 
+# ---------- score explanation (which requirements matched / missed) ----------
+
+EXPLAIN_SCORE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["matched", "missing", "suggestions"],
+    "properties": {
+        "matched": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["requirement", "evidence"],
+                "properties": {
+                    "requirement": {"type": "string"},
+                    "evidence": {"type": "string"},
+                },
+            },
+        },
+        "missing": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["requirement", "why_it_matters"],
+                "properties": {
+                    "requirement": {"type": "string"},
+                    "why_it_matters": {"type": "string"},
+                },
+            },
+        },
+        "suggestions": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+}
+
+EXPLAIN_SCORE = Prompt(
+    name="explain_score",
+    version=1,
+    system=(
+        "You are a career coach analyzing a job application. Given the candidate's context, "
+        "their résumé (as structured JSON), and a job description, list:\n"
+        "1. Which JD requirements the résumé clearly MEETS — each with concrete evidence "
+        "from the résumé (exact titles, years, projects, or bullets).\n"
+        "2. Which JD requirements the résumé MISSES or underemphasizes — with why each "
+        "matters for this specific role.\n"
+        "3. Concrete, actionable suggestions to close the gap for this role.\n"
+        "Ground STRICTLY in the provided data. Never invent credentials, projects, or "
+        "experience the candidate does not have. Output JSON only."
+    ),
+    schema=EXPLAIN_SCORE_SCHEMA,
+)
+
+
 # ---------- interview-prep brief (job + company context → structured brief) ----------
 
 ROLE_BRIEF_SCHEMA: dict[str, Any] = {

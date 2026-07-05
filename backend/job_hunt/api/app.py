@@ -414,6 +414,18 @@ def learn_rejection(job_id: int) -> dict[str, Any]:
     return _unwrap(services.learn_from_rejection(job_id))
 
 
+@api.get("/jobs/{job_id}/explain", response_model=dto.ScoreExplanation)
+def explain_score(job_id: int, force: bool = False) -> dict[str, Any]:
+    """Return an explainable breakdown of which JD requirements the résumé meets/misses."""
+    return _unwrap(services.explain_score(job_id, force=force))
+
+
+@api.get("/skill-gap", response_model=dto.SkillGap)
+def skill_gap(limit: int = 20) -> dict[str, Any]:
+    """Aggregate missing requirements across all scored jobs and return ranked skill gaps."""
+    return services.skill_gap(limit=limit)
+
+
 @api.patch("/applications/{job_id}/stage")
 def application_stage(job_id: int, body: StageIn) -> dict[str, Any]:
     return _unwrap(services.advance_stage(job_id, body.stage))

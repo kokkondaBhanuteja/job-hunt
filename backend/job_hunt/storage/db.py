@@ -894,6 +894,15 @@ def list_learnings_for_job(job_id: int) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def list_learnings_by_kind(kind: str, limit: int = 500) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, job_id, kind, payload FROM learnings WHERE kind = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (str(kind), limit),
+        ).fetchall()
+
+
 # ---------- embeddings (Postgres/pgvector only) ----------
 
 _SEMANTIC_MSG = "semantic search requires the Postgres backend (DB_BACKEND=postgres)"

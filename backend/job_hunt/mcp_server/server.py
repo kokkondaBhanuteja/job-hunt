@@ -53,6 +53,42 @@ def score_pending(verbose: bool = False) -> dict[str, int]:
     return services.score_pending(verbose=verbose)
 
 
+# ---------- Intelligence ----------
+
+
+@mcp.tool()
+def explain_score(job_id: int, force: bool = False) -> dict[str, Any]:
+    """Return a per-requirement breakdown of why the résumé scored as it did.
+
+    Advisory only — reads existing data and caches the LLM result; never mutates job state.
+
+    Args:
+        job_id: the job to explain (must already have a score)
+        force: re-run the LLM even if a cached explanation exists
+
+    Returns:
+        {job_id, fit_score, matched: [{requirement, evidence}],
+         missing: [{requirement, why_it_matters}], suggestions: [str]}
+        or {error: str}
+    """
+    return services.explain_score(job_id, force=force)
+
+
+@mcp.tool()
+def skill_gap(limit: int = 20) -> dict[str, Any]:
+    """Aggregate missing requirements across all scored jobs, ranked by frequency.
+
+    Advisory only — read-only aggregation of stored learnings.
+
+    Args:
+        limit: max gaps to return (default 20)
+
+    Returns:
+        {gaps: [{skill: str, count: int}], considered: int}
+    """
+    return services.skill_gap(limit=limit)
+
+
 # ---------- Review / dashboard tools ----------
 
 

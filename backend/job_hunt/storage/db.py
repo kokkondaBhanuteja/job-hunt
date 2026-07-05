@@ -1457,6 +1457,24 @@ def get_application_by_job(job_id: int) -> sqlite3.Row | None:
         ).fetchone()
 
 
+def get_application_detail(job_id: int) -> sqlite3.Row | None:
+    """Return applied_at, reply_type, and stage for a job's application, or None."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT applied_at, reply_type, stage FROM applications WHERE job_id = ?",
+            (int(job_id),),
+        ).fetchone()
+
+
+def list_emails_for_job(job_id: int) -> list[sqlite3.Row]:
+    """Return all email_messages rows linked to a job, newest first."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM email_messages WHERE job_id = ? ORDER BY id DESC",
+            (int(job_id),),
+        ).fetchall()
+
+
 # ---------- email actions ----------
 
 

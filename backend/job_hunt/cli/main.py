@@ -163,6 +163,17 @@ def cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_next(args: argparse.Namespace) -> int:
+    """Show the single highest-priority recommended action for a job (advisory, no writes)."""
+    result = services.next_best_action(args.job_id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"action: {result['action']}")
+    print(f"reason: {result['reason']}")
+    return 0
+
+
 def cmd_skill_gap(args: argparse.Namespace) -> int:
     """Show the most common skill gaps across all scored jobs."""
     result = services.skill_gap(limit=args.limit)
@@ -580,6 +591,10 @@ def build_parser() -> argparse.ArgumentParser:
     brf = sub.add_parser("brief", help="Generate an interview-prep brief for a job")
     brf.add_argument("job_id", type=int)
     brf.set_defaults(func=cmd_brief)
+
+    nx = sub.add_parser("next", help="Show the recommended next action for a job (advisory only)")
+    nx.add_argument("job_id", type=int)
+    nx.set_defaults(func=cmd_next)
 
     ex = sub.add_parser("explain", help="Explain why a job scored the way it did")
     ex.add_argument("job_id", type=int)

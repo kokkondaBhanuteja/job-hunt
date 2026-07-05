@@ -51,7 +51,7 @@ from job_hunt.services.email_triage import (
     sync_inbox,
 )
 from job_hunt.services.enrichment import enrich_pending_jobs
-from job_hunt.services.intelligence import explain_score, skill_gap
+from job_hunt.services.intelligence import explain_score, next_best_action, skill_gap
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.naukri_refresh import draft_profile_refresh, refresh_reminder
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
@@ -87,6 +87,7 @@ __all__ = [
     "send_test_notification",
     "learn_from_rejection",
     "explain_score",
+    "next_best_action",
     "skill_gap",
     "embed_jobs",
     "semantic_match",

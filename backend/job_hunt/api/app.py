@@ -420,6 +420,12 @@ def learn_rejection(job_id: int) -> dict[str, Any]:
     return _unwrap(services.learn_from_rejection(job_id))
 
 
+@api.get("/jobs/{job_id}/next-action", response_model=dto.NextAction)
+def next_action(job_id: int) -> dict[str, Any]:
+    """Return the single highest-priority recommended action for a job (advisory only)."""
+    return _unwrap(services.next_best_action(job_id))
+
+
 @api.get("/jobs/{job_id}/explain", response_model=dto.ScoreExplanation)
 def explain_score(job_id: int, force: bool = False) -> dict[str, Any]:
     """Return an explainable breakdown of which JD requirements the résumé meets/misses."""

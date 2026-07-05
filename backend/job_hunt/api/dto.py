@@ -292,3 +292,10 @@ class SkillGap(BaseModel):
 
     gaps: list[_GapItem]
     considered: int
+
+
+class NextAction(BaseModel):
+    """Single highest-priority recommended action for a job (advisory only — never writes)."""
+
+    action: str
+    reason: str

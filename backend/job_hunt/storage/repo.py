@@ -120,6 +120,8 @@ list_unstructured_emails = _impl.list_unstructured_emails
 get_sync_state = _impl.get_sync_state
 set_sync_state = _impl.set_sync_state
 get_application_by_job = _impl.get_application_by_job
+get_application_detail = _impl.get_application_detail
+list_emails_for_job = _impl.list_emails_for_job
 
 # email actions
 create_email_action = _impl.create_email_action

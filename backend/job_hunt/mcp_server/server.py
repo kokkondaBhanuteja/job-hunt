@@ -57,6 +57,23 @@ def score_pending(verbose: bool = False) -> dict[str, int]:
 
 
 @mcp.tool()
+def next_best_action(job_id: int) -> dict[str, Any]:
+    """Return the single highest-priority recommended action for a job.
+
+    Advisory only — pure rule-based read; never mutates job state or submits anything.
+
+    Args:
+        job_id: the job to evaluate
+
+    Returns:
+        {action: str, reason: str} or {error: str} if the job is missing.
+        Possible action values: reply, negotiate, prep, follow_up, wait, apply,
+        review, score, none.
+    """
+    return services.next_best_action(job_id)
+
+
+@mcp.tool()
 def explain_score(job_id: int, force: bool = False) -> dict[str, Any]:
     """Return a per-requirement breakdown of why the résumé scored as it did.
 

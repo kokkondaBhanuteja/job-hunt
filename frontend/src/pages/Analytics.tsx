@@ -6,6 +6,7 @@ import { LoadingView } from "@/components/LoadingView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { FUNNEL_STAGES, QUERY_KEYS } from "@/lib/constants";
+import { FunnelSection } from "./FunnelSection";
 import { SkillGapCard } from "./SkillGapCard";
 
 export function Analytics() {
@@ -48,6 +49,8 @@ export function Analytics() {
           </div>
         </CardContent>
       </Card>
+
+      <FunnelSection funnel_metrics={d.funnel_metrics} />
 
       <Card>
         <CardHeader className="pb-3">
@@ -101,12 +104,9 @@ export function Analytics() {
             <CardTitle className="text-base">Resume variant performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <MiniTable
-              rows={d.variant_performance.map((v) => [
-                v.variant,
-                `${v.applications} app · ${v.interviews} intv · ${v.offers} off`,
-              ])}
-            />
+            <MiniTable rows={d.variant_performance.map((v) => [
+              v.variant, `${v.applications} app · ${v.interviews} intv · ${v.offers} off`,
+            ])} />
           </CardContent>
         </Card>
       </div>

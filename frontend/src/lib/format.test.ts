@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { SCORE_THRESHOLDS } from "./constants";
-import { scoreClass } from "./format";
+import { pct, scoreClass } from "./format";
+
+describe("pct", () => {
+  it("formats 0 as 0%", () => expect(pct(0)).toBe("0%"));
+  it("formats 1 as 100%", () => expect(pct(1)).toBe("100%"));
+  it("formats 0.42 as 42%", () => expect(pct(0.42)).toBe("42%"));
+  it("rounds to nearest integer", () => expect(pct(0.426)).toBe("43%"));
+});
 
 describe("scoreClass", () => {
   it("returns 'score none' when the score is null", () => {

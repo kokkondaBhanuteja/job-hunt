@@ -122,6 +122,32 @@ export interface ReviewResult {
   ready: boolean;
   issues: ReviewIssue[];
 }
+// Mirrors backend dto._StageConversion.
+export interface StageConversion {
+  applied_to_interview: number;
+  interview_to_offer: number;
+}
+// Mirrors backend dto._SourceEffectivenessByOutcome.
+export interface SourceEffectivenessByOutcome {
+  source: string;
+  applied: number;
+  interviews: number;
+  offers: number;
+  interview_rate: number;
+}
+// Mirrors backend dto.FunnelMetrics.
+export interface FunnelMetrics {
+  applications_total: number;
+  interviews: number;
+  offers: number;
+  rejections: number;
+  interview_rate: number;
+  offer_rate: number;
+  response_rate: number;
+  stage_conversion: StageConversion;
+  time_to_interview_days: number | null;
+  source_effectiveness_by_outcome: SourceEffectivenessByOutcome[];
+}
 export interface Analytics {
   jobs_by_state: { state: string; n: number }[];
   jobs_by_source: { source: string; n: number }[];
@@ -136,6 +162,7 @@ export interface Analytics {
     rejections: number;
   }[];
   llm_cost: { calls: number; cost: number; tokens: number };
+  funnel_metrics: FunnelMetrics;
 }
 // Mirrors backend dto.Post.
 export interface Post {

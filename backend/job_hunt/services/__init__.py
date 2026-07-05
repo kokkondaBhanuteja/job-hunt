@@ -52,6 +52,7 @@ from job_hunt.services.review import (
 )
 from job_hunt.services.runs import get_run, list_runs, request_cancel, run_discovery
 from job_hunt.services.scoring import score_pending
+from job_hunt.services.search_prefs import get_search_prefs, set_search_prefs
 from job_hunt.services.semantic import embed_jobs, semantic_match
 
 __all__ = [
@@ -89,6 +90,8 @@ __all__ = [
     "company_history",
     "set_context",
     "get_context",
+    "set_search_prefs",
+    "get_search_prefs",
     "set_applicant",
     "get_applicant",
     "parse_resume_vault",

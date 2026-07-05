@@ -203,6 +203,13 @@ CREATE TABLE IF NOT EXISTS user_context (
     updated_at TEXT NOT NULL
 );
 
+-- The user's job-search preferences (pasted md), parsed by the LLM into search profiles.
+CREATE TABLE IF NOT EXISTS search_prefs (
+    id         INTEGER PRIMARY KEY CHECK (id = 1),   -- singleton: one active prefs blob
+    content    TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 -- Standing application answers a résumé does not carry (single active row).
 CREATE TABLE IF NOT EXISTS applicant_profile (
     id                  INTEGER PRIMARY KEY CHECK (id = 1),
@@ -780,6 +787,23 @@ def get_user_context() -> sqlite3.Row | None:
     """Return the single user-context row, or None if unset."""
     with connect() as conn:
         return conn.execute("SELECT * FROM user_context WHERE id = 1").fetchone()
+
+
+def set_search_prefs(*, content: str) -> None:
+    """Store (or replace) the user's job-search preferences blob."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO search_prefs (id, content, updated_at) VALUES (1, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET content = excluded.content, "
+            "updated_at = excluded.updated_at",
+            (content, now_iso()),
+        )
+
+
+def get_search_prefs() -> sqlite3.Row | None:
+    """Return the single search-prefs row, or None if unset."""
+    with connect() as conn:
+        return conn.execute("SELECT * FROM search_prefs WHERE id = 1").fetchone()
 
 
 _APPLICANT_COLS = (

@@ -417,3 +417,39 @@ EMAIL_STRUCTURE = Prompt(
     ),
     schema=EMAIL_STRUCTURE_SCHEMA,
 )
+
+
+# ---------- search-prefs parsing (user md → concrete search profiles) ----------
+
+_SEARCH_PREFS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["profiles"],
+    "properties": {
+        "profiles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["keywords", "location"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "keywords": {"type": "string"},
+                    "location": {"type": "string"},
+                    "pages": {"type": "integer"},
+                },
+            },
+        }
+    },
+}
+
+SEARCH_PREFS = Prompt(
+    name="search_prefs",
+    version=1,
+    system=(
+        "Parse the user's job-search preferences (roles, skills, locations, remote, seniority) "
+        "into concrete search profiles — one per distinct (role/skill keywords × location) "
+        "combination. Rules: `keywords` = a short space-separated search string; "
+        "`location` = a single place or 'remote'; `pages` default 1; `name` a short label. "
+        "Output JSON only."
+    ),
+    schema=_SEARCH_PREFS_SCHEMA,
+)

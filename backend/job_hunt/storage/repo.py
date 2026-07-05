@@ -89,9 +89,11 @@ list_recent_runs = _impl.list_recent_runs
 count_runs_today = _impl.count_runs_today
 reap_stale_runs = _impl.reap_stale_runs
 
-# search profiles
+# user context / search prefs (singleton blobs)
 set_user_context = _impl.set_user_context
 get_user_context = _impl.get_user_context
+set_search_prefs = _impl.set_search_prefs
+get_search_prefs = _impl.get_search_prefs
 
 # applicant profile
 set_applicant_profile = _impl.set_applicant_profile

@@ -361,6 +361,25 @@ def get_user_context() -> dict[str, Any] | None:
         ).fetchone()
 
 
+def set_search_prefs(*, content: str) -> None:
+    """Store (or replace) the user's job-search preferences blob."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO search_prefs (id, content, updated_at) VALUES (1, %s, now()) "
+            "ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, updated_at = now()",
+            (content,),
+        )
+
+
+def get_search_prefs() -> dict[str, Any] | None:
+    """Return the single search-prefs row, or None if unset."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT id, content, updated_at::text AS updated_at "
+            "FROM search_prefs WHERE id = 1"
+        ).fetchone()
+
+
 _APPLICANT_COLS = (
     "first_name", "last_name", "email", "phone", "location", "linkedin_url",
     "github_url", "portfolio_url", "work_authorization", "needs_sponsorship",

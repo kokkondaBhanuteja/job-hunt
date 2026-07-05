@@ -162,6 +162,11 @@ class UserContext(BaseModel):
     updated_at: str | None = None
 
 
+class SearchPrefs(BaseModel):
+    content: str | None = None
+    updated_at: str | None = None
+
+
 class Applicant(BaseModel):
     """Applicant personal-details profile (all fields optional — populated incrementally)."""
 

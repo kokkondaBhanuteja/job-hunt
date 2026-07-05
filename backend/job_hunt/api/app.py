@@ -110,6 +110,10 @@ class ContextIn(BaseModel):
     format: str = "md"
 
 
+class SearchPrefsIn(BaseModel):
+    content: str
+
+
 class ApplicantIn(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
@@ -320,6 +324,18 @@ def get_context() -> dict[str, Any]:
 @api.post("/context")
 def set_context(body: ContextIn) -> dict[str, Any]:
     return _unwrap(services.set_context(body.content, body.format))
+
+
+@api.get("/search-prefs", response_model=dto.SearchPrefs)
+def get_search_prefs() -> dict[str, Any]:
+    """Return the stored job-search preferences blob."""
+    return services.get_search_prefs()
+
+
+@api.post("/search-prefs")
+def set_search_prefs(body: SearchPrefsIn) -> dict[str, Any]:
+    """Parse and store job-search preferences, creating search profiles."""
+    return _unwrap(services.set_search_prefs(body.content))
 
 
 @api.get("/applicant", response_model=dto.Applicant)

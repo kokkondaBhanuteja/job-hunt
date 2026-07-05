@@ -323,6 +323,25 @@ def cmd_context(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_search_prefs(args: argparse.Namespace) -> int:
+    """Set job-search preferences from a .md file, or show the stored prefs."""
+    if args.file:
+        content = Path(args.file).read_text(encoding="utf-8")
+        result = services.set_search_prefs(content)
+        if "error" in result:
+            print(f"!! {result['error']}")
+            return 1
+        print(f"search prefs set ({result['profiles_created']} profile(s) created)")
+        return 0
+    prefs = services.get_search_prefs()
+    if not prefs.get("content"):
+        print("(no search prefs set — pass a .md file to set one)")
+        return 0
+    print(f"# search prefs (updated {prefs['updated_at']})\n")
+    print(prefs["content"])
+    return 0
+
+
 def cmd_apply_fill(args: argparse.Namespace) -> int:
     """Open a job's ATS form, auto-fill it, and stop at the review screen."""
     result = services.prepare_form_fill(args.job_id)
@@ -539,6 +558,12 @@ def build_parser() -> argparse.ArgumentParser:
     cx.add_argument("file", nargs="?", help="path to a .md/.json context file (omit to show)")
     cx.add_argument("--format", choices=["md", "json"], default="md")
     cx.set_defaults(func=cmd_context)
+
+    sp_cmd = sub.add_parser(
+        "search-prefs", help="Set/show job-search preferences (parsed into search profiles)"
+    )
+    sp_cmd.add_argument("file", nargs="?", help="path to a .md preferences file (omit to show)")
+    sp_cmd.set_defaults(func=cmd_search_prefs)
 
     af = sub.add_parser("apply-fill", help="Auto-fill a job's ATS form (stops at review)")
     af.add_argument("job_id", type=int)

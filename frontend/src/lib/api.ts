@@ -272,6 +272,27 @@ export interface SkillGap {
   gaps: { skill: string; count: number }[];
   considered: number;
 }
+// Mirrors backend dto.NextAction.
+export interface NextAction {
+  action: string;
+  reason: string;
+}
+// Mirrors backend dto.SimilarSuccessful match row.
+export interface SimilarMatch {
+  job_id: number;
+  title: string;
+  company: string;
+  distance: number;
+  state: string;
+}
+// Mirrors backend dto.SimilarSuccessful — may return {error} on sqlite/no-embedding.
+export interface SimilarSuccessful {
+  job_id: number;
+  matches: SimilarMatch[];
+  count: number;
+}
+// Union with the backend's "not available" shape so callers can discriminate cleanly.
+export type SimilarResult = SimilarSuccessful | { error: string };
 
 export const api = {
   health: () =>
@@ -361,4 +382,6 @@ export const api = {
     }),
   explain: (id: number) => req<ScoreExplanation>(API_ENDPOINTS.explain(id)),
   skillGap: () => req<SkillGap>(API_ENDPOINTS.skillGap),
+  nextAction: (id: number) => req<NextAction>(API_ENDPOINTS.nextAction(id)),
+  similarSuccessful: (id: number) => req<SimilarResult>(API_ENDPOINTS.similarSuccessful(id)),
 };

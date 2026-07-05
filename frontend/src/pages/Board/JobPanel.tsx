@@ -10,8 +10,10 @@ import { api, type JobDetail, type ScoreRow } from "@/lib/api";
 import { QUERY_KEYS } from "@/lib/constants";
 import { JobActions } from "./JobActions";
 import { LogApplicationForm } from "./LogApplicationForm";
+import { NextActionChip } from "./NextActionChip";
 import { ScoreExplanationSection } from "./ScoreExplanation";
 import { ScoreBadge } from "./ScoreBadge";
+import { SimilarJobs } from "./SimilarJobs";
 
 /** The slide-in job detail. Fixed overlay on mobile; inline side column on md+. */
 export function JobPanel({ jobId, onClose }: { jobId: number; onClose: () => void }) {
@@ -26,6 +28,7 @@ export function JobPanel({ jobId, onClose }: { jobId: number; onClose: () => voi
       ) : (
         <div className="flex flex-col gap-5 p-4">
           <JobHeader job={detail.data.job} />
+          <NextActionChip jobId={jobId} />
           <Section title="Scores">
             <ScoreList scores={detail.data.scores} />
             <ScoreExplanationSection jobId={jobId} />
@@ -35,6 +38,7 @@ export function JobPanel({ jobId, onClose }: { jobId: number; onClose: () => voi
               {detail.data.job.description || "(no description captured yet)"}
             </pre>
           </Section>
+          <SimilarJobs jobId={jobId} />
           <Separator />
           <JobActions jobId={jobId} />
           <Separator />

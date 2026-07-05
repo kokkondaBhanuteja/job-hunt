@@ -57,6 +57,8 @@ export const API_ENDPOINTS = {
   postStatus: (id: number) => `/api/posts/${id}`,
   explain: (id: number) => `/api/jobs/${id}/explain`,
   skillGap: "/api/skill-gap",
+  nextAction: (id: number) => `/api/jobs/${id}/next-action`,
+  similarSuccessful: (id: number) => `/api/jobs/${id}/similar-successful`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -78,6 +80,8 @@ export const QUERY_KEYS = {
   posts: ["posts"] as const,
   explain: (id: number) => ["explain", id] as const,
   skillGap: ["skillGap"] as const,
+  nextAction: (id: number) => ["nextAction", id] as const,
+  similar: (id: number) => ["similar", id] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */

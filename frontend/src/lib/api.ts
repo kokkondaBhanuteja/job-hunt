@@ -136,6 +136,11 @@ export interface Analytics {
   }[];
   llm_cost: { calls: number; cost: number; tokens: number };
 }
+// Mirrors backend dto.SearchPrefs.
+export interface SearchPrefs {
+  content: string | null;
+  updated_at: string | null;
+}
 // Mirrors backend dto.UserContext.
 export interface UserContext {
   content: string | null;
@@ -278,4 +283,10 @@ export const api = {
       API_ENDPOINTS.emailDismiss(id),
       { method: "POST" },
     ),
+  getSearchPrefs: () => req<SearchPrefs>(API_ENDPOINTS.searchPrefs),
+  setSearchPrefs: (content: string) =>
+    req<{ ok?: boolean; profiles_created?: number }>(API_ENDPOINTS.searchPrefs, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
 };

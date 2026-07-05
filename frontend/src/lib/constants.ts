@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
   emailDismiss: (id: number) => `/api/emails/${id}/dismiss`,
   jobDraft: (id: number) => `/api/jobs/${id}/draft`,
   jobBrief: (id: number) => `/api/jobs/${id}/brief`,
+  searchPrefs: "/api/search-prefs",
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -65,6 +66,7 @@ export const QUERY_KEYS = {
   applicant: ["applicant"] as const,
   emails: ["emails"] as const,
   email: (id: number) => ["email", id] as const,
+  searchPrefs: ["searchPrefs"] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */

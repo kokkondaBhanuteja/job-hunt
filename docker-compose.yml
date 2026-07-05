@@ -36,6 +36,9 @@ services:
       DB_BACKEND: postgres
       DATABASE_URL: postgresql://jobhunt:jobhunt@db:5432/jobhunt
       OLLAMA_URL: http://host.docker.internal:11434
+      # Shared bearer token — same value nginx injects for the UI. `make up` generates
+      # it into the root env file; overrides any API_TOKEN in backend/.env.local.
+      API_TOKEN: ${API_TOKEN:?run 'make up' first — it generates the shared API token}
     env_file:
       - path: backend/.env.local
         required: false
@@ -76,6 +79,10 @@ services:
       args:
         VITE_API_BASE: ""
     container_name: jobhunt-frontend
+    # nginx injects this bearer token into every /api/ request (envsubst on the
+    # template at startup), so the browser/user never sets a token. Same value as api.
+    environment:
+      API_TOKEN: ${API_TOKEN:?run 'make up' first — it generates the shared API token}
     ports:
       - "8080:80"
     depends_on:

@@ -12,6 +12,7 @@ from job_hunt.plugins import (
     remotive,  # noqa: F401 — registers RemotiveSource
     weworkremotely,  # noqa: F401 — registers WeWorkRemotelySource
     workable,  # noqa: F401 — registers WorkableSource
+    workday,  # noqa: F401 — registers WorkdaySource
     workingnomads,  # noqa: F401 — registers WorkingNomadsSource
 )
 from job_hunt.plugins.base import Source, available_sources, get_source, register

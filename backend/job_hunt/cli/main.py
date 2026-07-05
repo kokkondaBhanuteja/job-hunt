@@ -437,6 +437,22 @@ def cmd_email_dismiss(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_naukri_refresh(_: argparse.Namespace) -> int:
+    """Draft an optimized Naukri headline, summary, and skills (paste it yourself)."""
+    result = services.draft_profile_refresh()
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print("--- Naukri Profile Draft (paste this into your Naukri profile yourself) ---\n")
+    print(f"Headline:\n  {result['headline']}\n")
+    print(f"Summary:\n  {result['summary']}\n")
+    skills = result.get("skills") or []
+    if skills:
+        print(f"Skills:\n  {', '.join(skills)}\n")
+    print("--------------------------------------------------------------------------")
+    return 0
+
+
 def cmd_post(args: argparse.Namespace) -> int:
     """Draft a new tech post grounded in a current trending topic."""
     result = services.generate_post(topic=args.topic if args.topic else None)
@@ -572,6 +588,12 @@ def build_parser() -> argparse.ArgumentParser:
     sa.add_argument("--host", default="127.0.0.1")
     sa.add_argument("--port", type=int, default=8000)
     sa.set_defaults(func=cmd_serve_api)
+
+    nr = sub.add_parser(
+        "naukri-refresh",
+        help="Draft an optimized Naukri headline/summary/skills (you paste it yourself)",
+    )
+    nr.set_defaults(func=cmd_naukri_refresh)
 
     pt = sub.add_parser("post", help="Draft a new tech post grounded in a current trending topic")
     pt.add_argument("--topic", default=None, help="specific topic (omit to auto-pick from HN/dev.to)")

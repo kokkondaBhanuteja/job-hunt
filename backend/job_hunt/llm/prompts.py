@@ -503,3 +503,42 @@ POST_DRAFT = Prompt(
         "NEVER produce a generic template. Output only the post body — no preamble, no labels."
     ),
 )
+
+
+# ---------- Naukri profile refresh (headline + summary + skills) ----------
+
+PROFILE_REFRESH_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["headline", "summary"],
+    "properties": {
+        "headline": {
+            "type": "string",
+            "description": "One-line Naukri profile headline, punchy and recruiter-facing.",
+        },
+        "summary": {
+            "type": "string",
+            "description": "Concise professional summary (~3-4 sentences) for the Naukri profile.",
+        },
+        "skills": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Flat list of skills to display on the Naukri profile.",
+        },
+    },
+}
+
+PROFILE_REFRESH = Prompt(
+    name="profile_refresh",
+    version=1,
+    system=(
+        "You draft an optimized Naukri job-portal profile for a software engineer. "
+        "Using ONLY the candidate context and résumé facts provided, produce: "
+        "(1) a punchy one-line headline targeting recruiters (e.g. 'Backend Engineer | Python · FastAPI · AWS | 4 YOE'); "
+        "(2) a concise 3-4 sentence professional summary that leads with the candidate's strongest value proposition, "
+        "names their core stack and domain, and invites interview conversations; "
+        "(3) a flat skills list drawn strictly from the résumé. "
+        "Never fabricate experience, years, credentials, or skills not present in the provided data. "
+        "Output JSON only."
+    ),
+    schema=PROFILE_REFRESH_SCHEMA,
+)

@@ -48,6 +48,7 @@ from job_hunt.services.email_triage import (
 )
 from job_hunt.services.enrichment import enrich_pending_jobs
 from job_hunt.services.learning import learn_from_rejection
+from job_hunt.services.naukri_refresh import draft_profile_refresh, refresh_reminder
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import parse_resume_vault
 from job_hunt.services.review import (
@@ -120,4 +121,6 @@ __all__ = [
     "list_posts",
     "set_post_status",
     "generate_and_notify_post",
+    "draft_profile_refresh",
+    "refresh_reminder",
 ]

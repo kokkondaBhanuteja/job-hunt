@@ -50,6 +50,11 @@ def build_scheduler() -> BlockingScheduler:
     from job_hunt.services.content import generate_and_notify_post
 
     sched.add_job(generate_and_notify_post, "interval", days=3, id="content_post")
+
+    # Weekly Naukri profile refresh reminder (draft-only — user pastes it manually).
+    from job_hunt.services.naukri_refresh import refresh_reminder
+
+    sched.add_job(refresh_reminder, "cron", day_of_week="mon", hour=9, id="naukri_refresh")
     return sched
 
 

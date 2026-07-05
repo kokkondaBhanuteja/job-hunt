@@ -17,6 +17,45 @@ from job_hunt.services.answers import suggest_answer
 
 logger = get_logger(__name__)
 
+# Common factual screening questions → the applicant_profile field that answers them.
+# Answered deterministically from the candidate's OWN stored data — no LLM guess, no
+# hardcoded values (unlike scraper bots). The vetted "what works" library, grounded in
+# your real profile: reliable, instant, and correct.
+_FACTUAL_MAP: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("notice period", "when can you join", "joining time", "how soon can you join",
+      "availability to join"), "notice_period"),
+    (("expected ctc", "expected salary", "expected compensation", "salary expectation"),
+     "expected_ctc"),
+    (("current ctc", "current salary", "present ctc", "current compensation"), "current_ctc"),
+    (("require sponsorship", "need sponsorship", "sponsorship"), "needs_sponsorship"),
+    (("work authorization", "authorized to work", "visa status", "right to work"),
+     "work_authorization"),
+    (("years of experience", "total experience", "years experience", "relevant experience"),
+     "years_experience"),
+    (("willing to relocate", "open to relocation", "can you relocate", "relocation"),
+     "willing_to_relocate"),
+    (("linkedin",), "linkedin_url"),
+    (("github",), "github_url"),
+    (("portfolio", "personal website"), "portfolio_url"),
+    (("current location", "your location", "where are you based", "current city",
+      "based out of"), "location"),
+    (("contact number", "phone number", "mobile number"), "phone"),
+)
+
+
+def _answer_from_profile(question: str, applicant: dict[str, Any]) -> str | None:
+    """Answer a common factual question directly from the applicant profile, or None."""
+    ql = question.lower()
+    for keywords, field in _FACTUAL_MAP:
+        if any(k in ql for k in keywords):
+            val = applicant.get(field)
+            if val is None or val == "":
+                return None
+            if isinstance(val, bool):
+                return "Yes" if val else "No"
+            return str(val)
+    return None
+
 
 def draft_answers(
     questions: list[str],
@@ -49,6 +88,13 @@ def draft_answers(
             extra = raw_extra
 
     for q in questions:
+        # 0. Common factual question → answered directly from the applicant profile.
+        prof = _answer_from_profile(q, applicant)
+        if prof is not None:
+            answered[q] = prof
+            logger.debug("profile-field answer for %r", q)
+            continue
+
         # 1. Keyword template match via services layer
         hit = suggest_answer(q)
         if hit and hit.get("score", 0) > 0:

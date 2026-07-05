@@ -133,3 +133,35 @@ def test_empty_questions_returns_empty_dict(tmp_db, monkeypatch):
     )
 
     assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# 5. Factual question → answered directly from the applicant profile (no LLM)
+# ---------------------------------------------------------------------------
+
+
+def test_factual_question_answered_from_profile(tmp_db, monkeypatch):
+    """Common factual questions are answered from applicant_profile, without any LLM call."""
+
+    def _must_not_call(*a, **k):
+        raise AssertionError("chat_json must not be called for a profile-field question")
+
+    monkeypatch.setattr(answerer, "chat_json", _must_not_call)
+
+    applicant = {
+        "notice_period": "30 days",
+        "expected_ctc": "18 LPA",
+        "willing_to_relocate": True,
+        "years_experience": "2",
+    }
+    result = answerer.draft_answers(
+        ["What is your notice period?", "Expected CTC?", "Are you willing to relocate?"],
+        jd_text=_JD,
+        resume_json=_RESUME,
+        applicant=applicant,
+        context=_CONTEXT,
+    )
+
+    assert result["What is your notice period?"] == "30 days"
+    assert result["Expected CTC?"] == "18 LPA"
+    assert result["Are you willing to relocate?"] == "Yes"  # bool -> Yes/No

@@ -11,6 +11,7 @@ from job_hunt.apply.formfill import prepare_form_fill
 from job_hunt.services.analytics import (
     daily_report_text,
     dashboard,
+    funnel_metrics,
     send_daily_report,
     send_test_notification,
     variant_performance,
@@ -79,6 +80,7 @@ __all__ = [
     "log_application",
     "advance_stage",
     "dashboard",
+    "funnel_metrics",
     "variant_performance",
     "daily_report_text",
     "send_daily_report",

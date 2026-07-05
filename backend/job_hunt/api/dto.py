@@ -111,6 +111,34 @@ class _LLMCost(BaseModel):
     tokens: int
 
 
+class _SourceEffectivenessByOutcome(BaseModel):
+    source: str
+    applied: int
+    interviews: int
+    offers: int
+    interview_rate: float
+
+
+class _StageConversion(BaseModel):
+    applied_to_interview: float
+    interview_to_offer: float
+
+
+class FunnelMetrics(BaseModel):
+    """Computed interview/offer funnel rates and time-to-interview stats."""
+
+    applications_total: int
+    interviews: int
+    offers: int
+    rejections: int
+    interview_rate: float
+    offer_rate: float
+    response_rate: float
+    stage_conversion: _StageConversion
+    time_to_interview_days: float | None = None
+    source_effectiveness_by_outcome: list[_SourceEffectivenessByOutcome]
+
+
 class Analytics(BaseModel):
     jobs_by_state: list[_StateCount]
     jobs_by_source: list[_SourceCount]
@@ -119,6 +147,7 @@ class Analytics(BaseModel):
     llm_by_task: list[_LLMByTask]
     variant_performance: list[_VariantPerformance]
     llm_cost: _LLMCost
+    funnel_metrics: FunnelMetrics
 
 
 class EmailSummary(BaseModel):

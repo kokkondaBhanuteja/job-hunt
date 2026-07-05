@@ -13,3 +13,15 @@ DAILY_CAP = int(os.getenv("WORKER_DAILY_CAP", "30"))
 # Schedule cadence.
 DISCOVERY_INTERVAL_MIN = int(os.getenv("WORKER_DISCOVERY_INTERVAL_MIN", "180"))
 DISPATCH_INTERVAL_SEC = int(os.getenv("WORKER_DISPATCH_INTERVAL_SEC", "30"))
+
+# API source discovery (cheap httpx sources — no browser, no active-hours gate).
+API_DISCOVERY_INTERVAL_MIN = int(os.getenv("WORKER_API_DISCOVERY_INTERVAL_MIN", "20"))
+# remotive excluded from default: terms cap ≤4 calls/day, too slow for this loop.
+API_SOURCES = [
+    s.strip()
+    for s in os.getenv(
+        "WORKER_API_SOURCES",
+        "remoteok,adzuna,weworkremotely,workingnomads,jobspresso",
+    ).split(",")
+    if s.strip()
+]

@@ -13,6 +13,7 @@ from job_hunt.events import bus
 from job_hunt.logging_config import get_logger
 from job_hunt.plugins import get_source
 from job_hunt.scoring.match import score_all_pending
+from job_hunt.services.discovery import discover
 from job_hunt.storage import repo
 from job_hunt.worker import config, pacing
 
@@ -84,6 +85,40 @@ def run_all_active_profiles(*, headless: bool = True) -> list[dict[str, Any]]:
         )
         return []
     return [run_discovery_cycle(p, headless=headless) for p in repo.list_active_search_profiles()]
+
+
+def run_api_sources() -> None:
+    """Poll all registered API sources for every active search profile.
+
+    Iterates each active profile × each source in config.API_SOURCES, calling
+    discover() for each pair. Unregistered or failing sources are skipped
+    gracefully — a warning is logged and the loop continues. No browser
+    daily-cap gate (these are cheap httpx sources). Safe to run repeatedly.
+    """
+    repo.init_db()
+    profiles = repo.list_active_search_profiles()
+    total_found = 0
+    total_new = 0
+    for profile in profiles:
+        for src in config.API_SOURCES:
+            try:
+                result = discover(src, keyword=profile["keywords"], location=profile["location"])
+                total_found += result.get("found", 0)
+                total_new += result.get("new", 0)
+            except Exception:  # noqa: BLE001 — skip absent/failing sources
+                logger.warning(
+                    "api source %s failed/absent for profile %s — skipping",
+                    src,
+                    profile.get("name"),
+                    exc_info=True,
+                )
+                continue
+    logger.info(
+        "api_sources cycle complete: %d profile(s), %d found, %d new",
+        len(profiles),
+        total_found,
+        total_new,
+    )
 
 
 def dispatch_events_once(handlers: dict[str, Any] | None = None) -> int:

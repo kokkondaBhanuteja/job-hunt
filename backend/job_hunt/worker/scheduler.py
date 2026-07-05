@@ -41,6 +41,10 @@ def build_scheduler() -> BlockingScheduler:
         runner.dispatch_events_once, "interval",
         seconds=config.DISPATCH_INTERVAL_SEC, id="dispatch", max_instances=1,
     )
+    sched.add_job(
+        runner.run_api_sources, "interval",
+        minutes=config.API_DISCOVERY_INTERVAL_MIN, id="api_discovery", max_instances=1,
+    )
     # Evening daily report (no-op unless NOTIFY_CHANNEL is configured).
     from job_hunt.services.analytics import send_daily_report
 

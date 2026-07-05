@@ -97,6 +97,7 @@ a short cadence and auto-advances `discovered → enriched → scored → …`.
 | **Inbox triage** (read/structure/link) + **confirmed actions** (draft/label/archive) | `email/` + `services/email_triage.py` |
 | **ATS auto-fill** (Greenhouse/Lever, stops at review) | `apply/` + `apply/formfill.py` |
 | **Interview prep brief**, **User Context**, **Applicant profile**, **Search prefs (Markdown)** | `services/` singletons + LLM |
+| **Content posts** (unique tech-post drafts every 3 days → you post) | `content/` + `services/content.py` + Content page |
 | Notifications (Telegram/Discord daily digest) | `notify/` |
 | Semantic search | `embed/` + pgvector |
 

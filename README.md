@@ -159,7 +159,7 @@ backend/                Python. All backend code + its data/config/scripts/tests
 ├── pyproject.toml      Python deps + `hunt` CLI entrypoint
 └── uv.lock
 
-frontend/               React + TS + Vite + TanStack Query (Board · Inbox · Runs · Analytics · Settings)
+frontend/               React + TS + Vite + TanStack Query (Board · Inbox · Content · Runs · Analytics · Settings)
 docs/                   career-os-plan.md (architecture + build status), engineering-standards.md
 docker-compose.yml      Boots the Postgres+pgvector container
 ```

@@ -21,7 +21,7 @@ API_SOURCES = [
     s.strip()
     for s in os.getenv(
         "WORKER_API_SOURCES",
-        "remoteok,adzuna,weworkremotely,workingnomads,jobspresso",
+        "remoteok,adzuna,weworkremotely,workingnomads,jobspresso,amazon,google",
     ).split(",")
     if s.strip()
 ]

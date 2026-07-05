@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from job_hunt.plugins import (
     adzuna,  # noqa: F401 — registers AdzunaSource
+    amazon,  # noqa: F401 — registers AmazonSource
     ashby,  # noqa: F401 — registers AshbySource
+    google,  # noqa: F401 — registers GoogleSource
     greenhouse,  # noqa: F401 — registers GreenhouseSource
     jobspresso,  # noqa: F401 — registers JobspressoSource
     lever,  # noqa: F401 — registers LeverSource

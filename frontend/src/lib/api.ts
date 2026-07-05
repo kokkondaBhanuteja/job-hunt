@@ -302,6 +302,21 @@ export interface SimilarSuccessful {
 }
 // Union with the backend's "not available" shape so callers can discriminate cleanly.
 export type SimilarResult = SimilarSuccessful | { error: string };
+// Mirrors backend dto.VariantSummary.
+export interface VariantSummary {
+  slug: string;
+  company: string | null;
+  tags: string[];
+  has_body: boolean;
+}
+// Mirrors backend dto.VariantDetail.
+export interface VariantDetail {
+  slug: string;
+  company: string | null;
+  body: string | null;
+  tags: string[];
+  parsed_json: Record<string, unknown> | null;
+}
 
 export const api = {
   health: () =>
@@ -400,4 +415,11 @@ export const api = {
     req<{ ok: boolean }>(API_ENDPOINTS.watchEntry(id), { method: "DELETE" }),
   setWatchEnabled: (id: number, enabled: boolean) =>
     req<WatchEntry>(API_ENDPOINTS.watchEntry(id), { method: "PATCH", body: JSON.stringify({ enabled }) }),
+  variants: () => req<VariantSummary[]>(API_ENDPOINTS.variants),
+  variant: (slug: string) => req<VariantDetail>(API_ENDPOINTS.variant(slug)),
+  saveVariant: (b: { slug: string; company?: string; body: string; tags?: string[] }) =>
+    req<{ slug: string; id: number; company: string | null }>(API_ENDPOINTS.variants, {
+      method: "POST",
+      body: JSON.stringify(b),
+    }),
 };

@@ -14,6 +14,7 @@ import { Analytics } from "@/pages/Analytics";
 import { Board } from "@/pages/Board";
 import { Content } from "@/pages/Content";
 import { Inbox } from "@/pages/Inbox";
+import { Resumes } from "@/pages/Resumes";
 import { Runs } from "@/pages/Runs";
 import { Settings } from "@/pages/Settings";
 
@@ -21,6 +22,7 @@ const TABS = [
   { key: SCREEN.board, label: "Board" },
   { key: SCREEN.inbox, label: "Inbox" },
   { key: SCREEN.content, label: "Content" },
+  { key: SCREEN.resumes, label: "Résumés" },
   { key: SCREEN.runs, label: "Runs" },
   { key: SCREEN.analytics, label: "Analytics" },
   { key: SCREEN.settings, label: "Settings" },
@@ -118,6 +120,7 @@ export function App() {
                 {screen === SCREEN.board && <Board />}
                 {screen === SCREEN.inbox && <Inbox />}
                 {screen === SCREEN.content && <Content />}
+                {screen === SCREEN.resumes && <Resumes />}
                 {screen === SCREEN.runs && <Runs />}
                 {screen === SCREEN.analytics && <Analytics />}
                 {screen === SCREEN.settings && <Settings />}

@@ -9,6 +9,7 @@ export const ROUTES = {
   analytics: "/analytics",
   settings: "/settings",
   content: "/content",
+  resumes: "/resumes",
   jobDetail: (id: number | string) => `/board/${id}`,
 } as const;
 
@@ -20,6 +21,7 @@ export const SCREEN = {
   analytics: "analytics",
   settings: "settings",
   content: "content",
+  resumes: "resumes",
 } as const;
 export type Screen = (typeof SCREEN)[keyof typeof SCREEN];
 
@@ -61,6 +63,8 @@ export const API_ENDPOINTS = {
   similarSuccessful: (id: number) => `/api/jobs/${id}/similar-successful`,
   watchlist: "/api/watchlist",
   watchEntry: (id: number) => `/api/watchlist/${id}`,
+  variants: "/api/variants",
+  variant: (slug: string) => `/api/variants/${slug}`,
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
@@ -85,6 +89,8 @@ export const QUERY_KEYS = {
   nextAction: (id: number) => ["nextAction", id] as const,
   similar: (id: number) => ["similar", id] as const,
   watchlist: ["watchlist"] as const,
+  variants: ["variants"] as const,
+  variant: (slug: string) => ["variant", slug] as const,
 } as const;
 
 /** Score → color-class thresholds (used in format.ts). */

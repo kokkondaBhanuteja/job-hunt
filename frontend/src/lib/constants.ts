@@ -65,6 +65,7 @@ export const API_ENDPOINTS = {
   watchEntry: (id: number) => `/api/watchlist/${id}`,
   variants: "/api/variants",
   variant: (slug: string) => `/api/variants/${slug}`,
+  applicantExtract: "/api/applicant/extract",
 } as const;
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */

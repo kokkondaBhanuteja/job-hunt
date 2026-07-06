@@ -317,6 +317,22 @@ export interface VariantDetail {
   tags: string[];
   parsed_json: Record<string, unknown> | null;
 }
+// Mirrors POST /api/applicant/extract response — LLM-extracted résumé fields.
+// Fields absent or empty-string when not found.
+export type ApplicantExtract = Partial<
+  Pick<
+    Applicant,
+    | "first_name"
+    | "last_name"
+    | "email"
+    | "phone"
+    | "location"
+    | "linkedin_url"
+    | "github_url"
+    | "portfolio_url"
+    | "years_experience"
+  >
+>;
 
 export const api = {
   health: () =>
@@ -421,5 +437,10 @@ export const api = {
     req<{ slug: string; id: number; company: string | null }>(API_ENDPOINTS.variants, {
       method: "POST",
       body: JSON.stringify(b),
+    }),
+  extractApplicant: (content: string) =>
+    req<ApplicantExtract>(API_ENDPOINTS.applicantExtract, {
+      method: "POST",
+      body: JSON.stringify({ content }),
     }),
 };

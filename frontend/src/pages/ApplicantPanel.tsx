@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorView } from "@/components/ErrorView";
-import { api, type Applicant } from "@/lib/api";
+import { api, type Applicant, type ApplicantExtract } from "@/lib/api";
 import { QUERY_KEYS } from "@/lib/constants";
+import { ResumeAutofill } from "./ResumeAutofill";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,12 @@ export function ApplicantPanel() {
     setDirty(true);
   }
 
+  function handleAutofill(fields: ApplicantExtract) {
+    // Merge extracted fields over current form — user reviews before saving.
+    setForm((f) => ({ ...f, ...fields }));
+    setDirty(true);
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -68,6 +75,7 @@ export function ApplicantPanel() {
           Personal details used by Auto-fill to populate ATS forms. Sponsorship and
           relocation toggles are coming in v2.
         </p>
+        <ResumeAutofill onAutofill={handleAutofill} />
         {result.isError && <ErrorView error={result.error} />}
         <div className="grid gap-4 md:grid-cols-2">
           {FIELDS.map(({ key, label }) => (

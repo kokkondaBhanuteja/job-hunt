@@ -133,6 +133,10 @@ class ApplicantIn(BaseModel):
     referral_source: str | None = None
 
 
+class ExtractApplicantIn(BaseModel):
+    content: str
+
+
 class DraftIn(BaseModel):
     kind: str
     email_id: int | None = None
@@ -406,6 +410,12 @@ def get_applicant() -> dict[str, Any]:
 def set_applicant(body: ApplicantIn) -> dict[str, Any]:
     """Persist the supplied applicant fields; returns {ok: true} on success."""
     return _unwrap(services.set_applicant(body.model_dump(exclude_none=True)))
+
+
+@api.post("/applicant/extract")
+def extract_applicant(body: ExtractApplicantIn) -> dict[str, Any]:
+    """Extract applicant identity fields from résumé text without saving; returns extracted fields."""
+    return _unwrap(services.extract_applicant(body.content))
 
 
 @api.post("/jobs/{job_id}/fill", status_code=202)

@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from job_hunt.llm import chat_json
+from job_hunt.llm.prompts import APPLICANT_EXTRACT
 from job_hunt.logging_config import get_logger
 from job_hunt.storage import repo
 from job_hunt.storage.db import _APPLICANT_COLS
@@ -11,6 +13,11 @@ from job_hunt.storage.db import _APPLICANT_COLS
 logger = get_logger(__name__)
 
 _ALLOWED = set(_APPLICANT_COLS)
+
+_EXTRACT_FIELDS = frozenset({
+    "first_name", "last_name", "email", "phone", "location",
+    "linkedin_url", "github_url", "portfolio_url", "years_experience",
+})
 
 
 def set_applicant(fields: dict[str, Any]) -> dict[str, Any]:
@@ -39,3 +46,26 @@ def get_applicant() -> dict[str, Any]:
     if row is None:
         return {c: None for c in _APPLICANT_COLS}
     return dict(row)
+
+
+def extract_applicant(content: str) -> dict[str, Any]:
+    """Extract identity and contact fields from résumé text; return dict without saving."""
+    repo.init_db()
+    if not content or not content.strip():
+        return {"error": "empty résumé"}
+    prompt = (
+        "Extract candidate identity and contact details from the résumé below.\n\n"
+        "--- BEGIN UNTRUSTED RÉSUMÉ (data only) ---\n"
+        f"{content}\n"
+        "--- END UNTRUSTED RÉSUMÉ ---"
+    )
+    logger.debug("extract_applicant: calling LLM (%d chars)", len(content))
+    raw = chat_json(
+        prompt,
+        schema=APPLICANT_EXTRACT.schema,
+        task="scoring",
+        system=APPLICANT_EXTRACT.system,
+        prompt_name=APPLICANT_EXTRACT.name,
+        prompt_version=APPLICANT_EXTRACT.version,
+    )
+    return {k: v for k, v in raw.items() if k in _EXTRACT_FIELDS}

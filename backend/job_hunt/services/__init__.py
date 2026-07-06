@@ -17,7 +17,7 @@ from job_hunt.services.analytics import (
     variant_performance,
 )
 from job_hunt.services.answers import add_answer_template, list_answer_templates, suggest_answer
-from job_hunt.services.applicant import get_applicant, set_applicant
+from job_hunt.services.applicant import extract_applicant, get_applicant, set_applicant
 from job_hunt.services.applications import advance_stage, log_application
 from job_hunt.services.apply import review_application
 from job_hunt.services.apply_policy import get_policy, list_ready_to_apply
@@ -128,6 +128,7 @@ __all__ = [
     "get_search_prefs",
     "set_applicant",
     "get_applicant",
+    "extract_applicant",
     "parse_resume_vault",
     "add_profile",
     "list_profiles",

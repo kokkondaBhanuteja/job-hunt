@@ -5,13 +5,16 @@ import { API_ENDPOINTS, DEFAULT_API_BASE, ROUTES, STORAGE_KEYS, type MessageKind
 import { navigate } from "./router";
 
 export function getApiBase(): string {
-  return localStorage.getItem(STORAGE_KEYS.apiBase) || DEFAULT_API_BASE;
+  // Same-origin in the Docker deploy — nginx proxies /api, so the base is FIXED and build-time
+  // only (VITE_API_BASE for dev). Deliberately ignores any stored value: a stale absolute base
+  // (e.g. "http://localhost:8000/") caused cross-origin CORS + `//api` double-slash breakage.
+  return DEFAULT_API_BASE.replace(/\/+$/, "");
 }
 export function getToken(): string {
   return localStorage.getItem(STORAGE_KEYS.apiToken) || "";
 }
 export function setConfig(base: string, token: string) {
-  localStorage.setItem(STORAGE_KEYS.apiBase, base);
+  localStorage.setItem(STORAGE_KEYS.apiBase, base.trim().replace(/\/+$/, ""));
   localStorage.setItem(STORAGE_KEYS.apiToken, token);
 }
 

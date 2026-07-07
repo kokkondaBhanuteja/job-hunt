@@ -13,7 +13,7 @@ const NAV_EVENT = "spa:navigate";
 
 function readRoute(): string {
   const path = window.location.pathname;
-  return path === "/" || path === "" ? ROUTES.board : path;
+  return path === "/" || path === "" ? ROUTES.home : path;
 }
 
 /** Full URL suffix (path + query + hash) — used to guard against redundant navigations. */
@@ -111,5 +111,5 @@ if (
   window.location.hash.startsWith("#/")
 ) {
   const legacy = window.location.hash.slice(1);
-  window.history.replaceState({}, "", legacy || ROUTES.board);
+  window.history.replaceState({}, "", legacy || ROUTES.home);
 }

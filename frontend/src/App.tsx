@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Analytics } from "@/pages/Analytics";
 import { Board } from "@/pages/Board";
+import { Home } from "@/pages/Home";
 import { Content } from "@/pages/Content";
 import { Inbox } from "@/pages/Inbox";
 import { Resumes } from "@/pages/Resumes";
@@ -19,6 +20,7 @@ import { Runs } from "@/pages/Runs";
 import { Settings } from "@/pages/Settings";
 
 const TABS = [
+  { key: SCREEN.home, label: "Home" },
   { key: SCREEN.board, label: "Board" },
   { key: SCREEN.inbox, label: "Inbox" },
   { key: SCREEN.content, label: "Content" },
@@ -117,6 +119,7 @@ export function App() {
                 A caught error still resets when the user switches tabs.
               */}
               <ErrorBoundary key={screen}>
+                {screen === SCREEN.home && <Home />}
                 {screen === SCREEN.board && <Board />}
                 {screen === SCREEN.inbox && <Inbox />}
                 {screen === SCREEN.content && <Content />}

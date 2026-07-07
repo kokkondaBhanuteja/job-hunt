@@ -317,6 +317,27 @@ export interface VariantDetail {
   tags: string[];
   parsed_json: Record<string, unknown> | null;
 }
+// Mirrors backend dto.HomeSetup
+export interface HomeSetup {
+  resume: boolean;
+  applicant: boolean;
+  context: boolean;
+  search_prefs: boolean;
+  apply_policy: boolean;
+  watchlist_count: number;
+}
+// Mirrors backend dto.HomeActivity
+export interface HomeActivity {
+  total_jobs: number;
+  new_to_review: number;
+  ready_to_apply: number;
+  applications: number;
+}
+// Mirrors backend dto.Home
+export interface Home {
+  setup: HomeSetup;
+  activity: HomeActivity;
+}
 // Mirrors POST /api/applicant/extract response — LLM-extracted résumé fields.
 // Fields absent or empty-string when not found.
 export type ApplicantExtract = Partial<
@@ -443,4 +464,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ content }),
     }),
+  home: () => req<Home>(API_ENDPOINTS.home),
 };

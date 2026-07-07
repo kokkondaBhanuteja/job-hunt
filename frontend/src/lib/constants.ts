@@ -3,6 +3,7 @@
 
 /** Hash-router paths. Prefix with `#` when assigning to window.location. */
 export const ROUTES = {
+  home: "/home",
   board: "/board",
   inbox: "/inbox",
   runs: "/runs",
@@ -15,6 +16,7 @@ export const ROUTES = {
 
 /** Screen identifiers (first segment of the hash route). */
 export const SCREEN = {
+  home: "home",
   board: "board",
   inbox: "inbox",
   runs: "runs",
@@ -27,6 +29,7 @@ export type Screen = (typeof SCREEN)[keyof typeof SCREEN];
 
 /** REST endpoints on the FastAPI backend. */
 export const API_ENDPOINTS = {
+  home: "/api/home",
   health: "/health",
   ping: "/api/runs?limit=1",
   board: "/api/board",
@@ -70,6 +73,7 @@ export const API_ENDPOINTS = {
 
 /** TanStack Query keys — `[resource, ...params]`. Always arrays. */
 export const QUERY_KEYS = {
+  home: ["home"] as const,
   health: ["health"] as const,
   auth: ["auth"] as const,
   board: ["board"] as const,

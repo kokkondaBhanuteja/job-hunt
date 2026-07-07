@@ -329,3 +329,33 @@ class VariantDetail(BaseModel):
     body: str | None = None
     tags: list[str] = []
     parsed_json: dict[str, Any] | None = None
+
+
+# ---------- Home / Getting-Started ----------
+
+
+class HomeSetup(BaseModel):
+    """Setup completion flags — which onboarding steps the user has finished."""
+
+    resume: bool
+    applicant: bool
+    context: bool
+    search_prefs: bool
+    apply_policy: bool
+    watchlist_count: int
+
+
+class HomeActivity(BaseModel):
+    """Live pipeline counts for the Getting-Started dashboard."""
+
+    total_jobs: int
+    new_to_review: int
+    ready_to_apply: int
+    applications: int
+
+
+class Home(BaseModel):
+    """Aggregated getting-started status: setup flags + pipeline activity."""
+
+    setup: HomeSetup
+    activity: HomeActivity

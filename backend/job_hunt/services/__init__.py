@@ -51,6 +51,7 @@ from job_hunt.services.email_triage import (
     sync_inbox,
 )
 from job_hunt.services.enrichment import enrich_pending_jobs
+from job_hunt.services.home import home_status
 from job_hunt.services.intelligence import explain_score, next_best_action, skill_gap
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.naukri_refresh import draft_profile_refresh, refresh_reminder
@@ -160,4 +161,5 @@ __all__ = [
     "save_variant_from_text",
     "get_variant",
     "list_variants",
+    "home_status",
 ]

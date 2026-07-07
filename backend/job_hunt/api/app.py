@@ -212,6 +212,12 @@ def health() -> dict[str, Any]:
 api = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
 
+@api.get("/home", response_model=dto.Home)
+def home() -> dict[str, Any]:
+    """Return setup completion flags and live pipeline counts for the Getting-Started UI."""
+    return services.home_status()
+
+
 @api.get("/jobs", response_model=list[dto.TopMatch])
 def list_jobs(min_score: int = Score.DEFAULT_MIN_MATCH, limit: int = 20) -> list[dict[str, Any]]:
     return services.list_top_matches(min_score=min_score, limit=limit)

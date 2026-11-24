@@ -6,9 +6,11 @@ namespaced (`company='ContractCo'`, slugs `contract-*`) and cleaned up before + 
 """
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
-from job_hunt.enums import JobState
+from job_hunt.enums import JobState, OutreachStatus
 from job_hunt.storage import db as sqlite_db
 from job_hunt.storage import pg
 
@@ -32,6 +34,7 @@ def _pg_cleanup() -> None:
         conn.execute("DELETE FROM events WHERE (payload->>'job_id')::int IN (SELECT id FROM jobs WHERE company='ContractCo')")
         conn.execute("DELETE FROM jobs WHERE company='ContractCo'")
         conn.execute("DELETE FROM resume_variants WHERE slug LIKE 'contract-%'")
+        conn.execute("DELETE FROM contacts WHERE company='ContractCo'")  # cascades to outreach
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
@@ -137,3 +140,93 @@ def test_pg_raw_select_readonly_blocks_piggyback():
         pg.raw_select("SELECT 1; DELETE FROM jobs")
     after = pg.raw_select("SELECT count(*) AS c FROM jobs")[0]["c"]
     assert before == after  # nothing deleted
+
+
+# ---------- outreach (cold email) ----------
+
+
+def _iso(delta: timedelta = timedelta(0)) -> str:
+    return (datetime.now(UTC) + delta).isoformat(timespec="seconds")
+
+
+def _draft(backend, *, to_email: str = "priya@contractco.com", parent_id: int | None = None) -> int:
+    contact_id = backend.save_contact(company="ContractCo", name="Priya")
+    return backend.insert_outreach(
+        contact_id=contact_id, to_email=to_email, subject="Backend role", body="Hello",
+        mailto_url="mailto:x", template_slug="cold_email@1", parent_id=parent_id,
+    )
+
+
+def _send(backend, oid: int) -> None:
+    assert backend.claim_outreach_for_send(oid) is True
+    backend.set_outreach_sent(oid, message_id=f"<{oid}@test>")
+
+
+def test_outreach_insert_get_list_parity(backend):
+    oid = _draft(backend)
+    row = backend.get_outreach(oid)
+    assert row["status"] == OutreachStatus.DRAFT
+    assert (row["company"], row["contact_name"], row["to_email"]) == (
+        "ContractCo", "Priya", "priya@contractco.com",
+    )
+    assert oid in [r["id"] for r in backend.list_outreach(status=OutreachStatus.DRAFT)]
+    assert backend.get_outreach(10**9) is None
+
+
+def test_outreach_claim_is_exactly_once(backend):
+    oid = _draft(backend)
+    since = _iso(-timedelta(minutes=1))
+    before = backend.count_outreach_sent_since(since)
+    _send(backend, oid)
+    assert backend.claim_outreach_for_send(oid) is False  # a second send can't claim it
+    row = backend.get_outreach(oid)
+    assert row["status"] == OutreachStatus.SENT and row["message_id"] == f"<{oid}@test>"
+    assert row["sent_at"] is not None
+    assert backend.count_outreach_sent_since(since) == before + 1
+    assert backend.update_outreach_draft(oid, subject="x", body="y", to_email="z@z.com") is False
+
+
+def test_outreach_failed_can_be_edited_and_reclaimed(backend):
+    oid = _draft(backend)
+    assert backend.claim_outreach_for_send(oid) is True
+    backend.set_outreach_failed(oid, error="SMTPAuthenticationError")
+    row = backend.get_outreach(oid)
+    assert (row["status"], row["last_error"]) == (OutreachStatus.FAILED, "SMTPAuthenticationError")
+    assert backend.update_outreach_draft(oid, subject="s2", body="b2", to_email="p@contractco.com")
+    assert backend.claim_outreach_for_send(oid) is True
+    assert backend.get_outreach(oid)["last_error"] is None
+
+
+def test_outreach_cancel_parity(backend):
+    oid = _draft(backend)
+    assert backend.set_outreach_cancelled(oid) is True
+    assert backend.set_outreach_cancelled(oid) is False
+    assert backend.claim_outreach_for_send(oid) is False
+
+
+def test_outreach_reply_marks_only_sent_rows_case_insensitively(backend):
+    sent = _draft(backend, to_email="Priya@ContractCo.com")
+    _send(backend, sent)
+    draft = _draft(backend, to_email="priya@contractco.com")
+    assert backend.mark_outreach_replied(["PRIYA@contractco.com", "", "other@x.com"]) == [sent]
+    assert backend.get_outreach(sent)["status"] == OutreachStatus.REPLIED
+    assert backend.get_outreach(sent)["replied_at"] is not None
+    assert backend.get_outreach(draft)["status"] == OutreachStatus.DRAFT
+    assert backend.mark_outreach_replied([]) == []
+
+
+def test_outreach_followups_due_once_and_never_after_reply(backend):
+    original = _draft(backend)
+    _send(backend, original)
+    replied = _draft(backend, to_email="raj@contractco.com")
+    _send(backend, replied)
+    backend.mark_outreach_replied(["raj@contractco.com"])
+
+    cutoff = _iso(timedelta(days=1))
+    due = [r["id"] for r in backend.list_followups_due(cutoff)]
+    assert original in due and replied not in due
+    # Not due yet when the cutoff is before it was sent.
+    assert original not in [r["id"] for r in backend.list_followups_due(_iso(-timedelta(days=1)))]
+
+    _draft(backend, parent_id=original)  # the follow-up now exists
+    assert original not in [r["id"] for r in backend.list_followups_due(cutoff)]

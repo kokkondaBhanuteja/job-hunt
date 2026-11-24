@@ -132,6 +132,19 @@ get_email_action = _impl.get_email_action
 get_latest_action_for_email = _impl.get_latest_action_for_email
 set_email_action_result = _impl.set_email_action_result
 
+# outreach (cold email)
+insert_outreach = _impl.insert_outreach
+get_outreach = _impl.get_outreach
+list_outreach = _impl.list_outreach
+update_outreach_draft = _impl.update_outreach_draft
+claim_outreach_for_send = _impl.claim_outreach_for_send
+set_outreach_sent = _impl.set_outreach_sent
+set_outreach_failed = _impl.set_outreach_failed
+set_outreach_cancelled = _impl.set_outreach_cancelled
+count_outreach_sent_since = _impl.count_outreach_sent_since
+mark_outreach_replied = _impl.mark_outreach_replied
+list_followups_due = _impl.list_followups_due
+
 # content posts
 create_post = _impl.create_post
 get_post = _impl.get_post

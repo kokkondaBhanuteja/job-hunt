@@ -25,6 +25,7 @@ from job_hunt.enums import (
     EventClass,
     EventType,
     JobState,
+    OutreachStatus,
     RunStatus,
     sql_values,
 )
@@ -364,6 +365,145 @@ def list_contacts(company: str | None = None) -> list[dict[str, Any]]:
                 f"SELECT {cols} FROM contacts WHERE company = %s ORDER BY name", (company,)
             ).fetchall()
         return conn.execute(f"SELECT {cols} FROM contacts ORDER BY company, name").fetchall()
+
+
+# ---------- outreach (cold email) ----------
+
+_OUTREACH_SELECT = (
+    "SELECT o.id, o.contact_id, o.job_id, o.parent_id, o.to_email, o.template_slug, "
+    "o.subject, o.body, o.mailto_url, o.status, o.message_id, o.last_error, "
+    "o.drafted_at::text AS drafted_at, o.sent_at::text AS sent_at, "
+    "o.replied_at::text AS replied_at, c.company AS company, c.name AS contact_name "
+    "FROM outreach o JOIN contacts c ON c.id = o.contact_id"
+)
+_OUTREACH_EDITABLE = (OutreachStatus.DRAFT, OutreachStatus.FAILED)
+
+
+def insert_outreach(
+    *, contact_id: int, to_email: str, subject: str, body: str, mailto_url: str,
+    template_slug: str, job_id: int | None = None, parent_id: int | None = None,
+) -> int:
+    """Insert a draft outreach email and return its id."""
+    with connect() as conn:
+        return conn.execute(
+            """
+            INSERT INTO outreach (contact_id, job_id, parent_id, to_email, template_slug,
+                                  subject, body, mailto_url, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """,
+            (int(contact_id), job_id, parent_id, to_email, template_slug, subject, body,
+             mailto_url, OutreachStatus.DRAFT),
+        ).fetchone()["id"]
+
+
+def get_outreach(outreach_id: int) -> dict[str, Any] | None:
+    """Return one outreach row (with company + contact_name), or None."""
+    with connect() as conn:
+        return conn.execute(
+            f"{_OUTREACH_SELECT} WHERE o.id = %s", (int(outreach_id),)
+        ).fetchone()
+
+
+def list_outreach(status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    """Return outreach rows, newest first, optionally filtered by status."""
+    with connect() as conn:
+        if status:
+            return conn.execute(
+                f"{_OUTREACH_SELECT} WHERE o.status = %s ORDER BY o.id DESC LIMIT %s",
+                (status, int(limit)),
+            ).fetchall()
+        return conn.execute(
+            f"{_OUTREACH_SELECT} ORDER BY o.id DESC LIMIT %s", (int(limit),)
+        ).fetchall()
+
+
+def update_outreach_draft(outreach_id: int, *, subject: str, body: str, to_email: str) -> bool:
+    """Edit a draft/failed email; return False if it is no longer editable."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET subject = %s, body = %s, to_email = %s "
+            "WHERE id = %s AND status IN (%s, %s)",
+            (subject, body, to_email, int(outreach_id), *_OUTREACH_EDITABLE),
+        )
+        return cur.rowcount == 1
+
+
+def claim_outreach_for_send(outreach_id: int) -> bool:
+    """Move draft/failed → sending atomically; False means someone else already claimed it."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET status = %s, last_error = NULL WHERE id = %s AND status IN (%s, %s)",
+            (OutreachStatus.SENDING, int(outreach_id), *_OUTREACH_EDITABLE),
+        )
+        return cur.rowcount == 1
+
+
+def set_outreach_sent(outreach_id: int, *, message_id: str) -> None:
+    """Mark a claimed email sent, storing its Message-ID for threading."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE outreach SET status = %s, message_id = %s, sent_at = now() "
+            "WHERE id = %s AND status = %s",
+            (OutreachStatus.SENT, message_id, int(outreach_id), OutreachStatus.SENDING),
+        )
+
+
+def set_outreach_failed(outreach_id: int, *, error: str) -> None:
+    """Mark a claimed email failed so it can be edited and re-sent."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE outreach SET status = %s, last_error = %s WHERE id = %s AND status = %s",
+            (OutreachStatus.FAILED, error, int(outreach_id), OutreachStatus.SENDING),
+        )
+
+
+def set_outreach_cancelled(outreach_id: int) -> bool:
+    """Cancel a draft, failed or sent email (stops its follow-up); False if not cancellable."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET status = %s WHERE id = %s AND status IN (%s, %s, %s)",
+            (OutreachStatus.CANCELLED, int(outreach_id), *_OUTREACH_EDITABLE,
+             OutreachStatus.SENT),
+        )
+        return cur.rowcount == 1
+
+
+def count_outreach_sent_since(since_iso: str) -> int:
+    """Count emails actually sent at or after `since_iso` (for the daily cap)."""
+    with connect() as conn:
+        return int(conn.execute(
+            "SELECT COUNT(*) AS n FROM outreach "
+            "WHERE sent_at IS NOT NULL AND sent_at >= %s::timestamptz",
+            (since_iso,),
+        ).fetchone()["n"])
+
+
+def mark_outreach_replied(from_addrs: list[str]) -> list[int]:
+    """Mark sent emails to any of `from_addrs` as replied; return the ids changed."""
+    addrs = sorted({a.strip().lower() for a in from_addrs if a and a.strip()})
+    if not addrs:
+        return []
+    with connect() as conn:
+        rows = conn.execute(
+            "UPDATE outreach SET status = %s, replied_at = now() "
+            "WHERE status = %s AND lower(to_email) = ANY(%s) RETURNING id",
+            (OutreachStatus.REPLIED, OutreachStatus.SENT, addrs),
+        ).fetchall()
+        return sorted(int(r["id"]) for r in rows)
+
+
+def list_followups_due(sent_before_iso: str) -> list[dict[str, Any]]:
+    """Return sent originals older than the cutoff that have no follow-up yet."""
+    with connect() as conn:
+        return conn.execute(
+            f"""
+            {_OUTREACH_SELECT}
+            WHERE o.status = %s AND o.parent_id IS NULL AND o.sent_at <= %s::timestamptz
+              AND NOT EXISTS (SELECT 1 FROM outreach f WHERE f.parent_id = o.id)
+            ORDER BY o.sent_at
+            """,
+            (OutreachStatus.SENT, sent_before_iso),
+        ).fetchall()
 
 
 def save_answer_template(

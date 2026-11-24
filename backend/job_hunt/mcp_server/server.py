@@ -16,6 +16,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from job_hunt import services
+from job_hunt.enums import OutreachStatus
 from job_hunt.storage.repo import init_db
 
 mcp = FastMCP("job-hunt")
@@ -181,7 +182,8 @@ def email_sync() -> dict[str, Any]:
     """Sync inbox from IMAP and structure pending emails with the LLM.
 
     Returns:
-        {fetched: int, new: int, structured: int, linked: int} or {error: str}
+        {fetched: int, new: int, structured: int, linked: int, outreach_replies: int}
+        or {error: str}
     """
     result = services.sync_inbox()
     if "error" in result:
@@ -194,6 +196,7 @@ def email_sync() -> dict[str, Any]:
         "new": result["new"],
         "structured": struct["structured"],
         "linked": struct["linked"],
+        "outreach_replies": result["replied"],
     }
 
 
@@ -226,6 +229,43 @@ def email_get(email_id: int) -> dict[str, Any]:
         full email dict or {error: str} if not found
     """
     return services.get_email(email_id)
+
+
+# ---------- Cold-email outreach (save + list only — there is NO send tool) ----------
+
+
+@mcp.tool()
+def outreach_save_draft(
+    company: str,
+    contact_name: str,
+    to_email: str,
+    subject: str,
+    body: str,
+    job_id: int | None = None,
+) -> dict[str, Any]:
+    """Save a cold email you wrote as a DRAFT. This never sends anything.
+
+    Write plain text, 80–120 words, no markdown, and end with a short sign-off such as
+    "Thanks,\\nBhanu" — the user's signature (name, phone, LinkedIn) is appended
+    automatically, so don't add contact details. Show the user the returned draft and any
+    `warnings`; the user sends it themselves with `hunt outreach send <id> --confirm`.
+
+    Returns:
+        the stored draft (id, status, subject, body incl. signature, warnings) or {error: str}
+    """
+    return services.save_outreach_draft(
+        company, contact_name, to_email, subject, body, job_id=job_id,
+    )
+
+
+@mcp.tool()
+def outreach_list(status: str = "") -> list[dict[str, Any]]:
+    """List cold emails, newest first.
+
+    Args:
+        status: draft | sending | sent | failed | replied | cancelled — empty = all
+    """
+    return services.list_outreach(OutreachStatus(status) if status else None)
 
 
 # ---------- Drafting & tailor ----------

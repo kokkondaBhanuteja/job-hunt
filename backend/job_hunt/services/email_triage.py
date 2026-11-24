@@ -20,6 +20,7 @@ from job_hunt.enums import EmailCategory, LLMTask
 from job_hunt.llm import chat_json
 from job_hunt.llm.prompts import EMAIL_STRUCTURE
 from job_hunt.logging_config import get_logger
+from job_hunt.services.outreach import record_replies
 from job_hunt.storage import repo
 
 logger = get_logger(__name__)
@@ -117,7 +118,19 @@ def sync_inbox(*, mailbox: str = "INBOX", limit: int = 200) -> dict[str, Any]:
     if emails:
         repo.set_sync_state(mailbox=mailbox, uidvalidity=uidvalidity, last_uid=max_uid)
 
-    return {"fetched": len(emails), "new": len(emails)}
+    return {"fetched": len(emails), "new": len(emails), "replied": _record_replies(emails)}
+
+
+def _record_replies(emails: list[reader.RawEmail]) -> int:
+    """Stop cold-email follow-ups for anyone who wrote back; never fail the sync over it."""
+    senders = [raw.from_addr for raw in emails if raw.from_addr]
+    if not senders:
+        return 0
+    try:
+        return record_replies(senders)
+    except Exception:  # noqa: BLE001 — the inbox is already stored; outreach is a side effect
+        logger.exception("recording outreach replies failed")
+        return 0
 
 
 def structure_pending(*, limit: int = 50) -> dict[str, Any]:

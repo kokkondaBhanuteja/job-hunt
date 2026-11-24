@@ -20,6 +20,9 @@ def _filter_on(monkeypatch):
     "Remote - APAC", "Remote, Asia-Pacific", "Global", "Anywhere in the World",
     # real We Work Remotely regions, stored as "Remote - <region>"
     "Remote - Anywhere in the World", "Remote - Asia Only",
+    # real Working Nomads / Himalayas locations
+    "Remote - Europe, LATAM, APAC, the U.S., Canada", "Remote - Global", "Remote - Worldwide",
+    "Remote - Egypt, India, Pakistan",
 ])
 def test_keeps_india_and_open_remote(loc):
     assert location.is_india_or_open_remote(loc) is True
@@ -34,6 +37,9 @@ def test_keeps_india_and_open_remote(loc):
     # real We Work Remotely regions
     "Remote - USA Only", "Remote - Europe Only", "Remote - North America Only",
     "Remote - Canada Only",
+    # real Working Nomads / Himalayas locations
+    "Remote - Time zone: CET (+/- 3 hours)", "Remote - North America", "Remote - Philippines",
+    "Remote - United States", "Remote - Brazil",
 ])
 def test_drops_jobs_restricted_outside_india(loc):
     assert location.is_india_or_open_remote(loc) is False

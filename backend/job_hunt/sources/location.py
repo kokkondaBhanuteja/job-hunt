@@ -22,6 +22,7 @@ _INDIA = re.compile(
 )
 _REMOTE = re.compile(r"\b(remote|anywhere|worldwide|global|globally|wfh|work from home)\b",
                      re.IGNORECASE)
+_APAC = re.compile(r"\b(apac|asia|asia-pacific|south asia)\b", re.IGNORECASE)
 # Words that may accompany "remote" without restricting it to a non-Indian region.
 _FILLER = re.compile(
     r"\b(remote|anywhere|worldwide|global|globally|fully|100%|wfh|work from home|in|the|world|"
@@ -43,5 +44,7 @@ def is_india_or_open_remote(location: str | None, title: str = "") -> bool:
     loc = location or ""
     if not _REMOTE.search(loc):
         return False  # on-site somewhere outside India
+    if _APAC.search(loc):
+        return True  # remote and open to APAC/Asia (e.g. "Europe, LATAM, APAC, the U.S.")
     leftover = re.sub(r"[^a-z]+", " ", _FILLER.sub(" ", loc.lower())).strip()
     return leftover == ""  # e.g. "Remote - US" leaves "us"; "Remote (Worldwide)" leaves ""

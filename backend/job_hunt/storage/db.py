@@ -39,6 +39,7 @@ from job_hunt.enums import (
     EventType,
     JobState,
     JobStatus,
+    OutreachStatus,
     PostStatus,
     ReplyType,
     RunStatus,
@@ -136,8 +137,18 @@ CREATE TABLE IF NOT EXISTS outreach (
     body            TEXT NOT NULL,
     mailto_url      TEXT NOT NULL,
     drafted_at      TEXT NOT NULL,
-    sent_at         TEXT                            -- you set this when you click Send
+    sent_at         TEXT,
+    to_email        TEXT,
+    status          TEXT NOT NULL DEFAULT '{OutreachStatus.DRAFT}'
+                        CHECK (status IN ({sql_in_list(OutreachStatus)})),
+    parent_id       INTEGER REFERENCES outreach(id) ON DELETE CASCADE,  -- follow-up of
+    message_id      TEXT,                           -- SMTP Message-ID, for threading
+    last_error      TEXT,                           -- not "error": that key means failure in service dicts
+    replied_at      TEXT
 );
+-- At most one follow-up per original email (NULL parent_ids never collide).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_outreach_parent ON outreach(parent_id);
+CREATE INDEX IF NOT EXISTS idx_outreach_status_sent ON outreach(status, sent_at);
 
 CREATE TABLE IF NOT EXISTS runs (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -475,6 +486,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "resume_variants", "body", "TEXT")
     # C1: DROP NOT NULL from resume_variants.source_path on pre-0024 SQLite DBs.
     _make_source_path_nullable(conn)
+    # 0025: cold-email sending on the (previously unused) outreach table.
+    _ensure_column(conn, "outreach", "to_email", "TEXT")
+    _ensure_column(
+        conn, "outreach", "status", f"TEXT NOT NULL DEFAULT '{OutreachStatus.DRAFT}'"
+    )
+    _ensure_column(
+        conn, "outreach", "parent_id", "INTEGER REFERENCES outreach(id) ON DELETE CASCADE"
+    )
+    _ensure_column(conn, "outreach", "message_id", "TEXT")
+    _ensure_column(conn, "outreach", "last_error", "TEXT")
+    _ensure_column(conn, "outreach", "replied_at", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, ddl: str) -> None:
@@ -885,6 +907,150 @@ def list_contacts(company: str | None = None) -> list[sqlite3.Row]:
                 "SELECT * FROM contacts WHERE company = ? ORDER BY name", (company,)
             ).fetchall()
         return conn.execute("SELECT * FROM contacts ORDER BY company, name").fetchall()
+
+
+# ---------- outreach (cold email) ----------
+
+_OUTREACH_SELECT = (
+    "SELECT o.*, c.company AS company, c.name AS contact_name "
+    "FROM outreach o JOIN contacts c ON c.id = o.contact_id"
+)
+_OUTREACH_EDITABLE = (OutreachStatus.DRAFT, OutreachStatus.FAILED)
+
+
+def insert_outreach(
+    *, contact_id: int, to_email: str, subject: str, body: str, mailto_url: str,
+    template_slug: str, job_id: int | None = None, parent_id: int | None = None,
+) -> int:
+    """Insert a draft outreach email and return its id."""
+    with connect() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO outreach (contact_id, job_id, parent_id, to_email, template_slug,
+                                  subject, body, mailto_url, status, drafted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (int(contact_id), job_id, parent_id, to_email, template_slug, subject, body,
+             mailto_url, OutreachStatus.DRAFT, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+
+def get_outreach(outreach_id: int) -> sqlite3.Row | None:
+    """Return one outreach row (with company + contact_name), or None."""
+    with connect() as conn:
+        return conn.execute(f"{_OUTREACH_SELECT} WHERE o.id = ?", (int(outreach_id),)).fetchone()
+
+
+def list_outreach(status: str | None = None, limit: int = 100) -> list[sqlite3.Row]:
+    """Return outreach rows, newest first, optionally filtered by status."""
+    with connect() as conn:
+        if status:
+            return conn.execute(
+                f"{_OUTREACH_SELECT} WHERE o.status = ? ORDER BY o.id DESC LIMIT ?",
+                (status, int(limit)),
+            ).fetchall()
+        return conn.execute(
+            f"{_OUTREACH_SELECT} ORDER BY o.id DESC LIMIT ?", (int(limit),)
+        ).fetchall()
+
+
+def update_outreach_draft(outreach_id: int, *, subject: str, body: str, to_email: str) -> bool:
+    """Edit a draft/failed email; return False if it is no longer editable."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET subject = ?, body = ?, to_email = ? "
+            "WHERE id = ? AND status IN (?, ?)",
+            (subject, body, to_email, int(outreach_id), *_OUTREACH_EDITABLE),
+        )
+        return cur.rowcount == 1
+
+
+def claim_outreach_for_send(outreach_id: int) -> bool:
+    """Move draft/failed → sending atomically; False means someone else already claimed it."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET status = ?, last_error = NULL WHERE id = ? AND status IN (?, ?)",
+            (OutreachStatus.SENDING, int(outreach_id), *_OUTREACH_EDITABLE),
+        )
+        return cur.rowcount == 1
+
+
+def set_outreach_sent(outreach_id: int, *, message_id: str) -> None:
+    """Mark a claimed email sent, storing its Message-ID for threading."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE outreach SET status = ?, message_id = ?, sent_at = ? "
+            "WHERE id = ? AND status = ?",
+            (OutreachStatus.SENT, message_id, now_iso(), int(outreach_id),
+             OutreachStatus.SENDING),
+        )
+
+
+def set_outreach_failed(outreach_id: int, *, error: str) -> None:
+    """Mark a claimed email failed so it can be edited and re-sent."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE outreach SET status = ?, last_error = ? WHERE id = ? AND status = ?",
+            (OutreachStatus.FAILED, error, int(outreach_id), OutreachStatus.SENDING),
+        )
+
+
+def set_outreach_cancelled(outreach_id: int) -> bool:
+    """Cancel a draft, failed or sent email (stops its follow-up); False if not cancellable."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE outreach SET status = ? WHERE id = ? AND status IN (?, ?, ?)",
+            (OutreachStatus.CANCELLED, int(outreach_id), *_OUTREACH_EDITABLE,
+             OutreachStatus.SENT),
+        )
+        return cur.rowcount == 1
+
+
+def count_outreach_sent_since(since_iso: str) -> int:
+    """Count emails actually sent at or after `since_iso` (for the daily cap)."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM outreach WHERE sent_at IS NOT NULL AND sent_at >= ?",
+            (since_iso,),
+        ).fetchone()
+        return int(row["n"])
+
+
+def mark_outreach_replied(from_addrs: list[str]) -> list[int]:
+    """Mark sent emails to any of `from_addrs` as replied; return the ids changed."""
+    addrs = sorted({a.strip().lower() for a in from_addrs if a and a.strip()})
+    if not addrs:
+        return []
+    marks = ", ".join("?" * len(addrs))
+    with connect() as conn:
+        ids = sorted(
+            int(r["id"]) for r in conn.execute(
+                f"SELECT id FROM outreach WHERE status = ? AND lower(to_email) IN ({marks})",
+                (OutreachStatus.SENT, *addrs),
+            ).fetchall()
+        )
+        if ids:
+            conn.execute(
+                f"UPDATE outreach SET status = ?, replied_at = ? "
+                f"WHERE id IN ({', '.join('?' * len(ids))})",
+                (OutreachStatus.REPLIED, now_iso(), *ids),
+            )
+        return ids
+
+
+def list_followups_due(sent_before_iso: str) -> list[sqlite3.Row]:
+    """Return sent originals older than the cutoff that have no follow-up yet."""
+    with connect() as conn:
+        return conn.execute(
+            f"""
+            {_OUTREACH_SELECT}
+            WHERE o.status = ? AND o.parent_id IS NULL AND o.sent_at <= ?
+              AND NOT EXISTS (SELECT 1 FROM outreach f WHERE f.parent_id = o.id)
+            ORDER BY o.sent_at
+            """,
+            (OutreachStatus.SENT, sent_before_iso),
+        ).fetchall()
 
 
 def save_answer_template(

@@ -125,6 +125,17 @@ class DraftKind(StrEnum):
     NEGOTIATION = "negotiation"
 
 
+class OutreachStatus(StrEnum):
+    """Lifecycle of a cold email in `outreach`: drafted, sent once, then replied or stopped."""
+
+    DRAFT = "draft"
+    SENDING = "sending"      # claimed by a confirmed send; never auto-retried
+    SENT = "sent"
+    FAILED = "failed"        # SMTP refused; can be edited and re-sent
+    REPLIED = "replied"      # recipient wrote back — no follow-up
+    CANCELLED = "cancelled"
+
+
 class ContextFormat(StrEnum):
     """Format the user supplies their career context in (stored verbatim, injected as-is)."""
 

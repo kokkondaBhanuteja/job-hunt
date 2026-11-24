@@ -196,6 +196,7 @@ Every declined rule is a *deferral*, not a rejection. When a "Revisit at N" trig
 | A source plugin | `job_hunt/plugins/<name>.py` + `register()` in that file |
 | An LLM provider | `job_hunt/llm/providers/<name>.py` |
 | An email / IMAP reader function | `job_hunt/email/reader.py` (stdlib `imaplib` / `email` only — no new deps) |
+| An SMTP sending function | `job_hunt/email/sender.py` (stdlib `smtplib` / `email` only — no new deps; no send policy here) |
 | An enum value | `job_hunt/enums.py` (mirror in frontend if it's a state) |
 | A state machine transition | `job_hunt/states.py::ALLOWED_TRANSITIONS` |
 | An event type | `job_hunt/enums.py::EventType` + emit site |

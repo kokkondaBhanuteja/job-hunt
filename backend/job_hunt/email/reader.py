@@ -21,7 +21,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, date
 from email import message_from_bytes
 from email.header import decode_header as _stdlib_decode_header
 from email.message import EmailMessage, Message
@@ -353,6 +353,21 @@ def append_draft(
         imaplib.Time2Internaldate(time.time()),
         draft_bytes,
     )
+
+
+_IMAP_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def has_reply_from(conn: imaplib.IMAP4_SSL, address: str, since: date) -> bool:
+    """Return True if INBOX holds a message from *address* on or after *since* (read-only)."""
+    if not address or any(ch in address for ch in '"\\\r\n'):
+        raise ValueError("address must be a plain email address")
+    # IMAP dates need English month names; strftime("%b") follows the system locale.
+    imap_date = f"{since.day:02d}-{_IMAP_MONTHS[since.month - 1]}-{since.year}"
+    conn.select("INBOX", readonly=True)
+    _typ, data = conn.uid("SEARCH", "FROM", f'"{address}"', "SINCE", imap_date)
+    return bool(data and data[0] and data[0].split())
 
 
 def add_label(

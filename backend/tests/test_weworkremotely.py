@@ -100,3 +100,33 @@ def test_bad_item_does_not_crash(monkeypatch):
     result = weworkremotely.WeWorkRemotelySource().discover(keyword="python", dry_run=True)
 
     assert result["found"] >= 1
+
+
+_REGION_RSS = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <item>
+    <title>Acme: Backend Engineer</title><link>https://weworkremotely.com/jobs/10</link>
+    <description>Python APIs</description><guid>https://weworkremotely.com/jobs/10</guid>
+    <region>USA Only</region>
+  </item>
+  <item>
+    <title>Beta: Backend Engineer</title><link>https://weworkremotely.com/jobs/11</link>
+    <description>Python APIs</description><guid>https://weworkremotely.com/jobs/11</guid>
+    <region>Anywhere in the World</region>
+  </item>
+  <item>
+    <title>Gamma: Backend Engineer</title><link>https://weworkremotely.com/jobs/12</link>
+    <description>Python APIs</description><guid>https://weworkremotely.com/jobs/12</guid>
+  </item>
+</channel></rss>
+"""
+
+
+def test_region_becomes_the_job_location(monkeypatch):
+    """Each job keeps its own <region>; without one it falls back to the profile location."""
+    monkeypatch.setattr(weworkremotely, "_fetch", lambda *a, **k: _REGION_RSS)
+    result = weworkremotely.WeWorkRemotelySource().discover(keyword="python", dry_run=True)
+    assert [j["location"] for j in result["jobs"]] == [
+        "Remote - USA Only", "Remote - Anywhere in the World", "remote",
+    ]

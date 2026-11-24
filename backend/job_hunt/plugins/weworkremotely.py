@@ -80,6 +80,10 @@ class WeWorkRemotelySource:
                 description = strip_html(item.findtext("description") or "")
                 pub_date = (item.findtext("pubDate") or "").strip() or None
                 guid = (item.findtext("guid") or link).strip()
+                # Every WWR job is remote; <region> says where ("USA Only", "Anywhere in
+                # the World"). Store it so the India/remote location filter can see it.
+                region = (item.findtext("region") or "").strip()
+                job_location = f"Remote - {region}" if region else location
 
                 if not _matches(keyword, title, description):
                     continue
@@ -87,7 +91,7 @@ class WeWorkRemotelySource:
                 jobs.append({
                     "title": title,
                     "company": company,
-                    "location": location,
+                    "location": job_location,
                     "apply_url": link,
                 })
                 found += 1
@@ -100,7 +104,7 @@ class WeWorkRemotelySource:
                     source_job_id=guid,
                     title=title,
                     company=company,
-                    location=location,
+                    location=job_location,
                     full_jd=description,
                     apply_url=link,
                     posted_date=pub_date,

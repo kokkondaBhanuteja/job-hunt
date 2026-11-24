@@ -8,6 +8,17 @@ from __future__ import annotations
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _location_filter_off(monkeypatch):
+    """Plugin tests use real-world (often US) sample locations; they test parsing, not policy.
+
+    tests/test_location.py switches the India/remote filter back on for its own cases.
+    """
+    from job_hunt.sources import location
+
+    monkeypatch.setattr(location, "JOB_LOCATION_FILTER", "off")
+
+
 @pytest.fixture
 def tmp_db(tmp_path, monkeypatch):
     """Redirect storage to a throwaway SQLite file.

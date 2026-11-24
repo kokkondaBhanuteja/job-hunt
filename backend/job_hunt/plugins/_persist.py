@@ -11,6 +11,7 @@ from typing import Any
 from job_hunt.enums import JobState
 from job_hunt.logging_config import get_logger
 from job_hunt.sources.dedup import dedup_hash
+from job_hunt.sources.location import is_india_or_open_remote
 from job_hunt.states import transition_job
 from job_hunt.storage.repo import insert_job_if_new, set_job_enriched
 
@@ -27,7 +28,11 @@ def persist_full_jd_job(
     location: str, full_jd: str, apply_url: str | None,
     posted_date: str | None = None, raw_payload: dict[str, Any] | None = None,
 ) -> bool:
-    """Insert a job (with full JD → ENRICHED). Returns True if new, False if a duplicate."""
+    """Insert a job (with full JD → ENRICHED). Return True if new; False if a duplicate or
+    outside the location filter (India or remote open to India; see sources/location.py)."""
+    if not is_india_or_open_remote(location, title):
+        logger.debug("skip %s job outside location filter: %r", source, location)
+        return False
     job_id = insert_job_if_new(
         dedup_hash=dedup_hash(company, title, location or ""),
         source=source, source_job_id=source_job_id, title=title, company=company,

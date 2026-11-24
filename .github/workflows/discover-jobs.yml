@@ -1,0 +1,104 @@
+# Finds new jobs, scores them against your résumé variants, and sends a Telegram
+# alert for each one that passes your apply policy. Also drafts cold-email follow-ups
+# that are due and pings you to review them. Never applies or sends email: there are
+# no EMAIL_* secrets here, and sending needs `hunt outreach send <id> --confirm`.
+name: discover-jobs
+
+on:
+  schedule:
+    # GitHub cron is UTC: 03:17/07:17/11:17/15:17 UTC ≈ 08:47/12:47/16:47/20:47 IST.
+    # Off the top of the hour because GitHub delays jobs queued at :00.
+    - cron: "17 3,7,11,15 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: discover-jobs
+  cancel-in-progress: false # never run two cycles against the same DB at once
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # later steps don't need the GITHUB_TOKEN in .git/config
+
+      # Third-party action pinned to a commit (v6.8.0); secrets are step-scoped so it never sees them.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Discover, enrich, score, alert
+        env:
+          DB_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Scoring runs on Groq's free tier (there is no Ollama in CI).
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_SCORING_PROVIDER: groq
+          LLM_SCORING_MODEL: ${{ vars.GROQ_MODEL || 'llama-3.3-70b-versatile' }}
+          # Optional: set GEMINI_API_KEY to fall back when Groq rate-limits.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_SCORING_FALLBACK_PROVIDER: ${{ secrets.GEMINI_API_KEY != '' && 'gemini' || '' }}
+          LLM_SCORING_FALLBACK_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.0-flash' }}
+          NOTIFY_CHANNEL: telegram
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Browser-free API sources only. Add adzuna once ADZUNA_* secrets are set.
+          WORKER_API_SOURCES: ${{ vars.API_SOURCES || 'remoteok,weworkremotely,workingnomads,jobspresso,amazon,google' }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          ADZUNA_COUNTRY: in
+          # This repo is public, so its Actions logs are public: keep them to warnings.
+          LOG_LEVEL: WARNING
+        run: |
+          uv run python - <<'PY'
+          # Load services first: worker.runner <-> services has an import cycle (pre-existing on
+          # developer) that only resolves in this order, the same order the CLI and worker use.
+          from job_hunt import services  # noqa: F401
+          from job_hunt.settings import validate_settings
+          from job_hunt.storage import repo
+          from job_hunt.worker import runner
+
+          validate_settings()
+          repo.init_db()  # applies any new migrations
+          runner.run_api_sources()  # API boards for every active search profile + the ATS watchlist
+
+          # discovered -> enriched -> scored -> alert are chained events; drain until empty.
+          total = 0
+          for _ in range(60):
+              n = runner.dispatch_events_once()
+              total += n
+              if n == 0:
+                  break
+          print(f"processed {total} events")
+
+          # Draft-only (no SMTP/IMAP here). Missing applicant profile = skipped, not a failure.
+          from job_hunt.services.outreach import draft_followups_and_notify
+
+          followups = draft_followups_and_notify()
+          print(f"follow-ups drafted={followups.get('drafted', 0)} "
+                f"notified={followups['notified']} {followups.get('error', '')}")
+          PY
+
+      - name: Tell Telegram the run failed
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=⚠️ discover-jobs failed: ${RUN_URL}" \
+            > /dev/null

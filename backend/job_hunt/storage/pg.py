@@ -10,6 +10,8 @@ behaves identically to the SQLite backend.
 from __future__ import annotations
 
 import os
+import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -40,14 +42,60 @@ def describe() -> str:
     return f"postgres:{DATABASE_URL}"
 
 
+# One reused connection per thread. Opening a connection is a TLS + auth handshake
+# (~1-2 s from a GitHub runner to a Neon database in another region); reconnecting for
+# every query made saving one job take 7-17 s. Each `with connect()` block is still one
+# transaction: commit on success, rollback on error.
+CONNECTION_MAX_IDLE_S = 60.0  # reconnect after this long idle (Neon drops idle connections)
+_local = threading.local()
+
+
+def _new_connection() -> psycopg.Connection:
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+def _thread_connection() -> psycopg.Connection:
+    """Return this thread's connection, reopening it if closed, broken, stale or forked."""
+    conn: psycopg.Connection | None = getattr(_local, "conn", None)
+    stale = time.monotonic() - getattr(_local, "last_used", 0.0) > CONNECTION_MAX_IDLE_S
+    if conn is None or conn.closed or conn.broken or stale or _local.pid != os.getpid():
+        if conn is not None and not conn.closed:
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001 — a dead connection may fail to close; replace it
+                pass
+        conn = _new_connection()
+        _local.conn, _local.pid = conn, os.getpid()
+    return conn
+
+
 @contextmanager
 def connect() -> Iterator[psycopg.Connection]:
-    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    if getattr(_local, "in_use", False):
+        # Nested block: keep the old semantics (its own connection and transaction).
+        conn = _new_connection()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+        return
+
+    conn = _thread_connection()
+    _local.in_use = True
     try:
         yield conn
         conn.commit()
+    except BaseException:
+        if not conn.closed:
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001 — broken connection; it is replaced next time
+                pass
+        raise
     finally:
-        conn.close()
+        _local.in_use = False
+        _local.last_used = time.monotonic()
 
 
 def init_db() -> None:
@@ -863,9 +911,14 @@ def raw_select(sql: str) -> list[dict[str, Any]]:
     """
     if not sql.lstrip().upper().startswith(("SELECT", "WITH")):
         raise ValueError("raw_select is read-only — SELECT/WITH statements only")
-    with connect() as conn:
+    # Its own connection: read_only is a session setting and must never leak onto the
+    # reused per-thread connection (every later write would fail).
+    conn = _new_connection()
+    try:
         conn.read_only = True  # even a piggybacked ';DELETE' can't mutate in a read-only tx
         return conn.execute(sql).fetchall()
+    finally:
+        conn.close()
 
 
 # ---------- state machine ----------

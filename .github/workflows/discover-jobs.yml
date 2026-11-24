@@ -21,7 +21,7 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: backend
@@ -72,16 +72,22 @@ jobs:
 
           validate_settings()
           repo.init_db()  # applies any new migrations
-          runner.run_api_sources()  # API boards for every active search profile + the ATS watchlist
 
           # discovered -> enriched -> scored -> alert are chained events; drain until empty.
-          total = 0
-          for _ in range(60):
-              n = runner.dispatch_events_once()
-              total += n
-              if n == 0:
-                  break
-          print(f"processed {total} events")
+          def drain() -> int:
+              total = 0
+              for _ in range(60):
+                  n = runner.dispatch_events_once()
+                  total += n
+                  if n == 0:
+                      break
+              return total
+
+          # Score anything a previous (timed-out) run left queued before fetching more,
+          # so a slow discovery can never starve scoring and alerts.
+          print(f"backlog: processed {drain()} events")
+          runner.run_api_sources()  # API boards for every active search profile + the ATS watchlist
+          print(f"new jobs: processed {drain()} events")
 
           # Draft-only (no SMTP/IMAP here). Missing applicant profile = skipped, not a failure.
           from job_hunt.services.outreach import draft_followups_and_notify
@@ -92,7 +98,7 @@ jobs:
           PY
 
       - name: Tell Telegram the run failed
-        if: failure()
+        if: failure() || cancelled()  # a timeout counts as cancelled, not failed
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -100,5 +106,5 @@ jobs:
         run: |
           curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=⚠️ discover-jobs failed: ${RUN_URL}" \
+            --data-urlencode "text=⚠️ discover-jobs failed or timed out: ${RUN_URL}" \
             > /dev/null

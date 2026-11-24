@@ -7,6 +7,7 @@ from job_hunt.plugins import (
     ashby,  # noqa: F401 — registers AshbySource
     google,  # noqa: F401 — registers GoogleSource
     greenhouse,  # noqa: F401 — registers GreenhouseSource
+    himalayas,  # noqa: F401 — registers HimalayasSource
     jobspresso,  # noqa: F401 — registers JobspressoSource
     lever,  # noqa: F401 — registers LeverSource
     naukri,  # noqa: F401 — registers NaukriSource

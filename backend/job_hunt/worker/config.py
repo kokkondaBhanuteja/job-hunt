@@ -22,11 +22,12 @@ JITTER_FRAC = float(os.getenv("WORKER_JITTER_FRAC", "0.2"))
 # API source discovery (cheap httpx sources — no browser, no active-hours gate).
 API_DISCOVERY_INTERVAL_MIN = int(os.getenv("WORKER_API_DISCOVERY_INTERVAL_MIN", "20"))
 # remotive excluded from default: terms cap ≤4 calls/day, too slow for this loop.
+# google excluded: its public careers search API was retired (404).
 API_SOURCES = [
     s.strip()
     for s in os.getenv(
         "WORKER_API_SOURCES",
-        "remoteok,adzuna,weworkremotely,workingnomads,jobspresso,amazon,google",
+        "remoteok,adzuna,weworkremotely,workingnomads,jobspresso,amazon,himalayas",
     ).split(",")
     if s.strip()
 ]

@@ -26,7 +26,7 @@ _REMOTE = re.compile(r"\b(remote|anywhere|worldwide|global|globally|wfh|work fro
 _FILLER = re.compile(
     r"\b(remote|anywhere|worldwide|global|globally|fully|100%|wfh|work from home|in|the|world|"
     r"apac|asia|pacific|friendly|first|based|location|locations|any|"
-    r"timezone|timezones|time zone|time zones|ok|okay|option|optional|hybrid|or|and|team)\b",
+    r"timezone|timezones|time zone|time zones|ok|okay|option|optional|hybrid|or|and|team|only)\b",
     re.IGNORECASE,
 )
 

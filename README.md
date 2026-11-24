@@ -131,12 +131,60 @@ cd backend && DB_BACKEND=postgres uv run hunt worker
 | `apply-fill <job_id>` | open the job's ATS form, auto-fill it from your data, stop for you to submit |
 | `email sync` / `email list` / `email show <id>` | pull + structure your inbox, browse triaged mail |
 | `email action <id> --kind draft_reply\|apply_label\|archive [--confirm]` / `email dismiss <id>` | propose then confirm a reversible mail action |
+| `outreach add --company … --name … --email … --subject … --body-file <file\|->` | save a cold email as a draft (never sends) |
+| `outreach list [--status]` / `outreach show <id>` / `outreach edit <id> …` / `outreach cancel <id>` | review and manage cold emails |
+| `outreach send <id> [--confirm]` | without `--confirm`: preview only; with it: send once over SMTP |
+| `outreach followups` | draft the one follow-up for emails with no reply after 6 days |
 | `profiles` / `add-profile …` | saved searches |
 | `run-cycle` / `worker` | one discovery+scoring cycle / the long-running scheduler |
 | `report [--send]` | daily summary (Telegram/Discord if configured) |
 | `embed` / `semantic "query"` | pgvector semantic search (Postgres only) |
 | `serve-api` / `serve-mcp` | REST API / MCP stdio server |
 | `db "SELECT …"` | ad-hoc read query against the active backend |
+
+## Cold email (SMTP)
+
+Write the email in Claude Code (ai-job-search's `/cold-email`, or any MCP host via the
+`outreach_save_draft` tool), review it here, and send it yourself. Agents can save and list
+drafts but **cannot send** — there is no MCP send tool.
+
+**One-time setup** (laptop only — never put the app password in CI):
+
+1. Gmail → turn on 2-Step Verification → create an [App Password](https://myaccount.google.com/apppasswords).
+2. In `backend/.env.local` set the inbox trio **and** SMTP (sending requires the inbox,
+   because replies are checked before any follow-up):
+   ```bash
+   EMAIL_IMAP_HOST=imap.gmail.com
+   EMAIL_ADDRESS=you@gmail.com
+   EMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+   EMAIL_SMTP_HOST=smtp.gmail.com     # port 465 (implicit TLS) is the only supported port
+   ```
+3. Set your name, phone and LinkedIn once — they form the signature appended to every
+   email, so contact details are never AI-written:
+   `uv run hunt applicant --set first_name=… last_name=… phone=… linkedin_url=…`
+
+**Day to day**
+
+```bash
+uv run hunt outreach add --company Acme --name "Priya Sharma" --email priya@acme.com \
+    --subject "Backend engineer, NestJS/PostgreSQL" --body-file note.txt
+uv run hunt outreach send 7             # preview only
+uv run hunt outreach send 7 --confirm   # sends once
+uv run hunt email sync                  # a reply marks it replied and cancels its follow-up
+uv run hunt outreach followups          # after 6 days with no reply: one short follow-up draft
+```
+
+**Guardrails:** plain text only; 80–120 words is the target (a warning above 150);
+unfilled placeholders such as `[Name]` block sending; each email is sent at most once,
+even if `send` runs twice; at most 15 sends in any rolling 24 hours (start with ~5/day for
+a new address); exactly one follow-up, threaded under the original; any reply stops it.
+The scheduled GitHub Actions job (`.github/workflows/discover-jobs.yml`) only *drafts* due
+follow-ups and pings Telegram — it has no email credentials.
+
+**Writing rules** (checked by `check_email_text`): one line on who you are, one real,
+specific result from your résumé, one line on why this company, one clear ask (a short
+call, or the right person to talk to). No "I hope this email finds you well", no
+"passionate", no inflated claims.
 
 ## Testing
 
@@ -151,7 +199,7 @@ backend/                Python. All backend code + its data/config/scripts/tests
 ├── job_hunt/           services/ · llm/ · storage/ (db.py sqlite, pg.py postgres, repo.py façade)
 │                        plugins/ · browser/ · events/ · states.py · enrich/ · scoring/
 │                        resume/ · draft/ · apply/ (ATS auto-fill) · learn/ · embed/ · notify/
-│                        email/ (stdlib IMAP reader) · worker/ · api/ · mcp_server/ · cli/
+│                        email/ (stdlib IMAP reader + SMTP sender) · worker/ · api/ · mcp_server/ · cli/
 ├── migrations/         numbered .sql (Postgres); SQLite schema is in storage/db.py
 ├── tests/              pytest suite
 ├── scripts/            one-off tools (SQLite→PG migration, naukri debug, launchd install)
@@ -175,3 +223,7 @@ and requires a token even locally — it can spend credits and submit applicatio
 content is treated as **untrusted data** (never executed as instructions), and every mailbox
 action — draft reply / label / archive, **never send or delete** — requires your explicit
 confirmation. Auto-fill likewise stops at the review screen for you to submit.
+
+**Cold email** is the one place mail is sent, and only by you: `outreach send <id> --confirm`
+(or the API with `{"confirm": true}`). Logs record ids and outcomes only — never the
+password, the body or the recipient.

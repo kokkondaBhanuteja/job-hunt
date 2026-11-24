@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import re
 
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from job_hunt.enums import LLMProvider
 
@@ -28,6 +28,26 @@ class Settings(BaseModel):
     active_end: str = "21:00"
     daily_cap: int = 30
     llm_providers: dict[str, str] = {}  # task -> provider (only tasks with an override set)
+    smtp_host: str | None = None
+    smtp_port: int = 465
+    outreach_daily_cap: int = 15
+    outreach_followup_after_days: int = 6
+
+    @field_validator("smtp_port")
+    @classmethod
+    def _smtp_port(cls, v: int) -> int:
+        if v != 465:
+            raise ValueError(
+                f"EMAIL_SMTP_PORT must be 465 (implicit TLS; STARTTLS/587 is not supported), got {v}"
+            )
+        return v
+
+    @field_validator("outreach_daily_cap", "outreach_followup_after_days")
+    @classmethod
+    def _positive(cls, v: int, info: ValidationInfo) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name.upper()} must be > 0, got {v}")
+        return v
 
     @field_validator("db_backend")
     @classmethod
@@ -88,6 +108,13 @@ class Settings(BaseModel):
                 "EMAIL_* config incomplete: set all of EMAIL_IMAP_HOST, EMAIL_ADDRESS, "
                 "EMAIL_APP_PASSWORD or none"
             )
+        smtp_host = os.getenv("EMAIL_SMTP_HOST")
+        if smtp_host and email_set_count < 3:
+            # Sending needs the same Gmail credentials, and inbox access to stop on replies.
+            raise ValueError(
+                "EMAIL_SMTP_HOST needs EMAIL_IMAP_HOST, EMAIL_ADDRESS and EMAIL_APP_PASSWORD "
+                "(the inbox is checked for replies before any follow-up)"
+            )
 
         return cls(
             db_backend=os.getenv("DB_BACKEND", "sqlite"),
@@ -98,7 +125,21 @@ class Settings(BaseModel):
             active_end=os.getenv("WORKER_ACTIVE_END", "21:00"),
             daily_cap=cap,
             llm_providers={t: p for t, p in providers.items() if p},
+            smtp_host=smtp_host,
+            smtp_port=_env_int("EMAIL_SMTP_PORT", 465),
+            outreach_daily_cap=_env_int("OUTREACH_DAILY_CAP", 15),
+            outreach_followup_after_days=_env_int("OUTREACH_FOLLOWUP_AFTER_DAYS", 6),
         )
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        raise ValueError(f"{name} must be an integer, got '{raw}'") from None
 
 
 def validate_settings() -> Settings:

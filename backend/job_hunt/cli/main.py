@@ -15,8 +15,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from job_hunt import services
+from job_hunt.enums import OutreachStatus
 from job_hunt.llm import chat  # AI Gateway entrypoint
 
 # Ollama-provider liveness (selfcheck)
@@ -434,7 +436,7 @@ def cmd_email_sync(args: argparse.Namespace) -> int:
         return 1
     print(
         f"fetched={sync_result['fetched']} new={sync_result['new']} "
-        f"structured={struct['structured']}"
+        f"structured={struct['structured']} outreach_replies={sync_result['replied']}"
     )
     return 0
 
@@ -559,6 +561,126 @@ def cmd_watch_rm(args: argparse.Namespace) -> int:
     """Remove a company from the ATS watchlist by ID."""
     services.remove_watch(args.id)
     print(f"removed watchlist entry #{args.id}")
+    return 0
+
+
+def _read_body(path: str) -> str | None:
+    """Read an email body from a file, or stdin when path is "-"; None if unreadable."""
+    if path == "-":
+        return sys.stdin.read()
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"!! can't read {path}: {exc.strerror}")
+        return None
+
+
+def _print_email(row: dict[str, Any]) -> None:
+    print(f"  #{row['id']} [{row['status']}] {row['company']} — {row['contact_name']} "
+          f"<{row['to_email']}>")
+    print(f"  Subject: {row['subject']}\n")
+    print("\n".join(f"    {line}" for line in row["body"].splitlines()))
+
+
+def _print_warnings(result: dict[str, Any]) -> None:
+    for warning in result.get("warnings", []):
+        print(f"  ⚠ {warning}")
+
+
+def cmd_outreach_add(args: argparse.Namespace) -> int:
+    """Save a cold email as a draft (never sends)."""
+    body = _read_body(args.body_file)
+    if body is None:
+        return 1
+    result = services.save_outreach_draft(
+        args.company, args.name, args.email, args.subject, body, job_id=args.job_id,
+    )
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    _print_email(result)
+    _print_warnings(result)
+    print(f"\nsaved draft #{result['id']} — review it, then: hunt outreach send {result['id']} --confirm")
+    return 0
+
+
+def cmd_outreach_list(args: argparse.Namespace) -> int:
+    """List cold emails, newest first."""
+    rows = services.list_outreach(OutreachStatus(args.status) if args.status else None)
+    if not rows:
+        print("(no cold emails yet — add one with `hunt outreach add`)")
+        return 0
+    for r in rows:
+        when = r["sent_at"] or r["drafted_at"]
+        tag = " (follow-up)" if r["parent_id"] else ""
+        print(f"  [{r['id']:>3}] {r['status']:<9} {when[:16]}  {r['company']:<20} "
+              f"{r['to_email']}{tag}")
+    return 0
+
+
+def cmd_outreach_show(args: argparse.Namespace) -> int:
+    """Show one cold email in full."""
+    row = services.get_outreach(args.id)
+    if "error" in row:
+        print(f"!! {row['error']}")
+        return 1
+    _print_email(row)
+    if row["last_error"]:
+        print(f"\n  last send error: {row['last_error']}")
+    return 0
+
+
+def cmd_outreach_edit(args: argparse.Namespace) -> int:
+    """Edit a draft or failed cold email."""
+    body = _read_body(args.body_file) if args.body_file else None
+    if args.body_file and body is None:
+        return 1
+    result = services.edit_outreach(args.id, subject=args.subject, body=body, to_email=args.email)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    _print_email(result)
+    _print_warnings(result)
+    return 0
+
+
+def cmd_outreach_send(args: argparse.Namespace) -> int:
+    """Send one cold email — only with --confirm; without it, show what would be sent."""
+    if not args.confirm:
+        row = services.get_outreach(args.id)
+        if "error" in row:
+            print(f"!! {row['error']}")
+            return 1
+        _print_email(row)
+        print(f"\nNot sent. Re-run with --confirm to send: hunt outreach send {args.id} --confirm")
+        return 1
+    result = services.send_outreach(args.id, confirm=True)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"sent #{result['id']} at {result['sent_at']}")
+    return 0
+
+
+def cmd_outreach_cancel(args: argparse.Namespace) -> int:
+    """Cancel a cold email (a sent one then gets no follow-up)."""
+    result = services.cancel_outreach(args.id)
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"cancelled #{result['id']}")
+    return 0
+
+
+def cmd_outreach_followups(_: argparse.Namespace) -> int:
+    """Draft the one follow-up for each email that has had no reply for a while."""
+    result = services.draft_due_followups()
+    if "error" in result:
+        print(f"!! {result['error']}")
+        return 1
+    print(f"drafted {result['drafted']} follow-up(s): {result['ids']}")
+    if result["ids"]:
+        print("review each with `hunt outreach show <id>`, then send with --confirm")
     return 0
 
 
@@ -720,6 +842,46 @@ def build_parser() -> argparse.ArgumentParser:
     sp_watch_rm = sp_watch_sub.add_parser("rm", help="remove a watchlist entry")
     sp_watch_rm.add_argument("id", type=int, help="watchlist entry id")
     sp_watch_rm.set_defaults(func=cmd_watch_rm)
+
+    sp_out = sub.add_parser("outreach", help="cold emails: save, review, send (with --confirm)")
+    sp_out_sub = sp_out.add_subparsers(dest="outreach_cmd", required=True)
+
+    o_add = sp_out_sub.add_parser("add", help="save a cold email as a draft (never sends)")
+    o_add.add_argument("--company", required=True)
+    o_add.add_argument("--name", required=True, help="recipient's name")
+    o_add.add_argument("--email", required=True, help="recipient's email address")
+    o_add.add_argument("--subject", required=True)
+    o_add.add_argument("--body-file", required=True, help="text file with the body, or - for stdin")
+    o_add.add_argument("--job-id", type=int, default=None)
+    o_add.set_defaults(func=cmd_outreach_add)
+
+    o_list = sp_out_sub.add_parser("list", help="list cold emails")
+    o_list.add_argument("--status", choices=[s.value for s in OutreachStatus])
+    o_list.set_defaults(func=cmd_outreach_list)
+
+    o_show = sp_out_sub.add_parser("show", help="show one cold email in full")
+    o_show.add_argument("id", type=int)
+    o_show.set_defaults(func=cmd_outreach_show)
+
+    o_edit = sp_out_sub.add_parser("edit", help="edit a draft or failed cold email")
+    o_edit.add_argument("id", type=int)
+    o_edit.add_argument("--subject")
+    o_edit.add_argument("--body-file", help="replacement body (full text, signature included)")
+    o_edit.add_argument("--email", help="replacement recipient address")
+    o_edit.set_defaults(func=cmd_outreach_edit)
+
+    o_send = sp_out_sub.add_parser("send", help="send one cold email (requires --confirm)")
+    o_send.add_argument("id", type=int)
+    o_send.add_argument("--confirm", action="store_true", help="actually send it")
+    o_send.set_defaults(func=cmd_outreach_send)
+
+    o_cancel = sp_out_sub.add_parser("cancel", help="cancel a cold email")
+    o_cancel.add_argument("id", type=int)
+    o_cancel.set_defaults(func=cmd_outreach_cancel)
+
+    sp_out_sub.add_parser(
+        "followups", help="draft follow-ups for emails with no reply yet"
+    ).set_defaults(func=cmd_outreach_followups)
 
     mc = sub.add_parser("serve-mcp", help="Start the MCP server (stdio)")
     mc.set_defaults(func=cmd_serve_mcp)

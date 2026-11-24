@@ -359,3 +359,35 @@ class Home(BaseModel):
 
     setup: HomeSetup
     activity: HomeActivity
+
+
+class Outreach(BaseModel):
+    """One cold email (draft, sent, replied, …) with its contact."""
+
+    id: int
+    company: str
+    contact_name: str
+    to_email: str | None
+    job_id: int | None
+    parent_id: int | None  # set on a follow-up: the original email's id
+    subject: str
+    body: str
+    status: str
+    drafted_at: str
+    sent_at: str | None
+    replied_at: str | None
+    last_error: str | None
+
+
+class OutreachDraft(Outreach):
+    """A saved or edited draft plus plain-text style warnings (empty = reads clean)."""
+
+    warnings: list[str]
+
+
+class OutreachResult(BaseModel):
+    """Outcome of a send or cancel."""
+
+    id: int
+    status: str
+    sent_at: str | None = None

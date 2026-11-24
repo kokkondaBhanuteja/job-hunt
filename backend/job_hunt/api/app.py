@@ -15,11 +15,11 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from job_hunt import plugins, services
 from job_hunt.api import dto
-from job_hunt.enums import Score
+from job_hunt.enums import OutreachStatus, Score
 from job_hunt.llm.registry import resolve as resolve_llm
 from job_hunt.logging_config import get_logger
 from job_hunt.storage import repo
@@ -103,6 +103,26 @@ class ContactIn(BaseModel):
     email_guess: str | None = None
     linkedin_url: str | None = None
     notes: str | None = None
+
+
+class OutreachDraftIn(BaseModel):
+    company: str = Field(min_length=1, max_length=200)
+    contact_name: str = Field(min_length=1, max_length=200)
+    to_email: str = Field(min_length=3, max_length=254)
+    subject: str = Field(min_length=1, max_length=120)
+    body: str = Field(min_length=1, max_length=4000)
+    job_id: int | None = None
+
+
+class OutreachEditIn(BaseModel):
+    subject: str | None = Field(default=None, max_length=120)
+    body: str | None = Field(default=None, max_length=4000)
+    to_email: str | None = Field(default=None, max_length=254)
+
+
+class OutreachSendIn(BaseModel):
+    # StrictBool: only JSON `true` sends — never "yes", "1" or 1 coerced by pydantic.
+    confirm: StrictBool = False
 
 
 class ContextIn(BaseModel):
@@ -362,6 +382,41 @@ def create_contact(body: ContactIn) -> dict[str, Any]:
         email_guess=body.email_guess, linkedin_url=body.linkedin_url, notes=body.notes,
     )
     return {"id": cid}
+
+
+@api.post("/outreach", status_code=201, response_model=dto.OutreachDraft)
+def create_outreach(body: OutreachDraftIn) -> dict[str, Any]:
+    """Store a cold email written elsewhere as a draft (never sends)."""
+    return _unwrap(services.save_outreach_draft(
+        body.company, body.contact_name, body.to_email, body.subject, body.body,
+        job_id=body.job_id,
+    ))
+
+
+@api.get("/outreach", response_model=list[dto.Outreach])
+def list_outreach(status: OutreachStatus | None = None) -> list[dict[str, Any]]:
+    """List cold emails, newest first, optionally by status."""
+    return services.list_outreach(status)
+
+
+@api.patch("/outreach/{outreach_id}", response_model=dto.OutreachDraft)
+def edit_outreach(outreach_id: int, body: OutreachEditIn) -> dict[str, Any]:
+    """Edit a draft or failed cold email."""
+    return _unwrap(services.edit_outreach(
+        outreach_id, subject=body.subject, body=body.body, to_email=body.to_email,
+    ))
+
+
+@api.post("/outreach/{outreach_id}/send", response_model=dto.OutreachResult)
+def send_outreach(outreach_id: int, body: OutreachSendIn) -> dict[str, Any]:
+    """Send one cold email over SMTP; requires {"confirm": true}."""
+    return _unwrap(services.send_outreach(outreach_id, confirm=body.confirm))
+
+
+@api.post("/outreach/{outreach_id}/cancel", response_model=dto.OutreachResult)
+def cancel_outreach(outreach_id: int) -> dict[str, Any]:
+    """Cancel a draft, failed or sent cold email (a sent one gets no follow-up)."""
+    return _unwrap(services.cancel_outreach(outreach_id))
 
 
 @api.post("/apply/review")

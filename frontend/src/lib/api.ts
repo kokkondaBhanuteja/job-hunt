@@ -113,6 +113,32 @@ export interface Draft {
   status: string;
   created_at: string;
 }
+/** Mirrors backend `dto.Outreach` — one cold email and its contact. */
+export interface Outreach {
+  id: number;
+  company: string;
+  contact_name: string;
+  to_email: string | null;
+  job_id: number | null;
+  parent_id: number | null;
+  subject: string;
+  body: string;
+  status: string;
+  drafted_at: string;
+  sent_at: string | null;
+  replied_at: string | null;
+  last_error: string | null;
+}
+/** Mirrors backend `dto.OutreachDraft`. */
+export interface OutreachDraft extends Outreach {
+  warnings: string[];
+}
+/** Mirrors backend `dto.OutreachResult`. */
+export interface OutreachResult {
+  id: number;
+  status: string;
+  sent_at: string | null;
+}
 export interface ReviewIssue {
   severity: string;
   field?: string;

@@ -55,6 +55,17 @@ from job_hunt.services.home import home_status
 from job_hunt.services.intelligence import explain_score, next_best_action, skill_gap
 from job_hunt.services.learning import learn_from_rejection
 from job_hunt.services.naukri_refresh import draft_profile_refresh, refresh_reminder
+from job_hunt.services.outreach import (
+    cancel_outreach,
+    draft_due_followups,
+    draft_followups_and_notify,
+    edit_outreach,
+    get_outreach,
+    list_outreach,
+    record_replies,
+    save_outreach_draft,
+    send_outreach,
+)
 from job_hunt.services.profiles import add_profile, list_profiles, set_enabled
 from job_hunt.services.resumes import (
     get_variant,
@@ -121,6 +132,15 @@ __all__ = [
     "list_drafts",
     "add_contact",
     "list_contacts",
+    "save_outreach_draft",
+    "list_outreach",
+    "get_outreach",
+    "edit_outreach",
+    "send_outreach",
+    "cancel_outreach",
+    "draft_due_followups",
+    "draft_followups_and_notify",
+    "record_replies",
     "get_company",
     "company_history",
     "set_context",

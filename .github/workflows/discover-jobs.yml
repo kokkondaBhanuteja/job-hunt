@@ -55,7 +55,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           # Browser-free API sources only. Add adzuna once ADZUNA_* secrets are set.
-          WORKER_API_SOURCES: ${{ vars.API_SOURCES || 'remoteok,weworkremotely,workingnomads,jobspresso,amazon,himalayas' }}
+          WORKER_API_SOURCES: ${{ vars.API_SOURCES || 'remoteok,weworkremotely,workingnomads,jobspresso,amazon,himalayas,instahyre' }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           ADZUNA_COUNTRY: in

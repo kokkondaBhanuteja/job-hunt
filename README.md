@@ -209,7 +209,7 @@ backend/                Python. All backend code + its data/config/scripts/tests
 └── uv.lock
 
 frontend/               React + TS + Vite + TanStack Query (Board · Inbox · Content · Runs · Analytics · Settings)
-docs/                   career-os-plan.md (architecture + build status), engineering-standards.md
+docs/                   operations.md (runbook: config, sources, troubleshooting), career-os-plan.md, engineering-standards.md
 docker-compose.yml      Boots the Postgres+pgvector container
 ```
 

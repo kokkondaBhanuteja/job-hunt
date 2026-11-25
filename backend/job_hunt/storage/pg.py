@@ -51,7 +51,13 @@ _local = threading.local()
 
 
 def _new_connection() -> psycopg.Connection:
-    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    # A silently dropped link (runner -> Neon pooler) otherwise blocks a query forever and
+    # the CI run times out: keepalives + tcp_user_timeout turn it into an error in ~1 min.
+    return psycopg.connect(
+        DATABASE_URL, row_factory=dict_row, connect_timeout=15,
+        keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
+        tcp_user_timeout=60_000,
+    )
 
 
 def _thread_connection() -> psycopg.Connection:

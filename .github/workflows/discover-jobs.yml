@@ -65,29 +65,41 @@ jobs:
           uv run python - <<'PY'
           # Load services first: worker.runner <-> services has an import cycle (pre-existing on
           # developer) that only resolves in this order, the same order the CLI and worker use.
+          import time
+
           from job_hunt import services  # noqa: F401
+          from job_hunt.events import bus
           from job_hunt.settings import validate_settings
           from job_hunt.storage import repo
           from job_hunt.worker import runner
+          from job_hunt.worker.handlers import default_handlers
 
           validate_settings()
           repo.init_db()  # applies any new migrations
+          handlers = default_handlers()
 
-          # discovered -> enriched -> scored -> alert are chained events; drain until empty.
-          def drain() -> int:
+          # Stop draining well before the 45-min job timeout: one small batch can still
+          # overrun the deadline (~5 jobs x ~35s when the LLM is failing), and the
+          # follow-ups step needs time after it. Whatever is left stays queued for next run.
+          STOP_AT = time.monotonic() + 35 * 60
+
+          # discovered -> enriched -> scored -> alert are chained events; drain in small
+          # batches until the queue is empty or the time budget is spent.
+          def drain(budget_s: float) -> int:
+              deadline = min(time.monotonic() + budget_s, STOP_AT)
               total = 0
-              for _ in range(60):
-                  n = runner.dispatch_events_once()
+              while time.monotonic() < deadline:
+                  n = bus.dispatch_pending(handlers, limit=5)
                   total += n
                   if n == 0:
                       break
               return total
 
-          # Score anything a previous (timed-out) run left queued before fetching more,
-          # so a slow discovery can never starve scoring and alerts.
-          print(f"backlog: processed {drain()} events")
+          # Score some of what a previous run left queued, but cap it so discovery and
+          # alerts for new jobs always get their turn.
+          print(f"backlog: processed {drain(12 * 60)} events")
           runner.run_api_sources()  # API boards for every active search profile + the ATS watchlist
-          print(f"new jobs: processed {drain()} events")
+          print(f"new jobs: processed {drain(STOP_AT - time.monotonic())} events")
 
           # Draft-only (no SMTP/IMAP here). Missing applicant profile = skipped, not a failure.
           from job_hunt.services.outreach import draft_followups_and_notify

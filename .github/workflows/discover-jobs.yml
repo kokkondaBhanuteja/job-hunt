@@ -61,11 +61,16 @@ jobs:
           ADZUNA_COUNTRY: in
           # This repo is public, so its Actions logs are public: keep them to warnings.
           LOG_LEVEL: WARNING
+          PYTHONUNBUFFERED: "1" # print progress live; buffered output is lost when a timeout kills the job
         run: |
           uv run python - <<'PY'
           # Load services first: worker.runner <-> services has an import cycle (pre-existing on
           # developer) that only resolves in this order, the same order the CLI and worker use.
+          import faulthandler
           import time
+
+          # If still running at 40 min, dump every thread's stack so the log shows where it hung.
+          faulthandler.dump_traceback_later(40 * 60, exit=False)
 
           from job_hunt import services  # noqa: F401
           from job_hunt.events import bus
@@ -81,7 +86,11 @@ jobs:
           # Stop draining well before the 45-min job timeout: one small batch can still
           # overrun the deadline (~5 jobs x ~35s when the LLM is failing), and the
           # follow-ups step needs time after it. Whatever is left stays queued for next run.
-          STOP_AT = time.monotonic() + 35 * 60
+          T0 = time.monotonic()
+          STOP_AT = T0 + 35 * 60
+
+          def mark(msg: str) -> None:
+              print(f"[{(time.monotonic() - T0) / 60:5.1f} min] {msg}")
 
           # discovered -> enriched -> scored -> alert are chained events; drain in small
           # batches until the queue is empty or the time budget is spent.
@@ -91,19 +100,23 @@ jobs:
               while time.monotonic() < deadline:
                   n = bus.dispatch_pending(handlers, limit=5)
                   total += n
+                  mark(f"  batch done, {total} events so far")
                   if n == 0:
                       break
               return total
 
           # Score some of what a previous run left queued, but cap it so discovery and
           # alerts for new jobs always get their turn.
-          print(f"backlog: processed {drain(12 * 60)} events")
+          mark("backlog: start")
+          mark(f"backlog: processed {drain(12 * 60)} events")
           runner.run_api_sources()  # API boards for every active search profile + the ATS watchlist
-          print(f"new jobs: processed {drain(STOP_AT - time.monotonic())} events")
+          mark("discovery: done")
+          mark(f"new jobs: processed {drain(STOP_AT - time.monotonic())} events")
 
           # Draft-only (no SMTP/IMAP here). Missing applicant profile = skipped, not a failure.
           from job_hunt.services.outreach import draft_followups_and_notify
 
+          mark("follow-ups: start")
           followups = draft_followups_and_notify()
           print(f"follow-ups drafted={followups.get('drafted', 0)} "
                 f"notified={followups['notified']} {followups.get('error', '')}")

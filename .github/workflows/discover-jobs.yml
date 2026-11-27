@@ -6,9 +6,9 @@ name: discover-jobs
 
 on:
   schedule:
-    # GitHub cron is UTC: 03:17/07:17/11:17/15:17 UTC ≈ 08:47/12:47/16:47/20:47 IST.
+    # GitHub cron is UTC: 03:17/09:17/15:17 UTC ≈ 08:47/14:47/20:47 IST (3x/day is enough).
     # Off the top of the hour because GitHub delays jobs queued at :00.
-    - cron: "17 3,7,11,15 * * *"
+    - cron: "17 3,9,15 * * *"
   workflow_dispatch: {}
 
 concurrency:

@@ -7,7 +7,7 @@ fix the usual problems. Secrets are never written here — only their names.
 
 | Part | Repo | Runs | Does |
 |---|---|---|---|
-| **job-hunt** (this repo) | `kokkondaBhanuteja/job-hunt` | GitHub Actions 4x/day + the laptop CLI | Finds jobs, keeps India / open-remote only, scores them, sends Telegram alerts, stores and sends cold emails, drafts follow-ups |
+| **job-hunt** (this repo) | `kokkondaBhanuteja/job-hunt` | GitHub Actions 3x/day + the laptop CLI | Finds jobs, keeps India / open-remote only, scores them, sends Telegram alerts, stores and sends cold emails, drafts follow-ups |
 | **ai-job-search** | a local-only copy (never pushed) at `~/Documents/ai-job-search` | Claude Code on the laptop | Tailored CV + cover letter (`/apply`), interview prep (`/interview`), writing cold emails (`/cold-email`) |
 
 They talk through job-hunt's MCP server, registered in ai-job-search with:
@@ -22,7 +22,7 @@ you send (`hunt outreach send <id> --confirm`).
 
 ## Scheduled job (`.github/workflows/discover-jobs.yml`)
 
-- Runs at 08:47, 12:47, 16:47, 20:47 IST, or by hand: Actions → discover-jobs → Run workflow
+- Runs at 08:47, 14:47, 20:47 IST (GitHub may start scheduled runs late), or by hand: Actions → discover-jobs → Run workflow
   (`gh workflow run discover-jobs -R kokkondaBhanuteja/job-hunt --ref developer`).
 - Order: score anything left queued → discover → score new jobs → draft due follow-ups.
 - Limit 45 minutes; a failure **or timeout** sends a Telegram alert with the run link.
